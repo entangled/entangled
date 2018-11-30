@@ -1,0 +1,55 @@
+name:                pandoc-noweb-daemon
+version:             0.1.0.0
+github:              "jhidding/pandoc-noweb-daemon"
+license:             GPLv3
+author:              "Johannes Hidding"
+maintainer:          "j.hidding@esciencecenter.nl"
+copyright:           "2018 Johannes Hidding"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/githubuser/pandoc-noweb-daemon#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- containers >= 0.5 && < 0.7
+- hinotify >= 0.3.10 && < 0.5
+- parsec >= 3 && < 4
+- either >= 5 && < 6
+- hspec >= 2.5 && < 3
+- extra >= 1.6 && < 2
+- mtl >= 2.2 && < 3
+
+library:
+  source-dirs: src
+
+executables:
+  tangled:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - pandoc-noweb-daemon
+
+tests:
+  pandoc-noweb-daemon-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - pandoc-noweb-daemon
