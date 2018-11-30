@@ -1,10 +1,6 @@
 ---
-title: test1
+title: test2
 ---
-
-```
-This will not be tangled.
-```
 
 We present our first program:
 
@@ -13,9 +9,13 @@ We present our first program:
 #include <cstdlib>
 
 int main() {
-    std::cout << \"Hello, World!\" << std::endl;
-    return EXIT_SUCCESS;
+    <<main-body>>
 }
 ```
 
 Will print `Hello, World!` on the console.
+
+``` {.cpp #main-body}
+std::cout << \"Hello, World!\" << std::endl;
+return EXIT_SUCCESS;
+```

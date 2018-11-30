@@ -4,7 +4,7 @@ module Parser
     , codeClass
     , codeAttribute
     , codeProperties
-    , getLanguage
+    , getLanguageId
     , getReferenceId
     , parseMarkdown
     , readMarkdown
@@ -52,26 +52,34 @@ codeProperties = do
     string "}"
     return props
 
-getLanguage :: [CodeProperty] -> Maybe Language
-getLanguage [] = Nothing
-getLanguage (CodeClass cls : _) = Just $ Language cls
-getLanguage (_ : xs) = getLanguage xs
+getLanguageId :: [CodeProperty] -> Maybe LanguageId
+getLanguageId [] = Nothing
+getLanguageId (CodeClass cls : _) = Just $ LanguageId cls
+getLanguageId (_ : xs) = getLanguageId xs
 
-getReferenceId :: [CodeProperty] -> Maybe ReferenceID
-getReferenceId [] = Nothing
-getReferenceId (CodeAttribute tag value : xs) =
+getReferenceId :: ReferenceMap -> [CodeProperty] -> Maybe ReferenceID
+getReferenceId _    [] = Nothing
+getReferenceId _    (CodeAttribute tag value : xs) =
     case tag of
       "file"    -> Just $ FileReferenceID value
       _         -> getReferenceId xs
-getReferenceId (CodeId id : _) = Just $ NameReferenceID id
-getReferenceId (_ : xs) = getReferenceId xs
+getReferenceId refs (CodeId id : _) =
+    Just $ NameReferenceID id $ countReferences refs id
+getReferenceId refs (_ : xs) = getReferenceId refs xs
 
 line :: Parsec String b String
 line = manyTill anyChar (try endOfLine)
 
 makeCodeBlock :: [CodeProperty] -> String -> CodeBlock
-makeCodeBlock props = CodeBlock language
-    where language = fromMaybe (Language "plain") (getLanguage props)
+makeCodeBlock props = CodeBlock languageId
+    where languageId = fromMaybe (LanguageId "plain") (getLanguageId props)
+
+appendCode :: CodeBlock -> CodeBlock -> CodeBlock
+appendCode (CodeBlock l t1) (CodeBlock _ t2) =
+    CodeBlock l $ t1 ++ "\n" ++ t2
+
+addCodeBlock :: CodeBlock -> ReferenceID -> ReferenceMap -> ReferenceMap
+addCodeBlock code = Map.alter $ Just . maybe code (`appendCode` code)
 
 codeBlock :: Parsec String ReferenceMap [Text]
 codeBlock = do
@@ -81,10 +89,11 @@ codeBlock = do
     props <- codeProperties
     newline
     content <- manyTill anyChar (try $ string "\n```\n")
-    case getReferenceId props of
-      Nothing -> return [RawText opening, RawText content, RawText "```\n"]
+    refs <- getState
+    case getReferenceId refs props of
+      Nothing -> return [RawText opening, RawText content, RawText "```"]
       Just x  -> do
-        modifyState $ Map.insert x $ makeCodeBlock props content
+        modifyState $ addCodeBlock (makeCodeBlock props content) x
         return [RawText opening, Reference x, RawText "```"]
 
 textLine :: Parsec String b [Text]
@@ -94,7 +103,7 @@ textLine = do
 
 stripCodeBlocks :: Parsec String ReferenceMap Document
 stripCodeBlocks = do
-    content <- many (codeBlock <|> textLine)
+    content <- many (try codeBlock <|> textLine)
     refmap  <- getState
     return $ Document refmap (concat content)
 

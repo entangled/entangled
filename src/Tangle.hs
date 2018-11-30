@@ -1,14 +1,20 @@
 module Tangle
-    ( tangle
+    ( Source(..)
+    , nowebReference
+    , codeLine
+    , tangleNaked
     ) where
 
 import qualified Data.Map as Map
 import Data.List
-import Control.Monad.Extra
+import Control.Monad.Extra (concatMapM)
+import Control.Monad.Reader
 
 import Text.Parsec
 
 import Model
+import Config
+import Languages
 
 newtype TangleError = TangleError String
         deriving (Show)
@@ -17,6 +23,7 @@ type FileMap = Map.Map String (Either TangleError String)
 
 data Source = SourceText String 
             | NowebReference String String
+            deriving (Eq, Show)
 
 maybeToEither :: e -> Maybe a -> Either e a
 maybeToEither errorval Nothing = Left errorval
@@ -24,11 +31,11 @@ maybeToEither _ (Just normalval) = Right normalval
 
 nowebReference :: Parsec String b Source
 nowebReference = do
-    indent <- many space
+    indent <- many (oneOf " \t")
     string "<<"
-    id <- many1 $ noneOf " <>"
+    id <- many1 $ noneOf " \t<>"
     string ">>"
-    spaces
+    many (oneOf " \t")
     endOfLine
     return $ NowebReference id indent
 
@@ -38,37 +45,49 @@ skip a = do
     return ()
 
 line :: Parsec String b String
-line = manyTill anyChar (try $ skip endOfLine <|> eof)
+line = manyTill anyChar (try endOfLine)
 
 codeLine :: Parsec String b Source
 codeLine = SourceText <$> line
 
 nowebCode :: Parsec String b [Source]
-nowebCode = many (nowebReference <|> codeLine)
+nowebCode = many (try nowebReference <|> codeLine)
 
 parseCode :: ReferenceID -> String -> Either TangleError [Source]
 parseCode id x = case parse nowebCode (referenceName id) x of
     Left  err -> Left $ TangleError $ show err
     Right src -> Right src
 
-sourceToString :: ReferenceMap -> Source -> Either TangleError String
-sourceToString _    (SourceText x) = Right x
-sourceToString refs (NowebReference r _) = 
-    expandReference refs $ NameReferenceID r
+addIndent :: String -> String -> String
+addIndent indent text = intercalate "\n" $ map (indent ++) $ lines text
 
-codeToString :: ReferenceMap -> [Source] -> Either TangleError String
-codeToString refs = concatMapM (fmap (++ "\n") . sourceToString refs)
+type Expander = ReferenceID -> Either TangleError String
 
-expandReference :: ReferenceMap -> ReferenceID -> Either TangleError String
-expandReference refs id = do
-    CodeBlock _ text <- maybeToEither 
+codeLineToString :: Expander -> Source -> Either TangleError String
+codeLineToString _ (SourceText x) = Right x
+codeLineToString e (NowebReference r i) = 
+    addIndent i <$> e (NameReferenceID r)
+
+codeListToString :: Expander -> [Source] -> Either TangleError String
+codeListToString e = concatMapM (fmap (++ "\n") . codeLineToString e)
+
+expandNaked :: ReferenceMap -> ReferenceID -> Either TangleError String
+expandNaked refs id = do
+    CodeBlock lang text <- maybeToEither 
                 (TangleError $ "Reference " ++ show id ++ " not found.")
                 (refs Map.!? id)
-    code <- parseCode id text
-    codeToString refs code
+    code <- parseCode id $ text ++ "\n"
+    codeListToString (expandNaked refs) code
 
-tangle :: Document -> FileMap
-tangle (Document refs _) = Map.fromList $ zip fileNames sources
+tangleNaked :: Document -> FileMap
+tangleNaked (Document refs _) = Map.fromList $ zip fileNames sources
     where fileRefs  = filter isFileReference (Map.keys refs)
-          sources   = map (expandReference refs) fileRefs
+          sources   = map (expandNaked refs) fileRefs
           fileNames = map referenceName fileRefs
+
+annotate :: CodeBlock -> Reader Config String
+annotate (CodeBlock lang text) = do
+    languages <- asks configLanguages
+    
+tangleAnnotated :: Document -> Reader Config FileMap
+tangleAnnotated (Document refs _) = do

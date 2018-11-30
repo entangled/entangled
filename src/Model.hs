@@ -3,8 +3,9 @@ module Model
     , ReferenceMap(..)
     , emptyReferenceMap
     , referenceName
+    , countReferences
     , isFileReference
-    , Language(..)
+    , LanguageId(..)
     , CodeBlock(..)
     , Text(..)
     , Document(..)
@@ -13,22 +14,25 @@ module Model
     ) where
 
 import qualified Data.Map as Map
+import Languages
 
 {-|
   A code block may reference a filename or a noweb reference.
  -}
 data ReferenceID  = FileReferenceID String
-                  | NameReferenceID String
+                  | NameReferenceID String Int
                   deriving (Show, Eq, Ord)
 
 referenceName (FileReferenceID x) = x
-referenceName (NameReferenceID x) = x
+referenceName (NameReferenceID x _) = x
 
-newtype Language = Language String
+newtype LanguageId = LanguageId String
     deriving (Show, Eq)
 
-data CodeBlock = CodeBlock Language String
-    deriving (Show, Eq)
+data CodeBlock = CodeBlock
+    { codeLanguage  :: LanguageId
+    , codeSource    :: String
+    } deriving (Show, Eq)
 
 {-|
   Each 'ReferenceID' connects to a 'CodeBlock'
@@ -37,6 +41,9 @@ type ReferenceMap = Map.Map ReferenceID CodeBlock
 
 emptyReferenceMap :: ReferenceMap
 emptyReferenceMap = Map.fromList []
+
+countReferences :: ReferenceMap -> String -> Int
+countReferences name = length . filter ((== name) . referenceName) . Map.keys
 
 {-|
   Any piece of 'Text' is a 'RawText' or 'Reference'.
