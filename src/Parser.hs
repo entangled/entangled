@@ -59,12 +59,12 @@ getLanguageId (_ : xs) = getLanguageId xs
 
 getReferenceId :: ReferenceMap -> [CodeProperty] -> Maybe ReferenceID
 getReferenceId _    [] = Nothing
-getReferenceId _    (CodeAttribute tag value : xs) =
+getReferenceId refs (CodeAttribute tag value : xs) =
     case tag of
       "file"    -> Just $ FileReferenceID value
-      _         -> getReferenceId xs
+      _         -> getReferenceId refs xs
 getReferenceId refs (CodeId id : _) =
-    Just $ NameReferenceID id $ countReferences refs id
+    Just $ NameReferenceID id $ countReferences id refs
 getReferenceId refs (_ : xs) = getReferenceId refs xs
 
 line :: Parsec String b String

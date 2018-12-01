@@ -63,13 +63,13 @@ addIndent indent text = intercalate "\n" $ map (indent ++) $ lines text
 
 type Expander = ReferenceID -> Either TangleError String
 
-codeLineToString :: Expander -> Source -> Either TangleError String
-codeLineToString _ (SourceText x) = Right x
-codeLineToString e (NowebReference r i) = 
-    addIndent i <$> e (NameReferenceID r)
+codeLineToString :: ReferenceMap -> Expander -> Source -> Either TangleError String
+codeLineToString _ _ (SourceText x) = Right x
+codeLineToString refs e (NowebReference r i) = 
+    addIndent i . concat <$> mapM e (findAllNamedReferences r refs)
 
-codeListToString :: Expander -> [Source] -> Either TangleError String
-codeListToString e = concatMapM (fmap (++ "\n") . codeLineToString e)
+codeListToString :: ReferenceMap -> Expander -> [Source] -> Either TangleError String
+codeListToString refs e = concatMapM (fmap (++ "\n") . codeLineToString refs e)
 
 expandNaked :: ReferenceMap -> ReferenceID -> Either TangleError String
 expandNaked refs id = do
@@ -77,7 +77,7 @@ expandNaked refs id = do
                 (TangleError $ "Reference " ++ show id ++ " not found.")
                 (refs Map.!? id)
     code <- parseCode id $ text ++ "\n"
-    codeListToString (expandNaked refs) code
+    codeListToString refs (expandNaked refs) code
 
 tangleNaked :: Document -> FileMap
 tangleNaked (Document refs _) = Map.fromList $ zip fileNames sources
@@ -85,9 +85,26 @@ tangleNaked (Document refs _) = Map.fromList $ zip fileNames sources
           sources   = map (expandNaked refs) fileRefs
           fileNames = map referenceName fileRefs
 
-annotate :: CodeBlock -> Reader Config String
-annotate (CodeBlock lang text) = do
+{- Annotated tangle -}
+lookupComment :: String -> [Language] -> Either TangleError String
+lookupComment x = maybeToEither
+    (TangleError $ "Unknown language marker: " ++ x)
+    languageLineComment <$> find 
+        (\l -> x `member` languageAbbreviations l)
+
+topAnnotation :: ReferenceID -> String -> String
+topAnnotation (NameReferenceID n i) comment =
+    comment ++ " " ++ "<<" ++ n ++ ">>" ++ if i == 0 then "=" else "+="
+topAnnotation (FileReferenceID n) comment =
+    comment ++ " " ++ "file=" ++ n
+
+annotate :: ReferenceID -> CodeBlock -> Reader Config (Either TangleError String)
+annotate id (CodeBlock lang text) = do
     languages <- asks configLanguages
-    
+    return $ do
+        comment <- lookupComment lang languages
+        return $ topAnnotation id comment ++ "\n" ++ text
+
+expandAnnotated :: ReferenceMap -> ReferenceID
 tangleAnnotated :: Document -> Reader Config FileMap
 tangleAnnotated (Document refs _) = do

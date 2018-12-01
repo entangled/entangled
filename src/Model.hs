@@ -3,6 +3,7 @@ module Model
     , ReferenceMap(..)
     , emptyReferenceMap
     , referenceName
+    , findAllNamedReferences
     , countReferences
     , isFileReference
     , LanguageId(..)
@@ -42,8 +43,11 @@ type ReferenceMap = Map.Map ReferenceID CodeBlock
 emptyReferenceMap :: ReferenceMap
 emptyReferenceMap = Map.fromList []
 
-countReferences :: ReferenceMap -> String -> Int
-countReferences name = length . filter ((== name) . referenceName) . Map.keys
+findAllNamedReferences :: String -> ReferenceMap -> [ReferenceID]
+findAllNamedReferences name = filter ((== name) . referenceName) . Map.keys
+
+countReferences :: String -> ReferenceMap -> Int
+countReferences name refs = length $ findAllNamedReferences name refs
 
 {-|
   Any piece of 'Text' is a 'RawText' or 'Reference'.

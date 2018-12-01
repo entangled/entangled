@@ -39,7 +39,7 @@ parserSpec =
         (Just $ LanguageId "scheme")
 
     it "can get a reference id" $
-      getReferenceId (fromRight' $ parse codeProperties "" "{.scheme file=r6rs.scm}") `shouldBe`
+      getReferenceId emptyReferenceMap (fromRight' $ parse codeProperties "" "{.scheme file=r6rs.scm}") `shouldBe`
         (Just $ FileReferenceID "r6rs.scm")
 
 tangleSpec :: Spec
