@@ -1,5 +1,6 @@
 module Config
     ( Config(..)
+    , defaultConfig
     ) where
 
 import Languages
