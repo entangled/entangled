@@ -1,14 +1,14 @@
 module Model
-    ( ReferenceID(..)
+    ( TangleError(..)
+    , ReferenceID(..)
     , ReferenceMap(..)
     , emptyReferenceMap
     , referenceName
     , findAllNamedReferences
     , countReferences
     , isFileReference
-    , LanguageId(..)
     , CodeBlock(..)
-    , Text(..)
+    , Content(..)
     , Document(..)
     , textToString
     , stitchText
@@ -16,6 +16,9 @@ module Model
 
 import qualified Data.Map as Map
 import Languages
+
+newtype TangleError = TangleError String
+        deriving (Eq, Show)
 
 {-|
   A code block may reference a filename or a noweb reference.
@@ -27,11 +30,8 @@ data ReferenceID  = FileReferenceID String
 referenceName (FileReferenceID x) = x
 referenceName (NameReferenceID x _) = x
 
-newtype LanguageId = LanguageId String
-    deriving (Show, Eq)
-
 data CodeBlock = CodeBlock
-    { codeLanguage  :: LanguageId
+    { codeLanguage  :: String
     , codeSource    :: String
     } deriving (Show, Eq)
 
@@ -50,22 +50,21 @@ countReferences :: String -> ReferenceMap -> Int
 countReferences name refs = length $ findAllNamedReferences name refs
 
 {-|
-  Any piece of 'Text' is a 'RawText' or 'Reference'.
+  Any piece of 'Content' is a 'RawText' or 'Reference'.
  -}
-data Text = RawText String
-          | Reference ReferenceID
-          deriving (Show, Eq)
+data Content = RawText String
+             | Reference ReferenceID
+             deriving (Show, Eq)
 
 {-|
   A document is a list of 'Text' and a 'ReferenceMap'.
  -}
 data Document = Document
     { references :: ReferenceMap
-    , text       :: [Text]
-    }
-    deriving (Show)
+    , text       :: [Content]
+    } deriving (Show)
 
-textToString :: ReferenceMap -> Text -> String
+textToString :: ReferenceMap -> Content -> String
 textToString ref (RawText x) = x
 textToString ref (Reference r) = code
     where CodeBlock lang code = ref Map.! r

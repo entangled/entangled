@@ -1,114 +1,121 @@
 module Main where
 
 import Test.Hspec
-import Text.Parsec
+import qualified Text.Parsec as Parsec
 import qualified Data.Map as Map
 
 import Data.List
 import Data.Either.Combinators
 import Data.Maybe
 import Control.Monad.IO.Class
+import Control.Monad.Reader
 
 import Model
 import Parser
 import Tangle
+import Untangle
+import Config
 
-parserSpec :: Spec
-parserSpec =
-  describe "Parser.FencedCodeBlocks" $ do
-    it "can identify a reference id" $
-      parse codeId "" "#identifier" `shouldBe`
-        (Right $ CodeId "identifier")
+untangleSpec :: Spec
+untangleSpec = do
+    describe "Untangle.matchHeader" $ do
+        it "unpacks a header line" $
+            matchHeader "// language=\"C++\" file=\"hello.cc\"" `shouldBe`
+                (Just $ Header "hello.cc" "C++")
+        it "but fails when it needs to" $
+            matchHeader "// This is an ordinary comment on files and languages" `shouldSatisfy`
+                isNothing
 
-    it "can identify a code tag" $
-      parse codeAttribute "" "file=hello.c" `shouldBe`
-        (Right $ CodeAttribute "file" "hello.c")
+    describe "Untangle.matchReference" $ do
+        it "unpacks a reference line" $
+            matchReference "//" "    // begin <<hello-world>>[1]" `shouldBe`
+                (Just $ ReferenceTag "hello-world" 1 "    ")
+        it "ignores fails" $
+            matchReference "//" "std::cout << \"// <<this is actual code>>[9]\";" `shouldSatisfy`
+                isNothing
 
-    it "can identify a class id" $
-      parse codeClass "" ".fortran77" `shouldBe`
-        (Right $ CodeClass "fortran77")
+    describe "Untangle.matchEnd" $ do
+        it "matches an end line" $
+            matchEnd "//" "// end" `shouldSatisfy` isJust
+        it "doesn't match something else" $
+            matchEnd "//" "something else" `shouldSatisfy` isNothing
 
-    it "can get all code properties" $ do
-      parse codeProperties "" "{.cpp file=main.cc}" `shouldBe`
-        Right [CodeClass "cpp", CodeAttribute "file" "main.cc"]
-      parse codeProperties "" "{.py #aaargh}" `shouldBe`
-        Right [CodeClass "py", CodeId "aaargh"]
+parseMarkdown' :: String -> Either Parsec.ParseError Document
+parseMarkdown' t = runReader (parseMarkdown "" t) defaultConfig
 
-    it "can extract the language" $
-      getLanguageId (fromRight' $ parse codeProperties "" "{.scheme file=r6rs.scm}") `shouldBe`
-        (Just $ LanguageId "scheme")
-
-    it "can get a reference id" $
-      getReferenceId emptyReferenceMap (fromRight' $ parse codeProperties "" "{.scheme file=r6rs.scm}") `shouldBe`
-        (Just $ FileReferenceID "r6rs.scm")
-
-tangleSpec :: Spec
-tangleSpec = do
-    describe "Tangle.codeLine" $
-        it "just separates lines" $
-            parse (many codeLine) "" "Hello\nWorld\n" `shouldBe`
-              Right [SourceText "Hello", SourceText "World"]
-    describe "Tangle.nowebReference" $ do
-        it "picks out reference" $
-            parse nowebReference "" "  <<test>>\n" `shouldBe`
-              (Right $ NowebReference "test" "  ")
-        it "skips anything that doesn't match" $
-            parse nowebReference "" "meh <<test>>\n" `shouldSatisfy`
-              isLeft
-    
 markdownSpecs :: Map.Map String String -> Spec
 markdownSpecs lib = do
-  describe "Parser.parseMarkdown" $ 
-    context "when parsing 'test/test01.md'" $ do
-        let source = lib Map.! "test/test01.md"
-            x'     = parseMarkdown source
-        it "can parse the text" $
-            x' `shouldSatisfy` isRight
+    describe "Parser.parseMarkdown" $ 
+        context "when parsing 'test/test01.md'" $ do
+            let source = lib Map.! "test/test01.md"
+                x'     = parseMarkdown' source
+            it "can parse the text" $
+                x' `shouldSatisfy` isRight
 
-        let x      = fromRight' x'
-            refMap = references x
-        it "has a file reference to 'hello.cc'" $
-            refMap `shouldSatisfy` (\m -> FileReferenceID "hello.cc" `Map.member` m)
+            let x      = fromRight' x'
+                refMap = references x
+            it "has a file reference to 'hello.cc'" $
+                refMap `shouldSatisfy` (\m -> FileReferenceID "hello.cc" `Map.member` m)
 
-        let CodeBlock lang code = refMap Map.! FileReferenceID "hello.cc"
-        it "has a codeblock in c++" $
-            lang `shouldBe` LanguageId "cpp"
+            let CodeBlock lang code = refMap Map.! FileReferenceID "hello.cc"
+            it "has a codeblock in c++" $
+                lang `shouldBe` "C++"
 
-        it "is exactly the same when stitched together" $
-            stitchText x `shouldBe` source
+            it "is exactly the same when stitched together" $
+                stitchText x `shouldBe` source
 
-  describe "Tangle.tangleNaked" $ do
-     context "when tangling result of 'test/test01.md'" $ do
-        let source = lib Map.! "test/test01.md"
-            x      = fromRight' $ parseMarkdown source
-            t      = tangleNaked x
-        
-        it "has a single entry 'hello.cc'" $
-            "hello.cc" `Map.member` t `shouldBe` True
-        
-        it "and this entry is a string" $
-            t Map.! "hello.cc" `shouldSatisfy` isRight
+    describe "Tangle.tangleNaked" $ do
+        context "when tangling result of 'test/test01.md'" $ do
+            let source = lib Map.! "test/test01.md"
+                x      = fromRight' $ parseMarkdown' source
+                t      = tangleNaked x
+            
+            it "has a single entry 'hello.cc'" $
+                "hello.cc" `Map.member` t `shouldBe` True
+            
+            it "and this entry is a string" $
+                t Map.! "hello.cc" `shouldSatisfy` isRight
 
-        let code = fromRight' $ t Map.! "hello.cc"
-        it "and this string has 7 lines" $
-            length (lines code) `shouldBe` 7
-    
-     context "comparing results of 'test/test{n}.md'" $ do
-        let t1 = tangleNaked $ fromRight' $ parseMarkdown $ lib Map.! "test/test01.md"
-            t2 = tangleNaked $ fromRight' $ parseMarkdown $ lib Map.! "test/test02.md"
-            t3 = tangleNaked $ fromRight' $ parseMarkdown $ lib Map.! "test/test03.md"
-        it "content of 'hello.cc' is identical" $ do
-            let c1 = fromRight' $ t1 Map.! "hello.cc"
-                c2 = fromRight' $ t2 Map.! "hello.cc"
-                c3 = fromRight' $ t3 Map.! "hello.cc"
-            c2 `shouldBe` c1
-            c3 `shouldBe` c1
+            let code = fromRight' $ t Map.! "hello.cc"
+            it "and this string has 7 lines" $
+                length (lines code) `shouldBe` 7
+
+        context "comparing results of 'test/test{n}.md'" $ do
+            let t1 = tangleNaked $ fromRight' $ parseMarkdown' $ lib Map.! "test/test01.md"
+                t2 = tangleNaked $ fromRight' $ parseMarkdown' $ lib Map.! "test/test02.md"
+                t3 = tangleNaked $ fromRight' $ parseMarkdown' $ lib Map.! "test/test03.md"
+            it "content of 'hello.cc' is identical" $ do
+                let c1 = fromRight' $ t1 Map.! "hello.cc"
+                    c2 = fromRight' $ t2 Map.! "hello.cc"
+                    c3 = fromRight' $ t3 Map.! "hello.cc"
+                c2 `shouldBe` c1
+                c3 `shouldBe` c1
+
+    describe "Lib" $
+        context "when untangling the tangled" $ do
+            let doc = fromRight' $ parseMarkdown' $ lib Map.! "test/test03.md"
+                rmo = references doc
+                fm  = runReader (tangleAnnotated doc) defaultConfig
+            it "succeeds at tangling" $
+                fm Map.! "hello.cc" `shouldSatisfy` isRight
+            let code = fromRight' $ fm Map.! "hello.cc"
+                rm' = runReader (untangle "hello.cc" code) defaultConfig
+            it "succeeds at untangling" $
+                rm' `shouldSatisfy` isRight
+            let rm  = fromRight' rm'
+            it "recovers the identical code block" $ do
+                let ref1 = FileReferenceID "hello.cc"
+                    ref2 = NameReferenceID "main-body" 0
+                rm Map.! ref1 `shouldBe` rmo Map.! ref1
+                rm Map.! ref2 `shouldBe` rmo Map.! ref2  
+            
 
 spec :: Map.Map String String -> Spec
 spec lib = do
-  parserSpec
-  tangleSpec
-  markdownSpecs lib
+    parserSpec
+    tangleSpec
+    untangleSpec
+    markdownSpecs lib
 
 {- These files are read and tested against. -}
 testFiles = ["test/test01.md", "test/test02.md", "test/test03.md"]

@@ -20,14 +20,21 @@ extra-source-files:
 description:         Please see the README on GitHub at <https://github.com/githubuser/pandoc-noweb-daemon#readme>
 
 dependencies:
+# standard libraries
 - base >= 4.7 && < 5
 - containers >= 0.5 && < 0.7
+- mtl >= 2.2 && < 3
+- hspec >= 2.5 && < 3
+
+# functionality
 - hinotify >= 0.3.10 && < 0.5
 - parsec >= 3 && < 4
+- regex-tdfa >= 1.2 && < 2
+- array >= 0.5 && < 1
+
+# dependencies I may want to get rid of
 - either >= 5 && < 6
-- hspec >= 2.5 && < 3
 - extra >= 1.6 && < 2
-- mtl >= 2.2 && < 3
 
 library:
   source-dirs: src

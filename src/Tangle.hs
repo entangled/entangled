@@ -4,21 +4,25 @@ module Tangle
     , codeLine
     , tangleNaked
     , tangleAnnotated
+    , tangleSpec
     ) where
 
 import qualified Data.Map as Map
 import Data.List
 import Control.Monad.Extra (concatMapM)
 import Control.Monad.Reader
+import Data.Functor.Identity (Identity(..))
 
-import Text.Parsec
+import qualified Text.Parsec as Parsec
+import Text.Parsec ((<|>), manyTill, anyChar, try, endOfLine, many, oneOf, noneOf, string, many1)
 
 import Model
 import Config
 import Languages
 
-newtype TangleError = TangleError String
-        deriving (Show)
+import Test.Hspec
+import Data.Either.Combinators (fromRight')
+import Data.Either
 
 type FileMap = Map.Map String (Either TangleError String)
 
@@ -26,11 +30,17 @@ data Source = SourceText String
             | NowebReference String String
             deriving (Eq, Show)
 
+type Parser = Parsec.ParsecT String () Identity
+
+parse :: Parser a -> String -> String -> Either Parsec.ParseError a
+parse p n t = x
+    where Identity x = Parsec.runParserT p () n t
+
 maybeToEither :: e -> Maybe a -> Either e a
 maybeToEither errorval Nothing = Left errorval
 maybeToEither _ (Just normalval) = Right normalval
 
-nowebReference :: Parsec String b Source
+nowebReference :: Parser Source
 nowebReference = do
     indent <- many (oneOf " \t")
     string "<<"
@@ -40,18 +50,18 @@ nowebReference = do
     endOfLine
     return $ NowebReference id indent
 
-skip :: Parsec String b c -> Parsec String b ()
+skip :: Parser c -> Parser ()
 skip a = do
     x <- a
     return ()
 
-line :: Parsec String b String
+line :: Parser String
 line = manyTill anyChar (try endOfLine)
 
-codeLine :: Parsec String b Source
+codeLine :: Parser Source
 codeLine = SourceText <$> line
 
-nowebCode :: Parsec String b [Source]
+nowebCode :: Parser [Source]
 nowebCode = many (try nowebReference <|> codeLine)
 
 parseCode :: ReferenceID -> String -> Either TangleError [Source]
@@ -92,31 +102,52 @@ tangleNaked (Document refs _) = Map.fromList $ zip fileNames sources
           fileNames = map referenceName fileRefs
 
 {- Annotated tangle -}
-lookupLanguage :: String -> [Language] -> Either TangleError Language
-lookupLanguage x langs = maybeToEither
-    (TangleError $ "Unknown language marker: " ++ x)
-    $ find (elem x . languageAbbreviations) langs
-
 topAnnotation :: ReferenceID -> String -> String -> String
 topAnnotation (NameReferenceID n i) comment lang =
     comment ++ " begin <<" ++ n ++ ">>[" ++ show i ++ "]"
 topAnnotation (FileReferenceID n) comment lang =
     comment ++ " language=\"" ++ lang ++ "\" file=\"" ++ n ++ "\""
 
-annotate :: [Language] -> ReferenceID -> CodeBlock -> Either TangleError String
-annotate languages id (CodeBlock (LanguageId lang) text) = do
-    (Language langName _ comment) <- lookupLanguage lang languages
-    let top      = topAnnotation id comment langName
-        bottom   = comment ++ " end"
-    return $ top ++ "\n" ++ text ++ "\n" ++ bottom
+lookupLanguage' :: String -> Reader Config (Either TangleError Language)
+lookupLanguage' name = do
+    lang <- reader $ languageFromName name
+    case lang of
+        Nothing -> return $ Left $ TangleError $ "unknown language: " ++ name
+        Just l  -> return $ Right l
 
-expandAnnotated :: [Language] -> ReferenceMap -> ReferenceID -> Either TangleError String
-expandAnnotated langs refs id = expandGeneric (expandAnnotated langs refs) (annotate langs id) refs id
+annotate :: ReferenceID -> CodeBlock -> Reader Config (Either TangleError String)
+annotate id (CodeBlock lang text) = do
+    l <- lookupLanguage' lang
+    return $ do 
+        (Language _ _ comment) <- l
+        let top      = topAnnotation id comment lang
+            bottom   = comment ++ " end"
+        return $ top ++ "\n" ++ text ++ "\n" ++ bottom
+
+expandAnnotated :: ReferenceMap -> ReferenceID -> Reader Config (Either TangleError String)
+expandAnnotated refs id = do
+    cfg <- ask
+    return $ expandGeneric (\id -> runReader (expandAnnotated refs id) cfg)
+                           (\cb -> runReader (annotate id cb) cfg) refs id
 
 tangleAnnotated :: Document -> Reader Config FileMap
 tangleAnnotated (Document refs _) = do
-    langs <- asks configLanguages
     let fileRefs  = filter isFileReference (Map.keys refs)
         fileNames = map referenceName fileRefs
-        sources = map (expandAnnotated langs refs) fileRefs
+    sources <- mapM (expandAnnotated refs) fileRefs
     return $ Map.fromList $ zip fileNames sources
+
+
+tangleSpec :: Spec
+tangleSpec = do
+    describe "Tangle.codeLine" $
+        it "just separates lines" $
+            parse (many codeLine) "" "Hello\nWorld\n" `shouldBe`
+                Right [SourceText "Hello", SourceText "World"]
+    describe "Tangle.nowebReference" $ do
+        it "picks out reference" $
+            parse nowebReference "" "  <<test>>\n" `shouldBe`
+                (Right $ NowebReference "test" "  ")
+        it "skips anything that doesn't match" $
+            parse nowebReference "" "meh <<test>>\n" `shouldSatisfy`
+                isLeft    

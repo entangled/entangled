@@ -4,19 +4,30 @@ module Parser
     , codeClass
     , codeAttribute
     , codeProperties
-    , getLanguageId
+    , getLanguage
     , getReferenceId
     , parseMarkdown
-    , readMarkdown
+    , parserSpec
     ) where
 
 import Model
+import Config
+import Languages
+
 import qualified Data.Map as Map
 import Data.Either
-import Data.Either.Combinators
+-- import Data.Either.Combinators
 import Data.Maybe
-import Text.Parsec
 import Control.Monad
+import Control.Monad.Reader
+
+import qualified Text.Parsec as Parsec
+import Text.Parsec (
+      manyTill, anyChar, try, string, many1, many, noneOf, spaces, endBy, (<|>)
+    , endOfLine, lookAhead, newline)
+
+import Test.Hspec
+import Data.Either.Combinators (fromRight')
 
 data CodeProperty
     = CodeId String
@@ -24,26 +35,34 @@ data CodeProperty
     | CodeClass String
     deriving (Eq, Show)
 
-codeClass :: Parsec String b CodeProperty
+type Parser = Parsec.ParsecT String ReferenceMap (Reader Config)
+
+parse :: Parser a -> String -> String -> Reader Config (Either Parsec.ParseError a)
+parse p = Parsec.runParserT p emptyReferenceMap
+
+parse' :: Parser a -> String -> String -> Either Parsec.ParseError a
+parse' p n t = runReader (parse p n t) defaultConfig
+
+codeClass :: Parser CodeProperty
 codeClass = do
     string "."
     cls <- many1 $ noneOf " {}"
     return $ CodeClass cls
 
-codeId :: Parsec String b CodeProperty
+codeId :: Parser CodeProperty
 codeId = do
     string "#"
     id <- many1 $ noneOf " {}"
     return $ CodeId id
 
-codeAttribute :: Parsec String b CodeProperty
+codeAttribute :: Parser CodeProperty
 codeAttribute = do
     tag <- many1 $ noneOf " ={}"
     string "="
     value <- many1 $ noneOf " }"
     return $ CodeAttribute tag value
 
-codeProperties :: Parsec String b [CodeProperty]
+codeProperties :: Parser [CodeProperty]
 codeProperties = do
     string "{"
     spaces
@@ -52,10 +71,10 @@ codeProperties = do
     string "}"
     return props
 
-getLanguageId :: [CodeProperty] -> Maybe LanguageId
-getLanguageId [] = Nothing
-getLanguageId (CodeClass cls : _) = Just $ LanguageId cls
-getLanguageId (_ : xs) = getLanguageId xs
+getLanguage :: [CodeProperty] -> Parser (Maybe Language)
+getLanguage [] = return Nothing
+getLanguage (CodeClass cls : _) = reader $ lookupLanguage cls
+getLanguage (_ : xs) = getLanguage xs
 
 getReferenceId :: ReferenceMap -> [CodeProperty] -> Maybe ReferenceID
 getReferenceId _    [] = Nothing
@@ -67,12 +86,14 @@ getReferenceId refs (CodeId id : _) =
     Just $ NameReferenceID id $ countReferences id refs
 getReferenceId refs (_ : xs) = getReferenceId refs xs
 
-line :: Parsec String b String
+line :: Parser String
 line = manyTill anyChar (try endOfLine)
 
-makeCodeBlock :: [CodeProperty] -> String -> CodeBlock
-makeCodeBlock props = CodeBlock languageId
-    where languageId = fromMaybe (LanguageId "plain") (getLanguageId props)
+makeCodeBlock :: [CodeProperty] -> String -> Parser CodeBlock
+makeCodeBlock props content = do
+    language <- getLanguage props
+    let languageId = maybe "plain" languageName language
+    return $ CodeBlock languageId content
 
 appendCode :: CodeBlock -> CodeBlock -> CodeBlock
 appendCode (CodeBlock l t1) (CodeBlock _ t2) =
@@ -81,7 +102,7 @@ appendCode (CodeBlock l t1) (CodeBlock _ t2) =
 addCodeBlock :: CodeBlock -> ReferenceID -> ReferenceMap -> ReferenceMap
 addCodeBlock code = Map.alter $ Just . maybe code (`appendCode` code)
 
-codeBlock :: Parsec String ReferenceMap [Text]
+codeBlock :: Parser [Content]
 codeBlock = do
     opening <- lookAhead line
     string "```"
@@ -89,28 +110,49 @@ codeBlock = do
     props <- codeProperties
     newline
     content <- manyTill anyChar (try $ string "\n```\n")
-    refs <- getState
+    block <- makeCodeBlock props content
+    refs <- Parsec.getState
     case getReferenceId refs props of
       Nothing -> return [RawText opening, RawText content, RawText "```"]
       Just x  -> do
-        modifyState $ addCodeBlock (makeCodeBlock props content) x
+        Parsec.modifyState $ addCodeBlock block x
         return [RawText opening, Reference x, RawText "```"]
 
-textLine :: Parsec String b [Text]
+textLine :: Parser [Content]
 textLine = do
     x <- line
     return [RawText x]
 
-stripCodeBlocks :: Parsec String ReferenceMap Document
+stripCodeBlocks :: Parser Document
 stripCodeBlocks = do
     content <- many (try codeBlock <|> textLine)
-    refmap  <- getState
+    refmap  <- Parsec.getState
     return $ Document refmap (concat content)
 
-parseMarkdown :: String -> Either ParseError Document
-parseMarkdown = runParser stripCodeBlocks emptyReferenceMap ""
+parseMarkdown :: String -> String -> Reader Config (Either Parsec.ParseError Document)
+parseMarkdown = Parsec.runParserT stripCodeBlocks emptyReferenceMap
 
-readMarkdown :: FilePath -> IO (Either ParseError Document)
-readMarkdown path = do
-    source <- readFile path
-    return $ parseMarkdown source
+parserSpec :: Spec
+parserSpec =
+  describe "Parser.FencedCodeBlocks" $ do
+    it "can identify a reference id" $
+      parse' codeId "" "#identifier" `shouldBe`
+        (Right $ CodeId "identifier")
+
+    it "can identify a code tag" $
+      parse' codeAttribute "" "file=hello.c" `shouldBe`
+        (Right $ CodeAttribute "file" "hello.c")
+
+    it "can identify a class id" $
+      parse' codeClass "" ".fortran77" `shouldBe`
+        (Right $ CodeClass "fortran77")
+
+    it "can get all code properties" $ do
+      parse' codeProperties "" "{.cpp file=main.cc}" `shouldBe`
+        Right [CodeClass "cpp", CodeAttribute "file" "main.cc"]
+      parse' codeProperties "" "{.py #aaargh}" `shouldBe`
+        Right [CodeClass "py", CodeId "aaargh"]
+
+    it "can get a reference id" $
+      getReferenceId emptyReferenceMap (fromRight' $ parse' codeProperties "" "{.scheme file=r6rs.scm}") `shouldBe`
+        (Just $ FileReferenceID "r6rs.scm")
