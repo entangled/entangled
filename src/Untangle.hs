@@ -1,10 +1,6 @@
 module Untangle
     ( untangle
-    , Header(..)
-    , ReferenceTag(..)
-    , matchHeader
-    , matchReference
-    , matchEnd
+    , untangleSpec
     ) where
 
 import Model
@@ -24,6 +20,10 @@ import Text.Read
 import qualified Text.Parsec as Parsec
 import Text.Parsec ((<|>), try, many, anyToken, manyTill)
 
+import Test.Hspec
+import Data.Either.Combinators (fromRight')
+import Data.Either
+
 data Header = Header
     { headerFilename :: String
     , headerLanguage :: String
@@ -35,6 +35,17 @@ data ReferenceTag = ReferenceTag
     , rtIndent :: String
     } deriving (Eq, Show)
 
+-- ========================================================================= --
+-- Parser state access functions                                             --
+-- ========================================================================= --
+
+{-| State type for the line parser that extracts code blocks from
+    annotated tangled source files.
+
+    The parser builds a 'ReferenceMap', each time updating the state.
+    Each generated code block need to know its language. We also
+    store the comment string here.
+ -}
 data ParserState = ParserState
     { psComment :: String
     , psLanguage :: String
@@ -56,6 +67,10 @@ getComment = psComment <$> Parsec.getState
 addReference :: ReferenceID -> CodeBlock -> Parser ()
 addReference r c = Parsec.modifyState $ updateRefs $ Map.insert r c
 
+-- ========================================================================= --
+-- Parser type definition and fundamentals                                   --
+-- ========================================================================= --
+
 type Parser = Parsec.ParsecT [String] ParserState (Reader Config)
 
 parse :: Parser a -> String -> [String] -> Reader Config (Either Parsec.ParseError a)
@@ -64,6 +79,10 @@ parse p = Parsec.runParserT p EmptyState
 token :: (String -> Maybe a) -> Parser a
 token = Parsec.tokenPrim id nextPos
     where nextPos p _ _ = Parsec.incSourceLine p 1
+
+-- ========================================================================= --
+-- Parsers                                                                   --
+-- ========================================================================= --
 
 document :: Parser ReferenceMap
 document = do
@@ -102,6 +121,10 @@ reference = do
         then return $ Just $ rtIndent ref ++ "<<" ++ rtName ref ++ ">>"
         else return Nothing
 
+-- ========================================================================= --
+-- Regular expressions for matching lines                                    --
+-- ========================================================================= --
+
 headerPattern :: String
 headerPattern = "^[^ \\t]+[ \\t]+language=\"([^\"].+)\"[ \\t]+file=\"([^\"]+)\"[ \\t]*$"
 
@@ -138,5 +161,38 @@ matchEnd comment line =
         then Just ()
         else Nothing
 
+-- ========================================================================= --
+-- The one important function                                                --
+-- ========================================================================= --
+
 untangle :: String -> String -> Reader Config (Either Parsec.ParseError ReferenceMap)
 untangle filename text = parse document filename (lines text)
+
+-- ========================================================================= --
+-- Unit tests                                                                --
+-- ========================================================================= --
+
+untangleSpec :: Spec
+untangleSpec = do
+    describe "Untangle.matchHeader" $ do
+        it "unpacks a header line" $
+            matchHeader "// language=\"C++\" file=\"hello.cc\"" `shouldBe`
+                (Just $ Header "hello.cc" "C++")
+        it "but fails when it needs to" $
+            matchHeader "// This is an ordinary comment on files and languages" `shouldSatisfy`
+                isNothing
+
+    describe "Untangle.matchReference" $ do
+        it "unpacks a reference line" $
+            matchReference "//" "    // begin <<hello-world>>[1]" `shouldBe`
+                (Just $ ReferenceTag "hello-world" 1 "    ")
+        it "ignores fails" $
+            matchReference "//" "std::cout << \"// <<this is actual code>>[9]\";" `shouldSatisfy`
+                isNothing
+
+    describe "Untangle.matchEnd" $ do
+        it "matches an end line" $
+            matchEnd "//" "// end" `shouldSatisfy` isJust
+        it "doesn't match something else" $
+            matchEnd "//" "something else" `shouldSatisfy` isNothing
+

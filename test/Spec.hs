@@ -16,30 +16,6 @@ import Tangle
 import Untangle
 import Config
 
-untangleSpec :: Spec
-untangleSpec = do
-    describe "Untangle.matchHeader" $ do
-        it "unpacks a header line" $
-            matchHeader "// language=\"C++\" file=\"hello.cc\"" `shouldBe`
-                (Just $ Header "hello.cc" "C++")
-        it "but fails when it needs to" $
-            matchHeader "// This is an ordinary comment on files and languages" `shouldSatisfy`
-                isNothing
-
-    describe "Untangle.matchReference" $ do
-        it "unpacks a reference line" $
-            matchReference "//" "    // begin <<hello-world>>[1]" `shouldBe`
-                (Just $ ReferenceTag "hello-world" 1 "    ")
-        it "ignores fails" $
-            matchReference "//" "std::cout << \"// <<this is actual code>>[9]\";" `shouldSatisfy`
-                isNothing
-
-    describe "Untangle.matchEnd" $ do
-        it "matches an end line" $
-            matchEnd "//" "// end" `shouldSatisfy` isJust
-        it "doesn't match something else" $
-            matchEnd "//" "something else" `shouldSatisfy` isNothing
-
 parseMarkdown' :: String -> Either Parsec.ParseError Document
 parseMarkdown' t = runReader (parseMarkdown "" t) defaultConfig
 

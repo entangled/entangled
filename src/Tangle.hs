@@ -1,8 +1,5 @@
 module Tangle
-    ( Source(..)
-    , nowebReference
-    , codeLine
-    , tangleNaked
+    ( tangleNaked
     , tangleAnnotated
     , tangleSpec
     ) where

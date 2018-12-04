@@ -1,12 +1,5 @@
 module Parser
-    (CodeProperty(..)
-    , codeId
-    , codeClass
-    , codeAttribute
-    , codeProperties
-    , getLanguage
-    , getReferenceId
-    , parseMarkdown
+    ( parseMarkdown
     , parserSpec
     ) where
 
