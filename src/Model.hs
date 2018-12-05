@@ -11,6 +11,7 @@ module Model
     , Content(..)
     , Document(..)
     , textToString
+    , listFiles
     , stitchText
     ) where
 
@@ -76,3 +77,6 @@ stitchText (Document ref txt) =
 isFileReference :: ReferenceID -> Bool
 isFileReference (FileReferenceID _) = True
 isFileReference _ = False
+
+listFiles :: Document -> [ReferenceID]
+listFiles (Document refs _) = filter isFileReference $ Map.keys refs

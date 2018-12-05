@@ -125,6 +125,10 @@ stripCodeBlocks = do
 parseMarkdown :: String -> String -> Reader Config (Either Parsec.ParseError Document)
 parseMarkdown = Parsec.runParserT stripCodeBlocks emptyReferenceMap
 
+-- ========================================================================= --
+-- Unit tests                                                                --
+-- ========================================================================= --
+
 parserSpec :: Spec
 parserSpec =
   describe "Parser.FencedCodeBlocks" $ do

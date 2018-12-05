@@ -134,6 +134,9 @@ tangleAnnotated (Document refs _) = do
     sources <- mapM (expandAnnotated refs) fileRefs
     return $ Map.fromList $ zip fileNames sources
 
+-- ========================================================================= --
+-- Unit tests                                                                --
+-- ========================================================================= --
 
 tangleSpec :: Spec
 tangleSpec = do
