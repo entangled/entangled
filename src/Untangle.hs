@@ -55,28 +55,28 @@ data ParserState = ParserState
 updateRefs :: (ReferenceMap -> ReferenceMap) -> ParserState -> ParserState
 updateRefs f s@(ParserState _ _ r) = s { psRefs = f r}
 
-getRefs :: Parser ReferenceMap
+getRefs :: Monad m => Parser m ReferenceMap
 getRefs = psRefs <$> Parsec.getState
 
-getLanguage :: Parser String
+getLanguage :: Monad m => Parser m String
 getLanguage = psLanguage <$> Parsec.getState
 
-getComment :: Parser String
+getComment :: Monad m => Parser m String
 getComment = psComment <$> Parsec.getState
 
-addReference :: ReferenceID -> CodeBlock -> Parser ()
+addReference :: Monad m => ReferenceID -> CodeBlock -> Parser m ()
 addReference r c = Parsec.modifyState $ updateRefs $ Map.insert r c
 
 -- ========================================================================= --
 -- Parser type definition and fundamentals                                   --
 -- ========================================================================= --
 
-type Parser = Parsec.ParsecT [String] ParserState (Reader Config)
+type Parser m = Parsec.ParsecT [String] ParserState (ReaderT Config m)
 
-parse :: Parser a -> String -> [String] -> Reader Config (Either Parsec.ParseError a)
+parse :: Monad m => Parser m a -> String -> [String] -> ReaderT Config m (Either Parsec.ParseError a)
 parse p = Parsec.runParserT p EmptyState
 
-token :: (String -> Maybe a) -> Parser a
+token :: Monad m => (String -> Maybe a) -> Parser m a
 token = Parsec.tokenPrim id nextPos
     where nextPos p _ _ = Parsec.incSourceLine p 1
 
@@ -84,7 +84,7 @@ token = Parsec.tokenPrim id nextPos
 -- Parsers                                                                   --
 -- ========================================================================= --
 
-document :: Parser ReferenceMap
+document :: Monad m => Parser m ReferenceMap
 document = do
     header <- token matchHeader
     let language = headerLanguage header
@@ -102,7 +102,7 @@ document = do
                  (CodeBlock language content)
     getRefs
 
-reference :: Parser (Maybe String)
+reference :: Monad m => Parser m (Maybe String)
 reference = do
     language <- getLanguage
     comment  <- getComment
@@ -165,8 +165,8 @@ matchEnd comment line =
 -- The one important function                                                --
 -- ========================================================================= --
 
-untangle :: String -> String -> Reader Config (Either Parsec.ParseError ReferenceMap)
-untangle filename text = parse document filename (lines text)
+untangle :: Monad m => String -> String -> ReaderT Config m (Either TangleError ReferenceMap)
+untangle filename text = toTangleError <$> parse document filename (lines text)
 
 -- ========================================================================= --
 -- Unit tests                                                                --

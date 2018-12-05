@@ -1,5 +1,6 @@
 module Model
     ( TangleError(..)
+    , toTangleError
     , ReferenceID(..)
     , ReferenceMap(..)
     , emptyReferenceMap
@@ -21,6 +22,10 @@ import Languages
 newtype TangleError = TangleError String
         deriving (Eq, Show)
 
+toTangleError :: Show e => Either e a -> Either TangleError a
+toTangleError (Left err) = Left $ TangleError $ show err
+toTangleError (Right x)  = Right x
+
 {-|
   A code block may reference a filename or a noweb reference.
  -}
@@ -28,6 +33,7 @@ data ReferenceID  = FileReferenceID String
                   | NameReferenceID String Int
                   deriving (Show, Eq, Ord)
 
+referenceName :: ReferenceID -> String
 referenceName (FileReferenceID x) = x
 referenceName (NameReferenceID x _) = x
 
@@ -61,8 +67,8 @@ data Content = RawText String
   A document is a list of 'Text' and a 'ReferenceMap'.
  -}
 data Document = Document
-    { references :: ReferenceMap
-    , text       :: [Content]
+    { references      :: ReferenceMap
+    , documentContent :: [Content]
     } deriving (Show)
 
 textToString :: ReferenceMap -> Content -> String

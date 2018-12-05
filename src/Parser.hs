@@ -1,5 +1,6 @@
 module Parser
     ( parseMarkdown
+    , parseMarkdown'
     , parserSpec
     ) where
 
@@ -13,6 +14,7 @@ import Data.Either
 import Data.Maybe
 import Control.Monad
 import Control.Monad.Reader
+import Control.Monad.Identity
 
 import qualified Text.Parsec as Parsec
 import Text.Parsec (
@@ -28,34 +30,34 @@ data CodeProperty
     | CodeClass String
     deriving (Eq, Show)
 
-type Parser = Parsec.ParsecT String ReferenceMap (Reader Config)
+type Parser m = Parsec.ParsecT String ReferenceMap (ReaderT Config m)
 
-parse :: Parser a -> String -> String -> Reader Config (Either Parsec.ParseError a)
+parse :: Monad m => Parser m a -> String -> String -> ReaderT Config m (Either Parsec.ParseError a)
 parse p = Parsec.runParserT p emptyReferenceMap
 
-parse' :: Parser a -> String -> String -> Either Parsec.ParseError a
+parse' :: Parser Identity a -> String -> String -> Either Parsec.ParseError a
 parse' p n t = runReader (parse p n t) defaultConfig
 
-codeClass :: Parser CodeProperty
+codeClass :: Monad m => Parser m CodeProperty
 codeClass = do
     string "."
     cls <- many1 $ noneOf " {}"
     return $ CodeClass cls
 
-codeId :: Parser CodeProperty
+codeId :: Monad m => Parser m CodeProperty
 codeId = do
     string "#"
     id <- many1 $ noneOf " {}"
     return $ CodeId id
 
-codeAttribute :: Parser CodeProperty
+codeAttribute :: Monad m => Parser m CodeProperty
 codeAttribute = do
     tag <- many1 $ noneOf " ={}"
     string "="
     value <- many1 $ noneOf " }"
     return $ CodeAttribute tag value
 
-codeProperties :: Parser [CodeProperty]
+codeProperties :: Monad m => Parser m [CodeProperty]
 codeProperties = do
     string "{"
     spaces
@@ -64,7 +66,7 @@ codeProperties = do
     string "}"
     return props
 
-getLanguage :: [CodeProperty] -> Parser (Maybe Language)
+getLanguage :: Monad m => [CodeProperty] -> Parser m (Maybe Language)
 getLanguage [] = return Nothing
 getLanguage (CodeClass cls : _) = reader $ lookupLanguage cls
 getLanguage (_ : xs) = getLanguage xs
@@ -79,10 +81,10 @@ getReferenceId refs (CodeId id : _) =
     Just $ NameReferenceID id $ countReferences id refs
 getReferenceId refs (_ : xs) = getReferenceId refs xs
 
-line :: Parser String
+line :: Monad m => Parser m String
 line = manyTill anyChar (try endOfLine)
 
-makeCodeBlock :: [CodeProperty] -> String -> Parser CodeBlock
+makeCodeBlock :: Monad m => [CodeProperty] -> String -> Parser m CodeBlock
 makeCodeBlock props content = do
     language <- getLanguage props
     let languageId = maybe "plain" languageName language
@@ -95,7 +97,7 @@ appendCode (CodeBlock l t1) (CodeBlock _ t2) =
 addCodeBlock :: CodeBlock -> ReferenceID -> ReferenceMap -> ReferenceMap
 addCodeBlock code = Map.alter $ Just . maybe code (`appendCode` code)
 
-codeBlock :: Parser [Content]
+codeBlock :: Monad m => Parser m [Content]
 codeBlock = do
     opening <- lookAhead line
     string "```"
@@ -111,19 +113,22 @@ codeBlock = do
         Parsec.modifyState $ addCodeBlock block x
         return [RawText opening, Reference x, RawText "```"]
 
-textLine :: Parser [Content]
+textLine :: Monad m => Parser m [Content]
 textLine = do
     x <- line
     return [RawText x]
 
-stripCodeBlocks :: Parser Document
+stripCodeBlocks :: Monad m => Parser m Document
 stripCodeBlocks = do
     content <- many (try codeBlock <|> textLine)
     refmap  <- Parsec.getState
     return $ Document refmap (concat content)
 
-parseMarkdown :: String -> String -> Reader Config (Either Parsec.ParseError Document)
-parseMarkdown = Parsec.runParserT stripCodeBlocks emptyReferenceMap
+parseMarkdown' :: Monad m => ReferenceMap -> String -> String -> ReaderT Config m (Either TangleError Document)
+parseMarkdown' r f t = toTangleError <$> Parsec.runParserT stripCodeBlocks r f t
+
+parseMarkdown :: Monad m => String -> String -> ReaderT Config m (Either TangleError Document)
+parseMarkdown f t = toTangleError <$> Parsec.runParserT stripCodeBlocks emptyReferenceMap f t
 
 -- ========================================================================= --
 -- Unit tests                                                                --

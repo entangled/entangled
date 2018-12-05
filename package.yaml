@@ -1,7 +1,7 @@
 name:                pandoc-noweb-daemon
 version:             0.1.0.0
 github:              "jhidding/pandoc-noweb-daemon"
-license:             GPLv3
+license:             GPL-3
 author:              "Johannes Hidding"
 maintainer:          "j.hidding@esciencecenter.nl"
 copyright:           "2018 Johannes Hidding"
@@ -27,7 +27,8 @@ dependencies:
 - hspec >= 2.5 && < 3
 
 # functionality
-- hinotify >= 0.3.10 && < 0.5
+- hinotify >= 0.3.10 && < 1
+- bytestring >= 0.10 && < 1
 - parsec >= 3 && < 4
 - regex-tdfa >= 1.2 && < 2
 - array >= 0.5 && < 1

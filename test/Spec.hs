@@ -7,6 +7,9 @@ import qualified Data.Map as Map
 import Data.List
 import Data.Either.Combinators
 import Data.Maybe
+import qualified Data.ByteString as B
+import Data.ByteString.Char8 (pack)
+
 import Control.Monad.IO.Class
 import Control.Monad.Reader
 
@@ -15,6 +18,7 @@ import Parser
 import Tangle
 import Untangle
 import Config
+import Daemon
 
 parseMarkdown' :: String -> Either Parsec.ParseError Document
 parseMarkdown' t = runReader (parseMarkdown "" t) defaultConfig
@@ -85,6 +89,14 @@ markdownSpecs lib = do
                 rm Map.! ref1 `shouldBe` rmo Map.! ref1
                 rm Map.! ref2 `shouldBe` rmo Map.! ref2  
             
+    describe "Daemon" $
+        context "listing files in documents" $ do
+            let doc1 = fromRight' $ parseMarkdown' $ lib Map.! "test/test01.md"
+                doc2 = fromRight' $ parseMarkdown' $ lib Map.! "test/test04.md"
+                ds = Map.fromList [(pack "test/test01.md", doc1), (pack "tetst/test04.md", doc2)]
+            it "should list files" $
+                listAllTargetFiles ds `shouldBe` [pack "hello.cc", pack "hello.hs", pack "hello.scm"]
+
 
 spec :: Map.Map String String -> Spec
 spec lib = do
@@ -94,7 +106,7 @@ spec lib = do
     markdownSpecs lib
 
 {- These files are read and tested against. -}
-testFiles = ["test/test01.md", "test/test02.md", "test/test03.md"]
+testFiles = ["test/test01.md", "test/test02.md", "test/test03.md", "test/test04.md"]
 
 main :: IO ()
 main = do

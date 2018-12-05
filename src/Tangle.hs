@@ -105,14 +105,14 @@ topAnnotation (NameReferenceID n i) comment lang =
 topAnnotation (FileReferenceID n) comment lang =
     comment ++ " language=\"" ++ lang ++ "\" file=\"" ++ n ++ "\""
 
-lookupLanguage' :: String -> Reader Config (Either TangleError Language)
+lookupLanguage' :: Monad m => String -> ReaderT Config  m (Either TangleError Language)
 lookupLanguage' name = do
     lang <- reader $ languageFromName name
     case lang of
         Nothing -> return $ Left $ TangleError $ "unknown language: " ++ name
         Just l  -> return $ Right l
 
-annotate :: ReferenceID -> CodeBlock -> Reader Config (Either TangleError String)
+annotate :: Monad m => ReferenceID -> CodeBlock -> ReaderT Config m (Either TangleError String)
 annotate id (CodeBlock lang text) = do
     l <- lookupLanguage' lang
     return $ do 
@@ -121,13 +121,13 @@ annotate id (CodeBlock lang text) = do
             bottom   = comment ++ " end"
         return $ top ++ "\n" ++ text ++ "\n" ++ bottom
 
-expandAnnotated :: ReferenceMap -> ReferenceID -> Reader Config (Either TangleError String)
+expandAnnotated :: Monad m => ReferenceMap -> ReferenceID -> ReaderT Config m (Either TangleError String)
 expandAnnotated refs id = do
     cfg <- ask
     return $ expandGeneric (\id -> runReader (expandAnnotated refs id) cfg)
                            (\cb -> runReader (annotate id cb) cfg) refs id
 
-tangleAnnotated :: Document -> Reader Config FileMap
+tangleAnnotated :: Monad m => Document -> ReaderT Config m FileMap
 tangleAnnotated (Document refs _) = do
     let fileRefs  = filter isFileReference (Map.keys refs)
         fileNames = map referenceName fileRefs
