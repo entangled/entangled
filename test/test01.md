@@ -13,7 +13,7 @@ We present our first program:
 #include <cstdlib>
 
 int main() {
-    std::cout << \"Hello, World!\" << std::endl;
+    std::cout << "Hello, World!" << std::endl;
     return EXIT_SUCCESS;
 }
 ```

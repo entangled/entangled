@@ -127,8 +127,8 @@ expandAnnotated refs id = do
     return $ expandGeneric (\id -> runReader (expandAnnotated refs id) cfg)
                            (\cb -> runReader (annotate id cb) cfg) refs id
 
-tangleAnnotated :: Monad m => Document -> ReaderT Config m FileMap
-tangleAnnotated (Document refs _) = do
+tangleAnnotated :: Monad m => ReferenceMap -> ReaderT Config m FileMap
+tangleAnnotated refs = do
     let fileRefs  = filter isFileReference (Map.keys refs)
         fileNames = map referenceName fileRefs
     sources <- mapM (expandAnnotated refs) fileRefs

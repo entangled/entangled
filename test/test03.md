@@ -20,7 +20,7 @@ int main() {
 Will print `Hello, World!` on the console.
 
 ``` {.cpp #main-body}
-std::cout << \"Hello, World!\" << std::endl;
+std::cout << "Hello, World!" << std::endl;
 ```
 
 And make sure we exit properly:

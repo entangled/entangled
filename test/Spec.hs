@@ -7,8 +7,6 @@ import qualified Data.Map as Map
 import Data.List
 import Data.Either.Combinators
 import Data.Maybe
-import qualified Data.ByteString as B
-import Data.ByteString.Char8 (pack)
 
 import Control.Monad.IO.Class
 import Control.Monad.Reader
@@ -20,15 +18,15 @@ import Untangle
 import Config
 import Daemon
 
-parseMarkdown' :: String -> Either Parsec.ParseError Document
-parseMarkdown' t = runReader (parseMarkdown "" t) defaultConfig
+parseMarkdown'' :: String -> Either TangleError Document
+parseMarkdown'' t = runReader (parseMarkdown "" t) defaultConfig
 
 markdownSpecs :: Map.Map String String -> Spec
 markdownSpecs lib = do
     describe "Parser.parseMarkdown" $ 
         context "when parsing 'test/test01.md'" $ do
             let source = lib Map.! "test/test01.md"
-                x'     = parseMarkdown' source
+                x'     = parseMarkdown'' source
             it "can parse the text" $
                 x' `shouldSatisfy` isRight
 
@@ -47,7 +45,7 @@ markdownSpecs lib = do
     describe "Tangle.tangleNaked" $ do
         context "when tangling result of 'test/test01.md'" $ do
             let source = lib Map.! "test/test01.md"
-                x      = fromRight' $ parseMarkdown' source
+                x      = fromRight' $ parseMarkdown'' source
                 t      = tangleNaked x
             
             it "has a single entry 'hello.cc'" $
@@ -61,9 +59,9 @@ markdownSpecs lib = do
                 length (lines code) `shouldBe` 7
 
         context "comparing results of 'test/test{n}.md'" $ do
-            let t1 = tangleNaked $ fromRight' $ parseMarkdown' $ lib Map.! "test/test01.md"
-                t2 = tangleNaked $ fromRight' $ parseMarkdown' $ lib Map.! "test/test02.md"
-                t3 = tangleNaked $ fromRight' $ parseMarkdown' $ lib Map.! "test/test03.md"
+            let t1 = tangleNaked $ fromRight' $ parseMarkdown'' $ lib Map.! "test/test01.md"
+                t2 = tangleNaked $ fromRight' $ parseMarkdown'' $ lib Map.! "test/test02.md"
+                t3 = tangleNaked $ fromRight' $ parseMarkdown'' $ lib Map.! "test/test03.md"
             it "content of 'hello.cc' is identical" $ do
                 let c1 = fromRight' $ t1 Map.! "hello.cc"
                     c2 = fromRight' $ t2 Map.! "hello.cc"
@@ -73,9 +71,9 @@ markdownSpecs lib = do
 
     describe "Lib" $
         context "when untangling the tangled" $ do
-            let doc = fromRight' $ parseMarkdown' $ lib Map.! "test/test03.md"
+            let doc = fromRight' $ parseMarkdown'' $ lib Map.! "test/test03.md"
                 rmo = references doc
-                fm  = runReader (tangleAnnotated doc) defaultConfig
+                fm  = runReader (tangleAnnotated $ references doc) defaultConfig
             it "succeeds at tangling" $
                 fm Map.! "hello.cc" `shouldSatisfy` isRight
             let code = fromRight' $ fm Map.! "hello.cc"
@@ -89,15 +87,6 @@ markdownSpecs lib = do
                 rm Map.! ref1 `shouldBe` rmo Map.! ref1
                 rm Map.! ref2 `shouldBe` rmo Map.! ref2  
             
-    describe "Daemon" $
-        context "listing files in documents" $ do
-            let doc1 = fromRight' $ parseMarkdown' $ lib Map.! "test/test01.md"
-                doc2 = fromRight' $ parseMarkdown' $ lib Map.! "test/test04.md"
-                ds = Map.fromList [(pack "test/test01.md", doc1), (pack "tetst/test04.md", doc2)]
-            it "should list files" $
-                listAllTargetFiles ds `shouldBe` [pack "hello.cc", pack "hello.hs", pack "hello.scm"]
-
-
 spec :: Map.Map String String -> Spec
 spec lib = do
     parserSpec
