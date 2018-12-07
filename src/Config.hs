@@ -34,14 +34,14 @@ languageFromName x cfg
     configuration file.
  -}
 defaultLanguages =
-    [ Language "C++"         ["cpp", "c++"]               "//"
-    , Language "C"           ["c"]                        "//"
-    , Language "Rust"        ["rust"]                     "//"
-    , Language "Haskell"     ["hs", "haskell"]            "--"
-    , Language "Python"      ["py", "python", "python3"]  "#"
-    , Language "JavaScript"  ["js", "javascript", "ecma"] "//"
-    , Language "Scheme"      ["scm", "scheme"]            ";"
-    , Language "R"           ["r"]                        "#"
+    [ Language "C++"         ["cpp", "c++"]               "// _____"
+    , Language "C"           ["c"]                        "// _____"
+    , Language "Rust"        ["rust"]                     "// _____"
+    , Language "Haskell"     ["hs", "haskell"]            "-- _____"
+    , Language "Python"      ["py", "python", "python3"]  "## _____"
+    , Language "JavaScript"  ["js", "javascript", "ecma"] "// _____"
+    , Language "Scheme"      ["scm", "scheme"]            ";; _____"
+    , Language "R"           ["r"]                        "## _____"
     ]
 
 defaultConfig = Config defaultLanguages

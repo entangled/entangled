@@ -97,14 +97,22 @@ tryReadFile f = do
         then Just <$> T.IO.readFile f
         else return Nothing
 
+changeFile :: FilePath -> T.Text -> IO ()
+changeFile filename text = do
+    oldText <- tryReadFile filename
+    case oldText of
+        Just ot -> when (ot /= text) $ do
+            putStrLn $ "    ~ overwriting '" ++ filename ++ "'"
+            T.IO.writeFile filename text
+        Nothing -> do 
+            putStrLn $ "File '" ++ filename ++ "' doesn't exist yet."
+            T.IO.writeFile filename text
+
 writeFileOrWarn :: Show a => FilePath -> Either a T.Text -> IO ()
 writeFileOrWarn filename (Left error)
     = putStrLn $ "Error tangling '" ++ filename ++ "': " ++ show error
-writeFileOrWarn filename (Right text) = do
-    oldText <- tryReadFile filename
-    when (oldText /= Just text) $ do
-        putStrLn $ "Overwriting '" ++ filename ++ "'"
-        T.IO.writeFile filename text
+writeFileOrWarn filename (Right text) =  
+    changeFile filename text
 
 tangleTargets :: TangleM ()
 tangleTargets = do
@@ -158,7 +166,7 @@ updateCodeBlock r c = do
     case old' of
         Nothing -> liftIO $ putStrLn $ "  Error: code block " ++ show r ++ " not present."
         Just old -> when (old /= c) $ do
-            liftIO $ putStrLn $ "  updating " ++ show r
+            liftIO $ putStrLn $ "    ~ updating " ++ show r
             updateReferenceMap $ M.insert r c
 
 updateFromTarget :: FilePath -> TangleM ()
@@ -168,7 +176,7 @@ updateFromTarget f = do
         Left err -> liftIO $ putStrLn $ "Error updating from '" ++ f ++ "': "
                         ++ show err
         Right refs -> do
-            liftIO $ putStrLn $ "Updating from '" ++ f
+            liftIO $ putStrLn $ "  -- updating from '" ++ f ++ "':"
             mapM_ (uncurry updateCodeBlock) (M.toList refs)
 
 -- ========================================================================= --
@@ -180,7 +188,7 @@ stitchSourceFile f = do
     doc' <- getDocument f
     case doc' of
         Nothing  -> return ()
-        Just doc -> liftIO $ T.IO.writeFile f (stitchText doc)
+        Just doc -> liftIO $ changeFile f (stitchText doc)
     
 stitchSources :: TangleM ()
 stitchSources = do
@@ -192,16 +200,13 @@ stitchSources = do
 -- ========================================================================= --
 
 passEvent :: Chan Event -> MVar Bool -> Event -> INotify.Event -> IO ()
-passEvent channel lock event _ = do
-    writeChan channel (DebugEvent $ show event)
-    lock <- readMVar lock
-    unless lock $ do
-        putStrLn $ "---> sending " ++ show event
-        writeChan channel event
+passEvent channel lock event ie@(INotify.Modified _ _) = do
+    putStrLn $ "\027[33m----- :event: " ++ show event ++ " -----\027[m"
+    writeChan channel event
+passEvent _ _ _ _ = return ()
 
 addWatch :: FileType -> FilePath -> TangleM ()
 addWatch t p = do
-    liftIO $ putStrLn $ "Setting watch on " ++ p
     inotify' <- gets inotifyInstance
     channel  <- use eventChannel
     lock     <- use channelLock
@@ -211,7 +216,6 @@ addWatch t p = do
 
 removeWatch :: FilePath -> TangleM ()
 removeWatch p = do
-    liftIO $ putStrLn $ "Removing watch on " ++ p
     wd' <- use $ watches . to (M.lookup p)
     case wd' of
         Nothing -> liftIO $ putStrLn $ "Warning: can't remove watch on " ++ p ++ "."
@@ -229,27 +233,18 @@ mainLoop [] = return ()
 
 mainLoop (WriteEvent SourceFile fp : xs) = do
     liftIO $ putStrLn $ "Tangling " ++ fp
-    -- mapM_ removeWatch =<< listAllTargetFiles
-    mapM_ removeWatch =<< use (watches . to M.keys)
-    use $ channelLock . to (`putMVar` True)
+    mapM_ removeWatch =<< listAllTargetFiles
     updateFromSource fp
     tangleTargets
-    liftIO $ threadDelay 500000
-    use $ channelLock . to (`putMVar` False)
-    mapM_ (addWatch SourceFile) =<< listAllSourceFiles
     mapM_ (addWatch TargetFile) =<< listAllTargetFiles
     mainLoop xs
 
 mainLoop (WriteEvent TargetFile fp : xs) = do
     liftIO $ putStrLn $ "Untangling " ++ fp
-    mapM_ removeWatch =<< use (watches . to M.keys)
-    use $ channelLock . to (`putMVar` True)
+    mapM_ removeWatch =<< listAllSourceFiles
     updateFromTarget fp
     stitchSources
-    liftIO $ threadDelay 500000
-    use $ channelLock . to (`putMVar` False)
     mapM_ (addWatch SourceFile) =<< listAllSourceFiles
-    mapM_ (addWatch TargetFile) =<< listAllTargetFiles
     mainLoop xs
 
 mainLoop (DebugEvent msg : xs)   = do
