@@ -26,6 +26,7 @@ dependencies:
 - mtl >= 2.2 && < 3
 - hspec >= 2.5 && < 3
 - microlens-platform >= 0.3 && < 0.4
+- text >= 1.2 && < 2
 
 # functionality
 - optparse-applicative >= 0.14 && < 0.15

@@ -7,6 +7,7 @@ import qualified Data.Map as Map
 import Data.List
 import Data.Either.Combinators
 import Data.Maybe
+import qualified Data.Text as T
 
 import Control.Monad.IO.Class
 import Control.Monad.Reader
@@ -56,7 +57,7 @@ markdownSpecs lib = do
 
             let code = fromRight' $ t Map.! "hello.cc"
             it "and this string has 7 lines" $
-                length (lines code) `shouldBe` 7
+                length (T.lines code) `shouldBe` 7
 
         context "comparing results of 'test/test{n}.md'" $ do
             let t1 = tangleNaked $ fromRight' $ parseMarkdown'' $ lib Map.! "test/test01.md"
@@ -77,7 +78,7 @@ markdownSpecs lib = do
             it "succeeds at tangling" $
                 fm Map.! "hello.cc" `shouldSatisfy` isRight
             let code = fromRight' $ fm Map.! "hello.cc"
-                rm' = runReader (untangle "hello.cc" code) defaultConfig
+                rm' = runReader (untangle "hello.cc" (T.unpack code)) defaultConfig
             it "succeeds at untangling" $
                 rm' `shouldSatisfy` isRight
             let rm  = fromRight' rm'

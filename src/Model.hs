@@ -18,6 +18,7 @@ module Model
 
 import qualified Data.Map as Map
 import Languages
+import qualified Data.Text as T
 
 newtype TangleError = TangleError String
         deriving (Eq, Show)
@@ -76,9 +77,9 @@ textToString ref (RawText x) = x
 textToString ref (Reference r) = code
     where CodeBlock lang code = ref Map.! r
 
-stitchText :: Document -> String
+stitchText :: Document -> T.Text
 stitchText (Document ref txt) =
-    concatMap ((++ "\n") . textToString ref) txt
+    T.pack $ concatMap ((++ "\n") . textToString ref) txt
 
 isFileReference :: ReferenceID -> Bool
 isFileReference (FileReferenceID _) = True
