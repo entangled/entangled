@@ -41,7 +41,7 @@ markdownSpecs lib = do
                 lang `shouldBe` "C++"
 
             it "is exactly the same when stitched together" $
-                stitchText x `shouldBe` source
+                stitchText x `shouldBe` T.pack source
 
     describe "Tangle.tangleNaked" $ do
         context "when tangling result of 'test/test01.md'" $ do

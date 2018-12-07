@@ -125,8 +125,14 @@ reference = do
 -- Regular expressions for matching lines                                    --
 -- ========================================================================= --
 
+escape :: String -> String
+escape = concatMap escapeChar
+    where escapeChar c
+            | c `elem` ".*()[]" = ['\\', c]
+            | otherwise = [c]
+
 headerPattern :: String
-headerPattern = "^[^ \\t]+[ \\t]+language=\"([^\"].+)\"[ \\t]+file=\"([^\"]+)\"[ \\t]*$"
+headerPattern = "^.+language=\"([^\"].+)\"[ \\t]+file=\"([^\"]+)\"[ \\t]*$"
 
 matchHeader :: String -> Maybe Header
 matchHeader line =
@@ -137,7 +143,7 @@ matchHeader line =
                   (language, _) = m Array.! 1
 
 referencePattern :: String -> String
-referencePattern comment = "^([ \\t]*)" ++ comment
+referencePattern comment = "^([ \\t]*)" ++ escape comment
     ++ "[ \\t]+begin[ \\t]+<<(.+)>>\\[([0-9]+)\\]"
                                     
 matchReference :: String -> String -> Maybe ReferenceTag
@@ -152,7 +158,7 @@ matchReference comment line =
             return $ ReferenceTag name idx indent
 
 endPattern :: String -> String
-endPattern comment = "^[ \\t]*" ++ comment
+endPattern comment = "^[ \\t]*" ++ escape comment
     ++ "[ \\t]+end[ \\t]*$"
 
 matchEnd :: String -> String -> Maybe ()
