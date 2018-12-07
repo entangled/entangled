@@ -10,9 +10,11 @@ Enter enTangleD! This monitors the tangled source files and reflects any change 
 
 Features:
 * live bi-directional updates
+* monitor multiple markdown files
 * PanDoc filter and `Makefile` to generate report
 
 Todo:
+* watch containing folder for changes
 * configurability using Yaml file
 * robustness against wrongly edited output files
 * integration with git: commit every change, squash when done
