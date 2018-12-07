@@ -1,4 +1,4 @@
 .stack-work/
-pandoc-noweb-daemon.cabal
+entangled.cabal
 *~
 playground

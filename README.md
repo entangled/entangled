@@ -4,6 +4,35 @@ Literate programming is awesome! Write your documentation and code in one markdo
 
 Enter enTangleD! This monitors the tangled source files and reflects any change in master document or source files in one live source database. The markdown file is still the master document.
 
+## Status
+
+`enTangleD` is working, but still in a premature stage. It currently only works on Linux due to a dependency on INotify. If you edit anything serious with the enTangle Daemon running, I strongly recommend using version control and commit often. If you encounter unexpected behaviour, please post an issue and describe the steps to reproduce.
+
+Features:
+* live bi-directional updates
+* PanDoc filter and `Makefile` to generate report
+
+Todo:
+* configurability using Yaml file
+* robustness against wrongly edited output files
+* integration with git: commit every change, squash when done
+* add workflow to create figures for HTML/PDF reports
+* MacOS / Windows version
+
+## Building
+
+`enTangleD` is written in Haskell. You can build an executable by running
+
+    stack build
+
+Install the executable in your `~/.local/bin`
+
+    stack install
+
+Run unit tests
+
+    stack test
+
 ## Syntax (markdown side)
 
 The markdown syntax `enTangleD` uses is compatible with `Pandoc`'s.

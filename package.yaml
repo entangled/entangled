@@ -1,4 +1,4 @@
-name:                pandoc-noweb-daemon
+name:                entangled
 version:             0.1.0.0
 github:              "jhidding/pandoc-noweb-daemon"
 license:             GPL-3
@@ -45,7 +45,7 @@ library:
   source-dirs: src
 
 executables:
-  tangled:
+  entangled:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
@@ -53,10 +53,10 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - pandoc-noweb-daemon
+    - entangled
 
 tests:
-  pandoc-noweb-daemon-test:
+  entangled-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
@@ -64,4 +64,4 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - pandoc-noweb-daemon
+    - entangled
