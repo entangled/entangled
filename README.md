@@ -1,12 +1,13 @@
-# pandoc-noweb-daemon: a bi-directional literate programming tool
+# enTangleD: a bi-directional literate programming tool
 
 Literate programming is awesome! Write your documentation and code in one markdown document, tangle the source code from that document, compile and run your code. But ow what happens? Compiler error? Bug? Where? Your debugger is no longer pointing to your real source file! No worries, just edit the source file first, fix the bug and then copy the edits to your master document. Meh.
 
-Enter the pandoc-noweb-daemon! This monitors the tangled source files and reflects any change in master document or source files in one live source database. The markdown file is still the master document.
+Enter enTangleD! This monitors the tangled source files and reflects any change in master document or source files in one live source database. The markdown file is still the master document.
 
 ## Syntax (markdown side)
 
-This `pandoc` filter relies on the use of *fenced code attributes*. To tangle a code block to a file:
+The markdown syntax `enTangleD` uses is compatible with `Pandoc`'s.
+This relies on the use of *fenced code attributes*. To tangle a code block to a file:
 
 ~~~markdown
 ``` {.bash file=src/count.sh}
@@ -26,18 +27,16 @@ A named code block is should have an identifier given:
 
 ## Syntax (source side)
 
-In the source code we know exactly where the code came from, so there would be no strict need for extra syntax there. However, once we start to edit the source file it may not be clear where the extra code needs to end up. To make our life a little easier, named code blocks that were tangled into the file should be marked with a comment at begin and end.
+In the source code we know exactly where the code came from, so there would be no strict need for extra syntax there. However, once we start to edit the source file it may not be clear where the extra code needs to end up. To make our life a little easier, named code blocks that were tangled into the file are marked with a comment at begin and end.
 
 ```cpp
-// <<named-code-block>>=
-what_the_code(does) == it.will(Do);
-// <<named-code-block>>+
-if (it) does.next();
-// =<<named-code-block>>
+// _____ begin <<main-body>>[0]
+std::cout << "Hello, World!" << std::endl;
+// _____ end
 ```
 
-These comments should not be tampered with.
+These comments should not be tampered with!
 
 ## Configuration
 
-The project should contain a `tangle.yaml` file.
+> Not yet implemented: The project should contain a `tangle.yaml` file.
