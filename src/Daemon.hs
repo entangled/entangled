@@ -9,8 +9,6 @@ import Control.Concurrent
 import System.FilePath (takeDirectory, equalFilePath)
 
 import qualified System.FSNotify as FSNotify
-import qualified Data.ByteString as B
-import Data.ByteString.Char8 (pack, unpack)
 import Data.Function (on)
 
 import qualified Data.Text as T
@@ -90,9 +88,6 @@ listAllTargetFiles = map referenceName . filter isFileReference . M.keys <$> use
 listAllSourceFiles :: Monad m => StateT Session m [FilePath]
 listAllSourceFiles = use $ sourceData . to M.keys
 
-listAllFiles TargetFile = listAllTargetFiles
-listAllFiles SourceFile = listAllSourceFiles
-
 -- ========================================================================= --
 -- Tangling                                                                  --
 -- ========================================================================= --
@@ -112,7 +107,7 @@ changeFile filename text = do
             putStrLn $ "\027[32m    ~ overwriting '" ++ filename ++ "'\027[m"
             T.IO.writeFile filename text
         Nothing -> do
-            putStrLn $ "File '" ++ filename ++ "' doesn't exist yet."
+            putStrLn $ "\027[32m    ~ creating '" ++ filename ++ "'\027[m"
             T.IO.writeFile filename text
 
 writeFileOrWarn :: Show a => FilePath -> Either a T.Text -> IO ()
@@ -206,11 +201,6 @@ stitchSources = do
 -- Watching                                                                  --
 -- ========================================================================= --
 
-groupOn :: (Eq b) => [a] -> (a -> b) -> [(b, [a])]
-groupOn xs f = zip keys values
-    where values = groupBy ((==) `on` f) xs
-          keys   = map (f . head) values
-
 passEvent :: MVar DaemonState -> Chan Event -> [FilePath] -> [FilePath] -> FSNotify.Event -> IO ()
 passEvent _  _       _    _    FSNotify.Removed {} = return ()
 passEvent ds channel srcs tgts fsEvent = do
@@ -263,6 +253,9 @@ setDaemonState s = do
     ds <- use daemonState
     liftIO $ modifyMVar_ ds (const $ return s)
 
+wait :: TangleM ()
+wait = liftIO $ threadDelay 100000
+
 mainLoop :: [Event] -> TangleM ()
 
 mainLoop [] = return ()
@@ -272,7 +265,7 @@ mainLoop (WriteEvent SourceFile fp : xs) = do
     setDaemonState Tangling
     updateFromSource fp
     tangleTargets
-    liftIO $ threadDelay 100000
+    wait
     removeWatch
     setWatch
     setDaemonState Idle
@@ -284,7 +277,7 @@ mainLoop (WriteEvent TargetFile fp : xs) = do
     setDaemonState Untangling
     updateFromTarget fp
     stitchSources
-    liftIO $ threadDelay 100000
+    wait
     setDaemonState Idle
     liftIO $ putStrLn "  -- done untangling"
     mainLoop xs
