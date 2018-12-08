@@ -31,7 +31,8 @@ dependencies:
 # functionality
 - optparse-applicative >= 0.14 && < 0.15
 - directory >= 1.3 && < 2
-- hinotify >= 0.3.10 && < 1
+- filepath >= 1.4 && < 2
+- fsnotify >= 0.3 && < 0.4
 - bytestring >= 0.10 && < 1
 - parsec >= 3 && < 4
 - regex-tdfa >= 1.2 && < 2

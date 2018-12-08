@@ -1,13 +1,17 @@
 module Daemon
     ( runSession ) where
 
-import System.Directory
+import System.Directory ( canonicalizePath
+                        , doesFileExist
+                        , makeRelativeToCurrentDirectory)
 import Control.Concurrent.Chan
 import Control.Concurrent
+import System.FilePath (takeDirectory, equalFilePath)
 
-import qualified System.INotify as INotify
+import qualified System.FSNotify as FSNotify
 import qualified Data.ByteString as B
 import Data.ByteString.Char8 (pack, unpack)
+import Data.Function (on)
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as T.IO
@@ -29,8 +33,8 @@ import Parser
 
 type Message = String
 
-data FileType = SourceFile | TargetFile deriving (Show)
-
+data FileType = SourceFile | TargetFile deriving (Show, Eq, Ord)
+data DaemonState = Idle | Tangling | Untangling deriving (Show, Eq)
 data Event = WriteEvent FileType FilePath
            | DebugEvent Message
            deriving (Show)
@@ -42,10 +46,10 @@ data Event = WriteEvent FileType FilePath
 data Session = Session
     { _sourceData     :: M.Map FilePath [Content]
     , _referenceMap   :: ReferenceMap
-    , _watches        :: M.Map FilePath INotify.WatchDescriptor
-    , inotifyInstance :: INotify.INotify
+    , _watches        :: [FSNotify.StopListening]
+    , fsNotifyManager :: FSNotify.WatchManager
     , _eventChannel   :: Chan Event
-    , _channelLock    :: MVar Bool
+    , _daemonState    :: MVar DaemonState
     }
 
 type TangleM = StateT Session (ReaderT Config IO)
@@ -56,14 +60,14 @@ sourceData = lens _sourceData (\s n -> s { _sourceData = n })
 referenceMap :: Lens' Session ReferenceMap
 referenceMap = lens _referenceMap (\s n -> s { _referenceMap = n })
 
-watches :: Lens' Session (M.Map FilePath INotify.WatchDescriptor)
+watches :: Lens' Session [FSNotify.StopListening]
 watches = lens _watches (\s n -> s { _watches = n })
 
 eventChannel :: Lens' Session (Chan Event)
 eventChannel = lens _eventChannel (\s n -> s { _eventChannel = n })
 
-channelLock :: Lens' Session (MVar Bool)
-channelLock = lens _channelLock (\s n -> s { _channelLock = n })
+daemonState :: Lens' Session (MVar DaemonState)
+daemonState = lens _daemonState (\s n -> s { _daemonState = n })
 
 setReferenceMap :: Monad m => ReferenceMap -> StateT Session m ()
 setReferenceMap r = modify (set referenceMap r)
@@ -86,6 +90,9 @@ listAllTargetFiles = map referenceName . filter isFileReference . M.keys <$> use
 listAllSourceFiles :: Monad m => StateT Session m [FilePath]
 listAllSourceFiles = use $ sourceData . to M.keys
 
+listAllFiles TargetFile = listAllTargetFiles
+listAllFiles SourceFile = listAllSourceFiles
+
 -- ========================================================================= --
 -- Tangling                                                                  --
 -- ========================================================================= --
@@ -102,16 +109,16 @@ changeFile filename text = do
     oldText <- tryReadFile filename
     case oldText of
         Just ot -> when (ot /= text) $ do
-            putStrLn $ "    ~ overwriting '" ++ filename ++ "'"
+            putStrLn $ "\027[32m    ~ overwriting '" ++ filename ++ "'\027[m"
             T.IO.writeFile filename text
-        Nothing -> do 
+        Nothing -> do
             putStrLn $ "File '" ++ filename ++ "' doesn't exist yet."
             T.IO.writeFile filename text
 
 writeFileOrWarn :: Show a => FilePath -> Either a T.Text -> IO ()
 writeFileOrWarn filename (Left error)
     = putStrLn $ "Error tangling '" ++ filename ++ "': " ++ show error
-writeFileOrWarn filename (Right text) =  
+writeFileOrWarn filename (Right text) =
     changeFile filename text
 
 tangleTargets :: TangleM ()
@@ -123,7 +130,7 @@ tangleTargets = do
 -- ========================================================================= --
 -- Loading                                                                   --
 -- ========================================================================= --
-    
+
 loadSourceFile :: FilePath -> ReaderT Config IO (Either TangleError Document)
 loadSourceFile f = do
     source  <- liftIO $ readFile f
@@ -189,7 +196,7 @@ stitchSourceFile f = do
     case doc' of
         Nothing  -> return ()
         Just doc -> liftIO $ changeFile f (stitchText doc)
-    
+
 stitchSources :: TangleM ()
 stitchSources = do
     srcs <- listAllSourceFiles
@@ -199,33 +206,62 @@ stitchSources = do
 -- Watching                                                                  --
 -- ========================================================================= --
 
-passEvent :: Chan Event -> MVar Bool -> Event -> INotify.Event -> IO ()
-passEvent channel lock event ie@(INotify.Modified _ _) = do
-    putStrLn $ "\027[33m----- :event: " ++ show event ++ " -----\027[m"
-    writeChan channel event
-passEvent _ _ _ _ = return ()
+groupOn :: (Eq b) => [a] -> (a -> b) -> [(b, [a])]
+groupOn xs f = zip keys values
+    where values = groupBy ((==) `on` f) xs
+          keys   = map (f . head) values
 
-addWatch :: FileType -> FilePath -> TangleM ()
-addWatch t p = do
-    inotify' <- gets inotifyInstance
+passEvent :: MVar DaemonState -> Chan Event -> [FilePath] -> [FilePath] -> FSNotify.Event -> IO ()
+passEvent _  _       _    _    FSNotify.Removed {} = return ()
+passEvent ds channel srcs tgts fsEvent = do
+    let path = FSNotify.eventPath fsEvent
+    relpath <- makeRelativeToCurrentDirectory path
+    ds' <- readMVar ds
+    let isSourceFile = any (equalFilePath path) srcs
+        isTargetFile = any (equalFilePath path) tgts
+        pass = case ds' of
+                    Idle -> isSourceFile || isTargetFile
+                    Tangling -> isSourceFile
+                    Untangling -> isTargetFile
+    when pass $ do
+        let filetype = if isSourceFile then SourceFile else TargetFile
+            event = WriteEvent filetype relpath
+        putStrLn $ "\027[33m----- :state: " ++ show ds' ++ " :event: " ++ show event ++ " -----\027[m"
+        writeChan channel event
+
+setWatch :: TangleM ()
+setWatch = do
+    srcs <- listAllSourceFiles >>= (liftIO . mapM canonicalizePath)
+    tgts <- listAllTargetFiles >>= (liftIO . mapM canonicalizePath)
+
+    fsnotify <- gets fsNotifyManager
     channel  <- use eventChannel
-    lock     <- use channelLock
-    wd <- liftIO $ INotify.addWatch inotify' [INotify.Modify] (pack p)
-                                    (passEvent channel lock (WriteEvent t p))
-    modify $ over watches (M.insert p wd)
 
-removeWatch :: FilePath -> TangleM ()
-removeWatch p = do
-    wd' <- use $ watches . to (M.lookup p)
-    case wd' of
-        Nothing -> liftIO $ putStrLn $ "Warning: can't remove watch on " ++ p ++ "."
-        Just wd -> do
-            liftIO $ INotify.removeWatch wd
-            modify $ over watches (M.delete p)
+    let dirs = nub $ map takeDirectory (srcs ++ tgts)
+    reldirs <- liftIO $ mapM makeRelativeToCurrentDirectory dirs
+    liftIO $ putStrLn $ "    ~ Setting watch on: "
+        ++ show reldirs
+    ds <- use daemonState
+    stopActions <- liftIO $ mapM
+        (\dir -> FSNotify.watchDir fsnotify dir (const True)
+                                   (passEvent ds channel srcs tgts))
+        dirs
+    assign watches stopActions
+
+removeWatch :: TangleM ()
+removeWatch = do
+    liftIO $ putStrLn "    ~ Removing watches."
+    w <- use watches
+    liftIO $ sequence_ w
 
 -- ========================================================================= --
 -- Main interface                                                            --
 -- ========================================================================= --
+
+setDaemonState :: DaemonState -> TangleM ()
+setDaemonState s = do
+    ds <- use daemonState
+    liftIO $ modifyMVar_ ds (const $ return s)
 
 mainLoop :: [Event] -> TangleM ()
 
@@ -233,18 +269,24 @@ mainLoop [] = return ()
 
 mainLoop (WriteEvent SourceFile fp : xs) = do
     liftIO $ putStrLn $ "Tangling " ++ fp
-    mapM_ removeWatch =<< listAllTargetFiles
+    setDaemonState Tangling
     updateFromSource fp
     tangleTargets
-    mapM_ (addWatch TargetFile) =<< listAllTargetFiles
+    liftIO $ threadDelay 100000
+    removeWatch
+    setWatch
+    setDaemonState Idle
+    liftIO $ putStrLn "  -- done tangling "
     mainLoop xs
 
 mainLoop (WriteEvent TargetFile fp : xs) = do
     liftIO $ putStrLn $ "Untangling " ++ fp
-    mapM_ removeWatch =<< listAllSourceFiles
+    setDaemonState Untangling
     updateFromTarget fp
     stitchSources
-    mapM_ (addWatch SourceFile) =<< listAllSourceFiles
+    liftIO $ threadDelay 100000
+    setDaemonState Idle
+    liftIO $ putStrLn "  -- done untangling"
     mainLoop xs
 
 mainLoop (DebugEvent msg : xs)   = do
@@ -255,17 +297,16 @@ startSession :: [FilePath] -> TangleM ()
 startSession fs = do
     mapM_ addSourceFile fs
     tangleTargets
-    mapM_ (addWatch SourceFile) =<< listAllSourceFiles
-    mapM_ (addWatch TargetFile) =<< listAllTargetFiles
+    setWatch
     eventList' <- use $ eventChannel . to getChanContents
     eventList  <- liftIO eventList'
     mainLoop eventList
 
 runSession :: Config -> [FilePath] -> IO ()
 runSession cfg fs = do
-    inotify <- liftIO INotify.initINotify
+    fsnotify <- liftIO FSNotify.startManager
     channel <- newChan
-    lock    <- newMVar False
-    let session = Session M.empty M.empty M.empty inotify channel lock
+    ds <- newMVar Idle
+    let session = Session M.empty M.empty [] fsnotify channel ds
     runReaderT (runStateT (startSession fs) session) cfg
-    liftIO $ INotify.killINotify inotify
+    liftIO $ FSNotify.stopManager fsnotify
