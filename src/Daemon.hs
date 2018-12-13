@@ -4,6 +4,7 @@ module Daemon
 import System.Directory ( canonicalizePath
                         , doesFileExist
                         , removeFile
+                        , createDirectoryIfMissing
                         , makeRelativeToCurrentDirectory)
 import Control.Concurrent.Chan
 import Control.Concurrent
@@ -116,6 +117,7 @@ tryReadFile f = do
 
 changeFile :: FilePath -> T.Text -> IO ()
 changeFile filename text = do
+    createDirectoryIfMissing True (takeDirectory filename)
     oldText <- tryReadFile filename
     case oldText of
         Just ot -> when (ot /= text) $ do
