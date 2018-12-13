@@ -73,6 +73,12 @@ markdownSpecs lib = do
                 c2 `shouldBe` c1
                 c3 `shouldBe` c1
 
+        context "when tangling 'test/test_cycle.md'" $ do
+            let (source, x) = lib Map.! "test/test_cycle.md"
+                t = tangleNaked x
+            it "should result in an error" $
+                t Map.! "loop.cc" `shouldSatisfy` isCyclicReference
+
     describe "Lib" $
         context "when untangling the tangled" $ do
             let doc = snd $ lib Map.! "test/test03.md"
@@ -98,7 +104,7 @@ spec lib = do
     markdownSpecs lib
 
 {- These files are read and tested against. -}
-testFiles = ["test/test01.md", "test/test02.md", "test/test03.md", "test/test04.md"]
+testFiles = ["test/test01.md", "test/test02.md", "test/test03.md", "test/test04.md", "test/test_cycle.md"]
 
 main :: IO ()
 main = do

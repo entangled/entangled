@@ -1,3 +1,6 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Tangle
     ( tangleNaked
     , tangleAnnotated
@@ -73,33 +76,34 @@ addIndent indent text
     = T.intercalate (T.pack "\n") 
     $ map (T.append (T.pack indent)) $ T.lines text
 
-type Expander = ReferenceId -> Either TangleError T.Text
+type History = [ReferenceId]
+type Expander = History -> ReferenceId -> Either TangleError T.Text
 
-codeLineToString :: ReferenceMap -> Expander -> Source -> Either TangleError T.Text
-codeLineToString _ _ (SourceText x) = Right $ T.pack x
-codeLineToString refs e (NowebReference r i) = 
-    addIndent i . T.concat <$> mapM e (allNameReferences r refs)
+codeLineToString :: ReferenceMap -> Expander -> History -> Source -> Either TangleError T.Text
+codeLineToString _ _ _ (SourceText x) = Right $ T.pack x
+codeLineToString refs e h (NowebReference r i) = 
+    addIndent i . T.concat <$> mapM (e h) (allNameReferences r refs)
 
-codeListToString :: ReferenceMap -> Expander -> [Source] -> Either TangleError T.Text
-codeListToString refs e srcs = T.unlines <$> mapM (codeLineToString refs e) srcs
+codeListToString :: ReferenceMap -> Expander -> History -> [Source] -> Either TangleError T.Text
+codeListToString refs e h srcs = T.unlines <$> mapM (codeLineToString refs e h) srcs
 
-expandGeneric :: Expander -> (CodeBlock -> Either TangleError T.Text) -> ReferenceMap
-              -> ReferenceId -> Either TangleError T.Text
-expandGeneric e codeToText refs id = do
+expandGeneric :: Expander -> (CodeBlock -> Either TangleError T.Text) -> ReferenceMap -> History -> ReferenceId -> Either TangleError T.Text
+expandGeneric e codeToText refs h id = do
+    when (id `elem` h) $ Left $ CyclicReference $ show id ++ " in " ++ show h
     codeBlock <- maybeToEither 
         (TangleError $ "Reference " ++ show id ++ " not found.")
         (refs Map.!? id)
     text <- codeToText codeBlock
     parsedCode <- parseCode id $ T.unpack text ++ "\n"
-    codeListToString refs e parsedCode
+    codeListToString refs e (id : h) parsedCode
 
-expandNaked :: ReferenceMap -> ReferenceId -> Either TangleError T.Text
+expandNaked :: ReferenceMap -> History -> ReferenceId -> Either TangleError T.Text
 expandNaked refs = expandGeneric (expandNaked refs) (Right . codeSource) refs
 
 tangleNaked :: Document -> FileMap
 tangleNaked (Document refs _) = Map.fromList $ zip fileNames sources
     where fileRefs  = filter isFileReference (Map.keys refs)
-          sources   = map (expandNaked refs) fileRefs
+          sources   = map (expandNaked refs []) fileRefs
           fileNames = map referenceName fileRefs
 
 {- Annotated tangle -}
@@ -109,14 +113,16 @@ topAnnotation (NameReferenceId n i) comment lang =
 topAnnotation (FileReferenceId n) comment lang =
     comment ++ " language=\"" ++ lang ++ "\" file=\"" ++ n ++ "\""
 
-lookupLanguage' :: Monad m => String -> ReaderT Config  m (Either TangleError Language)
+lookupLanguage' :: (MonadReader Config m)
+        => String -> m (Either TangleError Language)
 lookupLanguage' name = do
     lang <- reader $ languageFromName name
     case lang of
         Nothing -> return $ Left $ TangleError $ "unknown language: " ++ name
         Just l  -> return $ Right l
 
-annotate :: Monad m => ReferenceId -> CodeBlock -> ReaderT Config m (Either TangleError T.Text)
+annotate :: (MonadReader Config m)
+        => ReferenceId -> CodeBlock -> m (Either TangleError T.Text)
 annotate id (CodeBlock lang _ text) = do
     l <- lookupLanguage' lang
     return $ do 
@@ -125,17 +131,18 @@ annotate id (CodeBlock lang _ text) = do
             bottom   = T.pack $ comment ++ " end"
         return $ top <> T.pack "\n" <> text <> T.pack "\n" <> bottom
 
-expandAnnotated :: Monad m => ReferenceMap -> ReferenceId -> ReaderT Config m (Either TangleError T.Text)
-expandAnnotated refs id = do
+expandAnnotated :: (MonadReader Config m)
+        => ReferenceMap -> History -> ReferenceId -> m (Either TangleError T.Text)
+expandAnnotated refs h id = do
     cfg <- ask
-    return $ expandGeneric (\id -> runReader (expandAnnotated refs id) cfg)
-                           (\cb -> runReader (annotate id cb) cfg) refs id
+    return $ expandGeneric (\h' id' -> runReader (expandAnnotated refs h' id') cfg)
+                           (\cb -> runReader (annotate id cb) cfg) refs h id
 
-tangleAnnotated :: Monad m => ReferenceMap -> ReaderT Config m FileMap
+tangleAnnotated :: (MonadReader Config m) => ReferenceMap -> m FileMap
 tangleAnnotated refs = do
     let fileRefs  = filter isFileReference (Map.keys refs)
         fileNames = map referenceName fileRefs
-    sources <- mapM (expandAnnotated refs) fileRefs
+    sources <- mapM (expandAnnotated refs []) fileRefs
     return $ Map.fromList $ zip fileNames sources
 
 -- ========================================================================= --
