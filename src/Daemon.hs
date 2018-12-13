@@ -3,6 +3,7 @@ module Daemon
 
 import System.Directory ( canonicalizePath
                         , doesFileExist
+                        , removeFile
                         , makeRelativeToCurrentDirectory)
 import Control.Concurrent.Chan
 import Control.Concurrent
@@ -17,6 +18,7 @@ import qualified Data.Text.IO as T.IO
 import qualified Data.Map as M
 import Data.List
 import Data.Either
+import Data.Maybe
 import System.Random
 
 import Control.Monad.Reader
@@ -123,6 +125,15 @@ changeFile filename text = do
             putStrLn $ "\027[32m    ~ creating '" ++ filename ++ "'\027[m"
             T.IO.writeFile filename text
 
+removeIfExists :: FilePath -> IO ()
+removeIfExists f = do
+    putStrLn $ "\027[31m    ~ removing '" ++ f ++ "'\027[m"
+    fileExists <- doesFileExist f
+    when fileExists (removeFile f)
+
+removeFiles :: [FilePath] -> IO ()
+removeFiles = mapM_ removeIfExists
+
 writeFileOrWarn :: Show a => FilePath -> Either a T.Text -> IO ()
 writeFileOrWarn filename (Left error)
     = putStrLn $ "Error tangling '" ++ filename ++ "': " ++ show error
@@ -155,6 +166,11 @@ addSourceFile f = do
         Right (Document r c) -> do
             setReferenceMap r
             addFileContent f c
+
+removeActiveReferences :: Document -> TangleM ()
+removeActiveReferences doc = do
+    let rs = listActiveReferences doc
+    mapM_ (modifying referenceMap . M.delete) rs
 
 updateFromSource :: FilePath -> TangleM ()
 updateFromSource fp = do
@@ -275,9 +291,15 @@ mainLoop [] = return ()
 
 mainLoop (WriteEvent SourceFile fp : xs) = do
     liftIO $ putStrLn $ "Tangling " ++ fp
+    wait
     setDaemonState Tangling
+    doc <- fromJust <$> getDocument fp  -- TODO: do proper error handling here
+    oldTgtFiles <- listAllTargetFiles
+    removeActiveReferences doc
     updateFromSource fp
     tangleTargets
+    newTgtFiles <- listAllTargetFiles
+    liftIO $ removeFiles (oldTgtFiles \\ newTgtFiles)
     wait
     removeWatch
     setWatch

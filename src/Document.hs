@@ -11,6 +11,7 @@ module Document
     , Document(..)
     , isFileReference
     , stitchText
+    , listActiveReferences
     ) where
 
 import qualified Data.Text as T
@@ -89,3 +90,8 @@ isFileReference _ = False
 
 listFiles :: Document -> [ReferenceId]
 listFiles (Document refs _) = filter isFileReference $ M.keys refs
+
+listActiveReferences :: Document -> [ReferenceId]
+listActiveReferences doc = mapMaybe getReference (documentContent doc)
+    where getReference (RawText _)   = Nothing
+          getReference (Reference r) = Just r
