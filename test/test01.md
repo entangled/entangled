@@ -19,3 +19,8 @@ int main() {
 ```
 
 Will print `Hello, World!` on the console.
+
+Empty code blocks should not be a problem:
+
+``` {.scm file=lala.scm}
+```

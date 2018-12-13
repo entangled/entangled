@@ -3,14 +3,17 @@ module Untangle
     , untangleSpec
     ) where
 
-import Model
 import Config
+import Model (TangleError, toTangleError)
+import Document
 
 import Control.Monad.Reader
 import Control.Monad (when)
 
 import qualified Data.Map as Map
 import qualified Data.Array as Array
+import qualified Data.Text as T
+
 import Data.Maybe
 import Data.String
 import Data.List
@@ -64,7 +67,7 @@ getLanguage = psLanguage <$> Parsec.getState
 getComment :: Monad m => Parser m String
 getComment = psComment <$> Parsec.getState
 
-addReference :: Monad m => ReferenceID -> CodeBlock -> Parser m ()
+addReference :: Monad m => ReferenceId -> CodeBlock -> Parser m ()
 addReference r c = Parsec.modifyState $ updateRefs $ Map.insert r c
 
 -- ========================================================================= --
@@ -91,15 +94,15 @@ document = do
     commentString <- asks $ getCommentString language
     case commentString of
         Nothing -> fail $ "Unknown language: " ++ language
-        Just c  -> Parsec.setState $ ParserState c language emptyReferenceMap
+        Just c  -> Parsec.setState $ ParserState c language mempty
 
     comment <- getComment
     content <- intercalate "\n" . catMaybes
         <$> manyTill (try reference <|> Just <$> anyToken)
                      (token $ matchEnd comment)
 
-    addReference (FileReferenceID $ headerFilename header)
-                 (CodeBlock language content)
+    addReference (FileReferenceId $ headerFilename header)
+                 (CodeBlock language [] (T.pack content))
     getRefs
 
 reference :: Monad m => Parser m (Maybe String)
@@ -114,8 +117,8 @@ reference = do
     when (isJust $ find isNothing strippedContent) $ fail "Indentation error"
     let content = intercalate "\n" $ catMaybes strippedContent
 
-    addReference (NameReferenceID (rtName ref) (rtIndex ref))
-                 (CodeBlock language content)
+    addReference (NameReferenceId (rtName ref) (rtIndex ref))
+                 (CodeBlock language [] (T.pack content))
 
     if rtIndex ref == 0
         then return $ Just $ rtIndent ref ++ "<<" ++ rtName ref ++ ">>"

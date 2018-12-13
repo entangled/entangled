@@ -2,3 +2,5 @@
 entangled.cabal
 *~
 playground
+example/src
+example/*.scm

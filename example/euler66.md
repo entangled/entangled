@@ -150,17 +150,35 @@ To get the square root of $s$, we use Newton's method. We first implement a func
 
 ``` {.scm file=streams.scm}
 (library (streams)
-  (export stream head tail take stream-find)
-  (import (rnrs (6))
-          (rnrs r5rs))
+  (export force delay promise? stream head tail take stream-find)
+  (import (rnrs (6)))
+
+  (define-record-type promise
+    (fields (mutable value)
+            (mutable met?)))
+  
+  (define-syntax delay
+    (syntax-rules ()
+      ((delay <x>)
+       (make-promise (lambda () <x>) #f))))
+  
+  (define (force p)
+    (unless (promise? p)
+      (assertion-violation 'force "invalid argument" p))
+    (unless (promise-met? p)
+      (call-with-values (promise-value p)
+        (lambda x
+          (promise-value-set! p x)
+          (promise-met?-set! p #t))))
+    (apply values (promise-value p)))
 
   (define-syntax stream
     (syntax-rules ()
       ((stream <a> <b>)
-       (cons <a> (delay <b>)))))
+       (delay (cons <a> <b>)))))
 
-  (define head car)
-  (define (tail s) (force (cdr s)))
+  (define (head s) (car (force s)))
+  (define (tail s) (cdr (force s)))
 
   (define (take s n)
     (let loop ((result '())

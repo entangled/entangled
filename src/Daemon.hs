@@ -17,17 +17,19 @@ import qualified Data.Text.IO as T.IO
 import qualified Data.Map as M
 import Data.List
 import Data.Either
+import System.Random
 
 import Control.Monad.Reader
 import Control.Monad.State
 
 import Lens.Micro.Platform
 
-import Model
+import Model (TangleError, toTangleError)
 import Config
 import Tangle
 import Untangle
-import Parser
+import Markdown
+import Document
 
 type Message = String
 
@@ -48,6 +50,7 @@ data Session = Session
     , fsNotifyManager :: FSNotify.WatchManager
     , _eventChannel   :: Chan Event
     , _daemonState    :: MVar DaemonState
+    , _randomGen      :: StdGen
     }
 
 type TangleM = StateT Session (ReaderT Config IO)
@@ -66,6 +69,16 @@ eventChannel = lens _eventChannel (\s n -> s { _eventChannel = n })
 
 daemonState :: Lens' Session (MVar DaemonState)
 daemonState = lens _daemonState (\s n -> s { _daemonState = n })
+
+randomGen :: Lens' Session StdGen
+randomGen = lens _randomGen (\s n -> s { _randomGen = n })
+
+instance RandomGen Session where
+    next s  = (s ^. randomGen ^. to next) 
+            & _2 %~ (\ x -> s & randomGen .~ x)
+    split s = (s ^. randomGen ^. to split)
+            & _1 %~ (\ x -> s & randomGen .~ x)
+            & _2 %~ (\ x -> s & randomGen .~ x)
 
 setReferenceMap :: Monad m => ReferenceMap -> StateT Session m ()
 setReferenceMap r = modify (set referenceMap r)
@@ -126,16 +139,16 @@ tangleTargets = do
 -- Loading                                                                   --
 -- ========================================================================= --
 
-loadSourceFile :: FilePath -> ReaderT Config IO (Either TangleError Document)
+loadSourceFile :: FilePath -> TangleM (Either TangleError Document)
 loadSourceFile f = do
-    source  <- liftIO $ readFile f
+    source  <- liftIO $ T.IO.readFile f
     parseMarkdown f source
 
 addSourceFile :: FilePath -> TangleM ()
 addSourceFile f = do
-    source  <- liftIO $ readFile f
+    source  <- liftIO $ T.IO.readFile f
     refs    <- use referenceMap
-    doc'    <- lift $ parseMarkdown' refs f source
+    doc'    <- parseMarkdown' refs f source
     case doc' of
         Left err -> liftIO $ putStrLn $ "Error loading '" ++ f ++ "': "
                         ++ show err
@@ -145,7 +158,7 @@ addSourceFile f = do
 
 updateFromSource :: FilePath -> TangleM ()
 updateFromSource fp = do
-    doc' <- lift $ loadSourceFile fp
+    doc' <- loadSourceFile fp
     case doc' of
         Left err -> liftIO $ putStrLn $ "Error loading '" ++ fp ++ "': " ++ show err
         Right (Document r c) -> do
@@ -159,10 +172,10 @@ updateFromSource fp = do
 untangleTarget :: FilePath -> ReaderT Config IO (Either TangleError ReferenceMap)
 untangleTarget f = liftIO (readFile f) >>= untangle f
 
-getCodeBlock :: Monad m => ReferenceID -> StateT Session m (Maybe CodeBlock)
+getCodeBlock :: Monad m => ReferenceId -> StateT Session m (Maybe CodeBlock)
 getCodeBlock id = use $ referenceMap . to (M.lookup id)
 
-updateCodeBlock :: ReferenceID -> CodeBlock -> TangleM ()
+updateCodeBlock :: ReferenceId -> CodeBlock -> TangleM ()
 updateCodeBlock r c = do
     old' <- getCodeBlock r
     case old' of
@@ -300,6 +313,7 @@ runSession cfg fs = do
     fsnotify <- liftIO FSNotify.startManager
     channel <- newChan
     ds <- newMVar Idle
-    let session = Session M.empty M.empty [] fsnotify channel ds
+    rnd <- getStdGen
+    let session = Session M.empty M.empty [] fsnotify channel ds rnd
     runReaderT (runStateT (startSession fs) session) cfg
     liftIO $ FSNotify.stopManager fsnotify

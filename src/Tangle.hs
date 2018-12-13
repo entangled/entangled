@@ -14,7 +14,8 @@ import qualified Data.Text as T
 import qualified Text.Parsec as Parsec
 import Text.Parsec ((<|>), manyTill, anyChar, try, endOfLine, many, oneOf, noneOf, string, many1)
 
-import Model
+import Model (TangleError(..), toTangleError)
+import Document
 import Config
 import Languages
 
@@ -62,7 +63,7 @@ codeLine = SourceText <$> line
 nowebCode :: Parser [Source]
 nowebCode = many (try nowebReference <|> codeLine)
 
-parseCode :: ReferenceID -> String -> Either TangleError [Source]
+parseCode :: ReferenceId -> String -> Either TangleError [Source]
 parseCode id x = case parse nowebCode (referenceName id) x of
     Left  err -> Left $ TangleError $ show err
     Right src -> Right src
@@ -72,18 +73,18 @@ addIndent indent text
     = T.intercalate (T.pack "\n") 
     $ map (T.append (T.pack indent)) $ T.lines text
 
-type Expander = ReferenceID -> Either TangleError T.Text
+type Expander = ReferenceId -> Either TangleError T.Text
 
 codeLineToString :: ReferenceMap -> Expander -> Source -> Either TangleError T.Text
 codeLineToString _ _ (SourceText x) = Right $ T.pack x
 codeLineToString refs e (NowebReference r i) = 
-    addIndent i . T.concat <$> mapM e (findAllNamedReferences r refs)
+    addIndent i . T.concat <$> mapM e (allNameReferences r refs)
 
 codeListToString :: ReferenceMap -> Expander -> [Source] -> Either TangleError T.Text
 codeListToString refs e srcs = T.unlines <$> mapM (codeLineToString refs e) srcs
 
 expandGeneric :: Expander -> (CodeBlock -> Either TangleError T.Text) -> ReferenceMap
-              -> ReferenceID -> Either TangleError T.Text
+              -> ReferenceId -> Either TangleError T.Text
 expandGeneric e codeToText refs id = do
     codeBlock <- maybeToEither 
         (TangleError $ "Reference " ++ show id ++ " not found.")
@@ -92,8 +93,8 @@ expandGeneric e codeToText refs id = do
     parsedCode <- parseCode id $ T.unpack text ++ "\n"
     codeListToString refs e parsedCode
 
-expandNaked :: ReferenceMap -> ReferenceID -> Either TangleError T.Text
-expandNaked refs = expandGeneric (expandNaked refs) (Right . T.pack . codeSource) refs
+expandNaked :: ReferenceMap -> ReferenceId -> Either TangleError T.Text
+expandNaked refs = expandGeneric (expandNaked refs) (Right . codeSource) refs
 
 tangleNaked :: Document -> FileMap
 tangleNaked (Document refs _) = Map.fromList $ zip fileNames sources
@@ -102,10 +103,10 @@ tangleNaked (Document refs _) = Map.fromList $ zip fileNames sources
           fileNames = map referenceName fileRefs
 
 {- Annotated tangle -}
-topAnnotation :: ReferenceID -> String -> String -> String
-topAnnotation (NameReferenceID n i) comment lang =
+topAnnotation :: ReferenceId -> String -> String -> String
+topAnnotation (NameReferenceId n i) comment lang =
     comment ++ " begin <<" ++ n ++ ">>[" ++ show i ++ "]"
-topAnnotation (FileReferenceID n) comment lang =
+topAnnotation (FileReferenceId n) comment lang =
     comment ++ " language=\"" ++ lang ++ "\" file=\"" ++ n ++ "\""
 
 lookupLanguage' :: Monad m => String -> ReaderT Config  m (Either TangleError Language)
@@ -115,16 +116,16 @@ lookupLanguage' name = do
         Nothing -> return $ Left $ TangleError $ "unknown language: " ++ name
         Just l  -> return $ Right l
 
-annotate :: Monad m => ReferenceID -> CodeBlock -> ReaderT Config m (Either TangleError T.Text)
-annotate id (CodeBlock lang text) = do
+annotate :: Monad m => ReferenceId -> CodeBlock -> ReaderT Config m (Either TangleError T.Text)
+annotate id (CodeBlock lang _ text) = do
     l <- lookupLanguage' lang
     return $ do 
         (Language _ _ comment) <- l
-        let top      = topAnnotation id comment lang
-            bottom   = comment ++ " end"
-        return $ T.pack $ top ++ "\n" ++ text ++ "\n" ++ bottom
+        let top      = T.pack $ topAnnotation id comment lang
+            bottom   = T.pack $ comment ++ " end"
+        return $ top <> T.pack "\n" <> text <> T.pack "\n" <> bottom
 
-expandAnnotated :: Monad m => ReferenceMap -> ReferenceID -> ReaderT Config m (Either TangleError T.Text)
+expandAnnotated :: Monad m => ReferenceMap -> ReferenceId -> ReaderT Config m (Either TangleError T.Text)
 expandAnnotated refs id = do
     cfg <- ask
     return $ expandGeneric (\id -> runReader (expandAnnotated refs id) cfg)
