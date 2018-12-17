@@ -9,6 +9,7 @@ import System.Directory ( canonicalizePath
 import Control.Concurrent.Chan
 import Control.Concurrent
 import System.FilePath (takeDirectory, equalFilePath)
+import System.IO
 
 import qualified System.FSNotify as FSNotify
 import Data.Function (on)
@@ -334,6 +335,7 @@ startSession fs = do
 
 runSession :: Config -> [FilePath] -> IO ()
 runSession cfg fs = do
+    hSetBuffering stdout LineBuffering
     fs' <- mapM canonicalizePath fs
     fsnotify <- liftIO FSNotify.startManager
     channel <- newChan
