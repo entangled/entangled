@@ -235,7 +235,7 @@ stitchSources = do
 passEvent :: MVar DaemonState -> Chan Event -> [FilePath] -> [FilePath] -> FSNotify.Event -> IO ()
 passEvent _  _       _    _    FSNotify.Removed {} = return ()
 passEvent ds channel srcs tgts fsEvent = do
-    let path = FSNotify.eventPath fsEvent
+    path <- canonicalizePath $ FSNotify.eventPath fsEvent
     relpath <- makeRelativeToCurrentDirectory path
     ds' <- readMVar ds
     let isSourceFile = any (equalFilePath path) srcs
@@ -246,7 +246,7 @@ passEvent ds channel srcs tgts fsEvent = do
                     Untangling -> isTargetFile
     when pass $ do
         let filetype = if isSourceFile then SourceFile else TargetFile
-            event = WriteEvent filetype relpath
+            event = WriteEvent filetype path
         putStrLn $ "\027[33m----- :state: " ++ show ds' ++ " :event: " ++ show event ++ " -----\027[m"
         writeChan channel event
 
@@ -334,10 +334,11 @@ startSession fs = do
 
 runSession :: Config -> [FilePath] -> IO ()
 runSession cfg fs = do
+    fs' <- mapM canonicalizePath fs
     fsnotify <- liftIO FSNotify.startManager
     channel <- newChan
     ds <- newMVar Idle
     rnd <- getStdGen
     let session = Session M.empty M.empty [] fsnotify channel ds rnd
-    runReaderT (runStateT (startSession fs) session) cfg
+    runReaderT (runStateT (startSession fs') session) cfg
     liftIO $ FSNotify.stopManager fsnotify
