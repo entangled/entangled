@@ -42,6 +42,8 @@ defaultLanguages =
     , Language "JavaScript"  ["js", "javascript", "ecma"] "// ------"
     , Language "Scheme"      ["scm", "scheme"]            ";; ------"
     , Language "R"           ["r"]                        "## ------"
+    , Language "YAML"        ["yaml"]                     "## ------"
+    , Language "Gnuplot"     ["gnuplot"]                  "## ------"
     ]
 
 defaultConfig = Config defaultLanguages
