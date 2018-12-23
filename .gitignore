@@ -2,5 +2,7 @@
 entangled.cabal
 *~
 playground
-example/src
-example/*.scm
+example/*
+!example/*.md
+.ipynb_checkpoints
+__pycache__
