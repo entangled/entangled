@@ -6,7 +6,7 @@ Enter enTangleD! This monitors the tangled source files and reflects any change 
 
 ## Status
 
-`enTangleD` is working, but still in a premature stage. It has only been tested Linux, and Windows. It should work on MacOS equally well. If you edit anything serious with the enTangle Daemon running, I strongly recommend using version control and commit often. If you encounter unexpected behaviour, please post an issue and describe the steps to reproduce.
+`enTangleD` is working, but still in a alpha stage. It has been tested Linux, and Windows and should work on MacOS equally well. If you edit anything serious with the enTangle Daemon running, I strongly recommend using version control and commit often. If you encounter unexpected behaviour, please post an issue and describe the steps to reproduce.
 
 Features:
 * live bi-directional updates
