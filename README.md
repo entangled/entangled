@@ -19,6 +19,14 @@ Todo:
 * integration with git: commit every change, squash when done
 * add workflow to create figures for HTML/PDF reports
 
+## Examples
+
+The `examples` folder contains currently a single example:
+
+* 99-bottles in C++: teaching how to setup a basic C++ program with enTangleD, use of ArgAgg to parse command-line arguments, use of FmtLib to do string formatting and setting up a slightly non-basic Makefile.
+
+More examples will follow!
+
 ## Building
 
 `enTangleD` is written in Haskell. You can build an executable by running

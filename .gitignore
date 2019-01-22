@@ -6,3 +6,7 @@ example/*
 !example/*.md
 .ipynb_checkpoints
 __pycache__
+.vscode
+examples/src
+examples/build
+examples/Makefile
