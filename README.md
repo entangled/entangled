@@ -10,18 +10,20 @@ Enter enTangleD! This monitors the tangled source files and reflects any change 
 
 ## Status
 
-`enTangleD` is working, but still in a premature stage. It has been tested Linux, and Windows. It should work on MacOS equally well. If you edit anything serious with the enTangle Daemon running, I strongly recommend using version control and commit often. If you encounter unexpected behaviour, please post an issue and describe the steps to reproduce.
+`enTangleD` is working, but still in a alpha stage. It has been tested Linux, and Windows and should work on MacOS equally well. If you edit anything serious with the enTangle Daemon running, I strongly recommend using version control and commit often. If you encounter unexpected behaviour, please post an issue and describe the steps to reproduce.
 
 Features:
 * live bi-directional updates
 * monitor multiple markdown files
 * PanDoc filter and `Makefile` to generate report
-
+* create HTML pages from literate source
+  
 Todo:
 * configurability using Yaml file
 * robustness against wrongly edited output files
 * integration with git: commit every change, squash when done
 * add workflow to create figures for HTML/PDF reports
+* distribute binaries
 
 ## Examples
 
@@ -33,7 +35,7 @@ More examples will follow!
 
 ## Building
 
-`enTangleD` is written in Haskell. You can build an executable by running
+`enTangleD` is written in Haskell, and uses the `stack` build system. You can build an executable by running
 
     stack build
 
