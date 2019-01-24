@@ -2,6 +2,8 @@
 title: enTangleD -- a bi-directional literate programming tool
 ---
 
+[github: https://github.com/jhidding/entangled](https://github.com/jhidding/entangled)
+
 # enTangleD
 
 Literate programming is awesome! Write your documentation and code in one markdown document, tangle the source code from that document, compile and run your code. But ow what happens? Compiler error? Bug? Where? Your debugger is no longer pointing to your real source file! No worries, just edit the source file first, fix the bug and then copy the edits to your master document. Meh.
