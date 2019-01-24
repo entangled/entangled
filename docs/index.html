@@ -99,19 +99,32 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <p>Literate programming is awesome! Write your documentation and code in one markdown document, tangle the source code from that document, compile and run your code. But ow what happens? Compiler error? Bug? Where? Your debugger is no longer pointing to your real source file! No worries, just edit the source file first, fix the bug and then copy the edits to your master document. Meh.</p>
 <p>Enter enTangleD! This monitors the tangled source files and reflects any change in master document or source files in one live source database. The markdown file is still the master document.</p>
 <h3 id="status">Status</h3>
-<p><code>enTangleD</code> is working, but still in a premature stage. It has only been tested Linux, and Windows. It should work on MacOS equally well. If you edit anything serious with the enTangle Daemon running, I strongly recommend using version control and commit often. If you encounter unexpected behaviour, please post an issue and describe the steps to reproduce.</p>
-<p>Features: * live bi-directional updates * monitor multiple markdown files * PanDoc filter and <code>Makefile</code> to generate report</p>
-<p>Todo: * configurability using Yaml file * robustness against wrongly edited output files * integration with git: commit every change, squash when done * add workflow to create figures for HTML/PDF reports</p>
+<p><code>enTangleD</code> is working, but still in a alpha stage. It has been tested Linux, and Windows and should work on MacOS equally well. If you edit anything serious with the enTangle Daemon running, I strongly recommend using version control and commit often. If you encounter unexpected behaviour, please post an issue and describe the steps to reproduce.</p>
+<p>Features:</p>
+<ul>
+<li>live bi-directional updates</li>
+<li>monitor multiple markdown files</li>
+<li>PanDoc filter and <code>Makefile</code> to generate report</li>
+<li>create HTML pages from literate source</li>
+</ul>
+<p>Todo:</p>
+<ul>
+<li>configurability using Yaml file</li>
+<li>robustness against wrongly edited output files</li>
+<li>integration with git: commit every change, squash when done</li>
+<li>add workflow to create figures for HTML/PDF reports</li>
+<li>distribute binaries</li>
+</ul>
 <h3 id="examples">Examples</h3>
 <p>The <code>examples</code> folder contains currently a single example:</p>
 <ul>
-<li>99-bottles in C++: teaching how to setup a basic C++ program with enTangleD, use of ArgAgg to parse command-line arguments, use of FmtLib to do string formatting and setting up a slightly non-basic Makefile.</li>
+<li><a href="jhidding.github.io/entangled/99-bottles.html">99-bottles in C++</a>: teaching how to setup a basic C++ program with enTangleD, use of ArgAgg to parse command-line arguments, use of FmtLib to do string formatting and setting up a slightly non-basic Makefile.</li>
 </ul>
 <p>More examples will follow!</p>
 <h3 id="building">Building</h3>
-<p><code>enTangleD</code> is written in Haskell. You can build an executable by running</p>
+<p><code>enTangleD</code> is written in Haskell, and uses the <code>stack</code> build system. You can build an executable by running</p>
 <pre><code>stack build</code></pre>
-<p>Install the executable in your <code>~/.local/bin</code></p>
+<p>If this is the first time you run <code>stack</code>, this may take a while. Install the executable in your <code>~/.local/bin</code></p>
 <pre><code>stack install</code></pre>
 <p>Run unit tests</p>
 <pre><code>stack test</code></pre>
