@@ -1,0 +1,69 @@
+#!/bin/bash
+
+script_dir=$(dirname "$(readlink -f "$0")")
+
+format="markdown+fenced_code_attributes+citations+all_symbols_escapable+fenced_divs+multiline_tables"
+pandoc_filters="pandoc-eqnos pandoc-fignos pandoc-citeproc"
+
+filter_args=$(echo ${pandoc_filters} | sed -e 's/\([^ ]*\)/--filter \1/g')
+pdf_args="--toc ${filter_args} --lua-filter ${script_dir}/annotate-code-blocks.lua --template \"${script_dir}/eisvogel.tex\" --listings"
+html_args="-s --toc --toc-depth=3 ${filter_args} --lua-filter ${script_dir}/annotate-code-blocks.lua --mathjax --css style.css --base-header-level=2"
+
+target="html"
+output="./public/index.html"
+sources=""
+
+usage () {
+    echo "Weave script"
+    echo "usage: weave [--html|--pdf] [--output=<path>] <sources>"
+    echo
+    echo "By default, this builds HTML output from the list of Markdown"
+    echo "sources. The output directory defaults to './public'."
+    echo "If `--pdf` is chosen, the default output is set to 'report.pdf'."
+}
+
+for i in "$@"
+do
+    case $i in
+        --output=*)
+            output="${i#*=}"
+            shift
+            ;;
+        --html)
+            target="html"
+            shift
+            ;;
+        --pdf)
+            target="pdf"
+            output="report.pdf"
+            shift
+            ;;
+        --help)
+            usage
+            exit 0
+            ;;
+        --*)
+            echo "unknown argument: ${i}"
+            usage
+            exit 1
+            ;;
+        *)
+            sources="${sources} ${i}"
+            ;;
+    esac
+done
+
+case ${target} in
+    html)
+        mkdir -p "$(dirname ${output})"
+        cp "${script_dir}/style.css" "$(dirname ${output})"
+        pandoc ${sources} -f ${format} ${html_args} -t html5 -o "${output}"
+        ;;
+    pdf)
+        pandoc ${sources} -f ${format} ${pdf_args} -t latex -o "${output}" --pdf-engine=xelatex
+        ;;
+    *)
+        echo "ERROR: unknown target '${target}'"
+        exit 1
+        ;;
+esac

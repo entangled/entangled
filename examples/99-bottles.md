@@ -1,4 +1,7 @@
-# 99 bottles of beer
+---
+title: 99 Bottles of Beer
+author: Johan Hidding
+---
 
 ``` {.cpp #version}
 #define VERSION "1.0"
@@ -12,6 +15,19 @@ This example shows how to create a basic C++ executable including some basic arg
 * Setting up a basic `Makefile`.
 * An annoying drinking song.
 
+This program wil be so tiny, that it will fit into a single source file:
+
+``` {.cpp file=src/99-bottles.cc}
+<<includes>>
+<<version>>
+
+<<bottles-function>>
+<<print-song-function>>
+<<main-function>>
+```
+
+This source file includes some headers, a version number and three functions. The `bottles` function helps us create gramatically correct sentences with an arbitrary (though $\le 0$) number of bottles. `print_song` is the core function generating the 99-bottles song and `main` will handle command-line arguments.
+
 First, we'll include some headers that we'll need:
 
 ``` {.cpp #includes}
@@ -23,7 +39,7 @@ First, we'll include some headers that we'll need:
 
 The `cstdlib` file includes basic functions and constants from the C `stdlib.h` header. `iostream` contains the C++ library for IO. Next to that we include the *ArgAgg* and *fmtlib* headers.
 
-## Argument parsing
+# Argument parsing
 
 An executable in C/C++ always has a main function of the signature
 
@@ -100,11 +116,11 @@ Now we can compose the body of the main function:
 <<sing-a-song>>
 ```
 
-## Formatting a drinking song
+# Formatting a drinking song
 
 Now, to the problem of *99 bottles*! One part of the problem is that towards the end of the song, the grammar of the text is changing slightly due to the singularity of the number *one*. We'll create a little helper function to figure out how to communicate the number of bottles we have left.
 
-``` {.cpp #bottle-function}
+``` {.cpp #bottles-function}
 std::string bottles(unsigned i)
 {
     if (i > 1) {
@@ -147,20 +163,9 @@ void print_song(unsigned n)
 }
 ```
 
-## Song synthesis
+# Song synthesis
 
-Now, to put everything together, we create a source file containing everything we have done so far.
-
-``` {.cpp file=src/99-bottles.cc}
-<<includes>>
-<<version>>
-
-<<bottle-function>>
-<<print-song-function>>
-<<main-function>>
-```
-
-To compile this, you can use GCC directly.
+To compile the `99-bottles` program, you can use GCC directly.
 
 ```
 mkdir build
@@ -171,26 +176,26 @@ But it is much better to provide a `Makefile`. We will create a `Makefile` that 
 
 We make sure all our build files end up in a single folder, preferably called `build` (hint: this folder can be added to your `.gitignore`).
 
-``` {.make #set-build-dir}
+``` {.makefile #set-build-dir}
 build_dir = ./build
 ```
 
 We search for all files with the `.cc` extension (warning: for bigger projects this will slow down compilation considerably). `make` does not easily support scanning for source files, but we may use a shell command.
 
-``` {.make #search-cc-files}
+``` {.makefile #search-cc-files}
 cc_files = $(shell find ./src -name *.cc)
 ```
 
 We can use string manipulation present in `make` to create the target object files and dependency files. The latter store the dependencies of the source files on header files, so that if a header file changes, the source file is recompiled.
 
-``` {.make #set-obj-files}
+``` {.makefile #set-obj-files}
 obj_files = $(cc_files:%.cc=$(build_dir)/%.o)
 dep_files = $(obj_file:%.o=%.d)
 ```
 
 The `fmtlib` library requires linking using `-lfmt`, we next define the compiler and linker commands and their arguments.
 
-``` {.make #compile-flags}
+``` {.makefile #compile-flags}
 compile = g++
 link = g++
 
@@ -204,7 +209,7 @@ Now that we have defined all these variables we can setup the make targets. The 
 
 In this case `build` depends only on the target executable `99-bottles`, making sure that this target is getting built.
 
-``` {.make #declare-target-rules}
+``` {.makefile #declare-target-rules}
 .PHONY: clean build
 
 build: $(build_dir)/99-bottles
@@ -224,7 +229,7 @@ There are more of these listed in the [`make` documentation](https://www.gnu.org
 
 Note also, that the `-MMD` flag to the compiler is actually telling GCC to create the aforementioned header dependency files. These files follow a `make` syntax generating a set of rules that is included using the `-include` statement.
 
-``` {.make #declare-pattern-rules}
+``` {.makefile #declare-pattern-rules}
 -include $(dep_files)
 
 $(build_dir)/%.o: %.cc
@@ -238,7 +243,7 @@ $(build_dir)/99-bottles: $(obj_files)
 
 The complete `Makefile`:
 
-``` {.make file=Makefile}
+``` {.makefile file=Makefile}
 <<set-build-dir>>
 <<search-cc-files>>
 <<set-obj-files>>
@@ -248,4 +253,16 @@ The complete `Makefile`:
 <<declare-pattern-rules>>
 ```
 
-Now, compiling is as simple as typing `make`.
+Now, compiling is as simple as typing `make`. If compilation is successful we can run the program.
+
+```
+$ ./build/99-bottles -n 3
+3 bottles of beer on the wall, 3 bottles of beer.
+Take one down and pass it around, 2 bottles of beer on the wall.
+2 bottles of beer on the wall, 2 bottles of beer.
+Take one down and pass it around, 1 bottle of beer on the wall.
+1 bottle of beer on the wall, 1 bottle of beer.
+Take one down and pass it around, no more bottles of beer on the wall.
+No more bottles of beer on the wall, no more bottles of beer.
+Go to the store and buy some more, 3 bottles of beer on the wall.
+```
