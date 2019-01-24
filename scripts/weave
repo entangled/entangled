@@ -6,7 +6,7 @@ format="markdown+fenced_code_attributes+citations+all_symbols_escapable+fenced_d
 pandoc_filters="pandoc-eqnos pandoc-fignos pandoc-citeproc"
 
 filter_args=$(echo ${pandoc_filters} | sed -e 's/\([^ ]*\)/--filter \1/g')
-pdf_args="--toc ${filter_args} --lua-filter ${script_dir}/annotate-code-blocks.lua --template \"${script_dir}/eisvogel.tex\" --listings"
+pdf_args="--toc ${filter_args} --lua-filter ${script_dir}/annotate-code-blocks.lua --template ${script_dir}/eisvogel.tex --listings"
 html_args="-s --toc --toc-depth=3 ${filter_args} --lua-filter ${script_dir}/annotate-code-blocks.lua --mathjax --css style.css --base-header-level=2"
 
 target="html"
