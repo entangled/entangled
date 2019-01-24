@@ -33,6 +33,10 @@ The `examples` folder contains currently a single example:
 
 - [99-bottles in C++](https://jhidding.github.io/enTangleD/99-bottles.html): teaching how to setup a basic C++ program with enTangleD, use of ArgAgg to parse command-line arguments, use of FmtLib to do string formatting and setting up a slightly non-basic Makefile.
 
+A slightly larger literate program:
+
+- [Adhesion code](https://jhidding.github.io/adhesion-code): presenting the cosmological adhesion model and its implementation in C++ and CGAL.
+
 More examples will follow!
 
 ## Building
