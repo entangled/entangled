@@ -85,7 +85,7 @@ subscriptions model = Sub.batch
 
 ``` {.elm #imports}
 import Browser
-import Array exposing (Array, repeat, indexedMap, toList)
+import Array exposing (Array, repeat, indexedMap, toList, set, get)
 import List exposing (concat)
 import Browser.Events exposing (onAnimationFrameDelta, onKeyDown)
 import Html exposing (Html, button, div, text, p, input, main_)
@@ -105,6 +105,33 @@ type Msg
     | TimeStep Float
     | PlaceSnitch (Int, Int)
 
+activeGridLoc : Actor -> (Int, Int)
+activeGridLoc {location, velocity} =
+    let (x, y) = location
+        (vx, vy) = velocity
+    in
+    if (abs vx) > (abs vy) then
+        if vx > 0 then
+            (round x, round y)
+        else
+            (round (x - 1.0), round y)
+    else
+        if vy > 0 then
+            (round x, round y)
+        else
+            (round x, round (y - 1.0))
+
+
+place : Cell -> Model -> Model
+place cell ({actors, grid} as model) =
+    let (i, j) = activeGridLoc actors.player
+        row = get j grid
+    in case row of
+        Just r -> { model
+                  | grid = set j (set i cell r) grid
+                  }
+        Nothing -> model
+
 timeStep : Float -> Model -> Model
 timeStep dt ({time, pause} as model) =
     if pause then model else {model | time = time + dt}
@@ -113,6 +140,8 @@ keyMap : String -> Model -> Model
 keyMap k ({pause} as model) =
     case k of
         " " -> { model | pause = not pause }
+        "ArrowLeft" -> place BackSlash model
+        "ArrowRight" -> place Slash model
         _   -> model
 
 placeSnitch : (Int, Int) -> Model -> Model
@@ -137,30 +166,31 @@ update msg model =
 
 ``` {.elm #view}
 scale : Int
-scale = 2
+scale = 15
 
 viewCell : (Int, Int) -> Cell -> List (Html Msg)
 viewCell (i, j) c =
     case c of
-        Slash ->     [ line [ x1 (String.fromInt (20 * i + 20))
-                            , y1 (String.fromInt (20 * j))
-                            , x2 (String.fromInt (20 * i))
-                            , y2 (String.fromInt (20 * j + 20))
+        Slash ->     [ line [ x1 (String.fromInt (scale * i + scale))
+                            , y1 (String.fromInt (scale * j))
+                            , x2 (String.fromInt (scale * i))
+                            , y2 (String.fromInt (scale * j + scale))
                             , class "slash" ] [] ]
-        BackSlash -> [ line [ x1 (String.fromInt (20 * i))
-                            , y1 (String.fromInt (20 * j))
-                            , x2 (String.fromInt (20 * i + 20))
-                            , y2 (String.fromInt (20 * j + 20))
+        BackSlash -> [ line [ x1 (String.fromInt (scale * i))
+                            , y1 (String.fromInt (scale * j))
+                            , x2 (String.fromInt (scale * i + scale))
+                            , y2 (String.fromInt (scale * j + scale))
                             , class "slash" ] [] ]
-        Empty ->     [ rect [ x (String.fromInt (20 * i))
-                            , y (String.fromInt (20 * j))
-                            , width "20"
-                            , height "20"
+        Empty ->     [ rect [ x (String.fromInt (scale * i))
+                            , y (String.fromInt (scale * j))
+                            , width (String.fromInt scale)
+                            , height (String.fromInt scale)
                             , style "fill: none; stroke: black;" ] [] ]
 
 viewArena : Model -> Html Msg
 viewArena ({grid} as model) =
-    svg [ width "1600", height "1000" ]
+    svg [ width "100%"
+        , viewBox ("0 0 " ++ (String.fromInt (scale * 80)) ++ " " ++ (String.fromInt (scale * 50)))]
         (concat (toList
             (indexedMap 
                 (\ y rows -> (concat (toList (indexedMap 
@@ -172,7 +202,7 @@ view : Model -> Html Msg
 view ({time, lastPressed} as model) =
     main_ []
         [ p [] [ text "Hello, World!" ]
-        , p [] [ viewArena model ]
+        , div [] [ viewArena model ]
         , p [] [ text (String.fromFloat time) ]
         , p [] [ text ("Last pressed: " ++ lastPressed) ]
         ]

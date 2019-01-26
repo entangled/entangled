@@ -45,6 +45,7 @@ defaultLanguages =
     , Language "YAML"        ["yaml"]                     "## ------"
     , Language "Gnuplot"     ["gnuplot"]                  "## ------"
     , Language "Make"        ["make", "makefile"]         "## ------"
+    , Language "Elm"         ["elm"]                      "-- ------"
     ]
 
 defaultConfig = Config defaultLanguages
