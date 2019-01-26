@@ -33,11 +33,13 @@ The *model* will be a grid of cells and a list of actors with location and veloc
 ``` {.elm #model}
 type alias Model =
     { actors : { player : Actor, buggers : List Actor, snitch : Actor }
-    , grid : Array (Array Cell)
+    , grid : Grid
     , time : Float
     , pause : Bool
     , lastPressed : String
     }
+
+type alias Grid = Array (Array Cell)
 
 type alias Actor =
     { location : (Float, Float)
@@ -55,7 +57,7 @@ makeGrid (width, height) = repeat height (repeat width Empty)
 init : () -> (Model, Cmd Msg)
 init _ = (
     { actors =
-        { player = { location = (40.0, 0.0), velocity = (0.0, 1.0) }
+        { player = { location = (40.5, 0.5), velocity = (0.0, 0.01) }
         , buggers = []
         , snitch = { location = (0.0, 0.0), velocity = (0.0, 0.0) }
         }
@@ -90,7 +92,7 @@ import List exposing (concat)
 import Browser.Events exposing (onAnimationFrameDelta, onKeyDown)
 import Html exposing (Html, button, div, text, p, input, main_)
 import Html.Events exposing (onClick, preventDefaultOn)
-import Svg exposing (svg, circle, line, rect)
+import Svg exposing (svg, circle, line, rect, g)
 import Svg.Attributes exposing (..)
 import Random
 
@@ -106,21 +108,13 @@ type Msg
     | PlaceSnitch (Int, Int)
 
 activeGridLoc : Actor -> (Int, Int)
-activeGridLoc {location, velocity} =
-    let (x, y) = location
-        (vx, vy) = velocity
-    in
-    if (abs vx) > (abs vy) then
-        if vx > 0 then
-            (round x, round y)
-        else
-            (round (x - 1.0), round y)
-    else
-        if vy > 0 then
-            (round x, round y)
-        else
-            (round x, round (y - 1.0))
-
+activeGridLoc actor =
+    let (x, y) = actor.location
+    in case (actorDirection actor) of
+        East  -> (round x, round y)
+        West  -> (round (x - 1.0), round y)
+        North -> (round x, round (y - 1.0))
+        South -> (round x, round y)            
 
 place : Cell -> Model -> Model
 place cell ({actors, grid} as model) =
@@ -132,9 +126,55 @@ place cell ({actors, grid} as model) =
                   }
         Nothing -> model
 
+moveActor : Float -> Actor -> Actor
+moveActor dt actor =
+    let (x, y) = actor.location
+        (vx, vy) = actor.velocity
+    in { actor | location = (x + dt * vx, y + dt * vy) }
+
+gridRef : (Int, Int) -> Grid -> Cell
+gridRef (i, j) grid = 
+    Maybe.withDefault Empty 
+    <| Maybe.andThen (\ row -> get i row) (get j grid)
+
+type Direction = North | East | South | West
+
+actorDirection : Actor -> Direction
+actorDirection actor =
+    let (vx, vy) = actor.velocity
+    in if (abs vx) > (abs vy) then
+        if vx > 0 then East else West
+    else
+        if vy > 0 then South else North
+        
+bounceActor : Float -> Cell -> Actor -> Actor
+bounceActor dt cell actor =
+    let (i, j)   = activeGridLoc actor
+        (vx, vy) = actor.velocity
+        newloc   = ((toFloat i) + 0.5, (toFloat j) + 0.5)
+    in case cell of
+        Slash     -> moveActor dt { location = newloc, velocity = (-vy, -vx) }
+        BackSlash -> moveActor dt { location = newloc, velocity = (vy, vx) }
+        Empty     -> actor
+
+updateActor : Grid -> Float -> Actor -> Actor
+updateActor grid dt actor =
+    let a = activeGridLoc actor
+        b = activeGridLoc <| moveActor dt actor 
+    in if a /= b then case (gridRef a grid) of
+        Slash -> bounceActor dt Slash actor
+        BackSlash -> bounceActor dt BackSlash actor
+        Empty -> moveActor dt actor
+    else
+        moveActor dt actor
+
 timeStep : Float -> Model -> Model
-timeStep dt ({time, pause} as model) =
-    if pause then model else {model | time = time + dt}
+timeStep dt ({actors, grid, time, pause} as model) =
+    if pause then model 
+    else { model
+        | time = time + dt
+        , actors = { actors
+            | player = updateActor grid dt actors.player } }
 
 keyMap : String -> Model -> Model
 keyMap k ({pause} as model) =
@@ -150,7 +190,7 @@ placeSnitch (x, y) ({actors} as model) =
     | actors = 
         { actors 
         | snitch =
-            { location = (toFloat x, toFloat y)
+            { location = ((toFloat x) + 0.5, (toFloat y) + 0.5)
             , velocity = (0.0, 0.0) } } }
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -168,6 +208,9 @@ update msg model =
 scale : Int
 scale = 15
 
+fScale : Float
+fScale = toFloat scale
+
 viewCell : (Int, Int) -> Cell -> List (Html Msg)
 viewCell (i, j) c =
     case c of
@@ -175,28 +218,40 @@ viewCell (i, j) c =
                             , y1 (String.fromInt (scale * j))
                             , x2 (String.fromInt (scale * i))
                             , y2 (String.fromInt (scale * j + scale))
-                            , class "slash" ] [] ]
+                            , class "slash"
+                            , style "stroke: blue" ] [] ]
         BackSlash -> [ line [ x1 (String.fromInt (scale * i))
                             , y1 (String.fromInt (scale * j))
                             , x2 (String.fromInt (scale * i + scale))
                             , y2 (String.fromInt (scale * j + scale))
-                            , class "slash" ] [] ]
+                            , class "slash"
+                            , style "stroke: blue" ] [] ]
         Empty ->     [ rect [ x (String.fromInt (scale * i))
                             , y (String.fromInt (scale * j))
                             , width (String.fromInt scale)
                             , height (String.fromInt scale)
                             , style "fill: none; stroke: black;" ] [] ]
 
+viewHero : Actor -> Html Msg
+viewHero actor =
+    let (x, y) = actor.location
+    in circle [ cx (String.fromFloat <| x * fScale)
+              , cy (String.fromFloat <| y * fScale)
+              , r (String.fromInt <| scale // 2)
+              , style "fill: red"] []
+
 viewArena : Model -> Html Msg
-viewArena ({grid} as model) =
+viewArena ({actors, grid} as model) =
     svg [ width "100%"
         , viewBox ("0 0 " ++ (String.fromInt (scale * 80)) ++ " " ++ (String.fromInt (scale * 50)))]
-        (concat (toList
+        [ g [] (concat (toList
             (indexedMap 
                 (\ y rows -> (concat (toList (indexedMap 
                             (\ x cell -> viewCell (x, y) cell)
                             rows))))
                 grid)))
+        , g [] [viewHero actors.player]
+        ]
 
 view : Model -> Html Msg
 view ({time, lastPressed} as model) =
