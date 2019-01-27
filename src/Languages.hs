@@ -11,4 +11,5 @@ data Language = Language
     { languageName          :: String
     , languageAbbreviations :: [String]
     , languageLineComment   :: String
+    , languageCloseComment  :: String
     } deriving (Show, Eq)

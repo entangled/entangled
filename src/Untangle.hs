@@ -135,7 +135,7 @@ escape = concatMap escapeChar
             | otherwise = [c]
 
 headerPattern :: String
-headerPattern = "^.+language=\"([^\"].+)\"[ \\t]+file=\"([^\"]+)\"[ \\t]*$"
+headerPattern = "^.+language=\"([^\"].+)\"[ \\t]+file=\"([^\"]+)\""
 
 matchHeader :: String -> Maybe Header
 matchHeader line =

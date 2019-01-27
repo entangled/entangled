@@ -3,7 +3,31 @@ title: Slasher game in Elm
 author: Johan Hidding
 ---
 
-What better waste of time than writing a mind numbing game in a language you don't know? Let's dive into [Elm](https://elm-lang.org/). Elm is a functional language that compiles to JavaScript. Its design is centred around the Model/View/Controller concept.
+What better waste of time than writing a mind numbing game in a language you don't know? Let's dive into [Elm](https://elm-lang.org/). Elm is a strongly typed functional language that compiles to JavaScript. Its design is centred around the Model/View/Controller concept.
+
+This document may teach you:
+
+* Basics of Elm
+* Writing a small browser based game
+* Random numbers in Elm (through Cmd/Msg loop)
+* Generate SVG
+
+Our game is simple. The original *slasher* game is one I remember from way back when I was playing with [GW Basic](https://en.wikipedia.org/wiki/GW-BASIC). Your hero is zipping around the screen at break neck speeds and the only way to control him is by placing slash `/` and backslash `\` characters from which it bounces off. The goal is to catch the golden snitch which only stays in one place for so long.
+
+# Main
+
+Elm has a set of different application formats, depending on the level of interactivity that is needed:
+
+* **sandbox**: has no interaction with outside world, except through buttons, text fields and forms.
+* **element**: can talk to HTTP, use random numbers, and capture browser events.
+* **document**: similar to element, but generates the entire document.
+* **application**: also handles URL requests and URL changes.
+
+The Elm guide has a section describing the difference between `sandbox` and `element`. The event loop of `element` looks like this:
+
+![`Browser.element` event loop](https://guide.elm-lang.org/effects/diagrams/element.svg)
+
+We will be creating an `element` program, compile it to a JavaScript file, and create a HTML and CSS around it by hand. The lay-out of such a program in Elm looks as follows:
 
 ``` {.elm file=src/Main.elm}
 <<imports>>
@@ -15,7 +39,7 @@ What better waste of time than writing a mind numbing game in a language you don
 <<view>>
 ```
 
-Our game is simple. The original *slasher* game is one I remember from way back when I was playing with [GW Basic](https://en.wikipedia.org/wiki/GW-BASIC). Your hero is zipping around the screen at break neck speeds and the only way to control him is by placing slash `/` and backslash `\` characters from which the bugger bounces off. The goal is to catch the golden snitch which only stays in one place for so long.
+The `main` function tells Elm that we create an `element`
 
 ``` {.elm #main}
 main =
@@ -26,53 +50,121 @@ main =
         , view = view }
 ```
 
+The rest of the program has:
+
+* **model**: Data model of the game. In strongly typed functional languages the design of a program always starts with thinking about type definitions.
+* **update**: Defines how to propagate the model from one state to the next.
+* **subscriptions**: Subscriptions to external events, that is, events that cannot be bound to an action on a HTML element.
+* **view**: Describes how to translate the model state into an HTML element.
+
+## Imports
+
+
+``` {.elm #imports}
+import Browser
+import Array exposing (Array, repeat, indexedMap, toList, set, get)
+import List exposing (concat)
+import Browser.Events exposing (onAnimationFrameDelta, onKeyDown)
+import Html exposing (Html, button, div, text, p, input, main_)
+import Html.Events exposing (onClick, preventDefaultOn)
+import Svg exposing (svg, circle, line, rect, g, polygon, text_)
+import Svg.Attributes exposing (..)
+import Random
+
+import Json.Decode as Decode
+```
+
 # The Model
 
-The *model* will be a grid of cells and a list of actors with location and velocity.
+The *model* will be a grid of cells and two actors: our hero and the snitch (if you like to play around with the code, try to add a list of enemy actors that can hurt the hero).
 
 ``` {.elm #model}
 type alias Model =
     { actors : { player : Actor, snitch : Actor }
     , grid : Grid
-    , time : Float
+    , snitchTime : Float
     , state : GameState
     , lastPressed : String
     }
+```
 
-type GameState = Start | Running | Pause | Win
+In addition to the *actors* and the *grid*, we have to keep time, and a game state flag. The game state tells us if the game is running etc.
 
+``` {.elm #model}
+type GameState = Start | Running | Pause | Won
+```
+
+We define the *grid* as nested arrays of cells, where each cell can have the value `Empty`, `Slash` or `BackSlash`:
+
+``` {.elm #model}
 type alias Grid = Array (Array Cell)
-
-type alias Actor =
-    { location : (Float, Float)
-    , velocity : (Float, Float)
-    }
 
 type Cell
     = Empty
     | Slash
     | BackSlash
+```
 
-makeGrid : (Int, Int) -> Array (Array Cell)
-makeGrid (width, height) = repeat height (repeat width Empty)
+Lastly, an `Actor` is something that has a location and a velocity, each a 2-tuple of floats.
 
+``` {.elm #model}
+type alias Actor =
+    { location : (Float, Float)
+    , velocity : (Float, Float)
+    }
+```
+
+## Config
+
+``` {.elm #model}
+type alias Config =
+    { gridSize : (Int, Int)
+    , playerSpeed : Float
+    , scale : Int
+    , snitchTime : Float
+    }
+
+config : Config
+config =
+    { gridSize = (80, 50)
+    , playerSpeed = 0.03
+    , scale = 15
+    , snitchTime = 10000
+    }
+```
+
+## Init
+
+The model is initialised by the `init` function. This function has the funny signature `() -> (Model, Cmd Msg)`. We'll return to the type definition of `Msg` later, but what this means is that the `init` function generates an initial state and a command (or list of commands) that tells the Elm run-time to perform an action upon initialisation. Such an action can be anything that requires some form of external state: HTTP requests, location/time information, and in our case: generating random numbers.
+
+``` {.elm #model}
 init : () -> (Model, Cmd Msg)
-init _ = (
+init _ = 
+    let (width, height) = config.gridSize
+        playerLoc       = ((toFloat width)/2 + 0.5, 0.5)
+    in (
     { actors =
-        { player = { location = (40.5, 0.5), velocity = (0.0, 0.03) }
-        , snitch = { location = (0.0, 0.0), velocity = (0.0, 0.0) }
+        { player = { location = playerLoc
+                   , velocity = (0.0, config.playerSpeed) }
+        , snitch = { location = (0.0, 0.0)
+                   , velocity = (0.0, 0.0) }
         }
-    , grid = makeGrid (80, 50)
-    , time = 0.0
-    , state = Pause
+    , grid = makeGrid config.gridSize
+    , snitchTime = 0.0
+    , state = Start
     , lastPressed = ""
     }, Cmd.batch
     [ Random.generate PlaceSnitch (Random.pair (Random.int 0 79)
                                                (Random.int 0 49))
     ])
+
+makeGrid : (Int, Int) -> Array (Array Cell)
+makeGrid (width, height) =
+    Array.repeat height
+                 (Array.repeat width Empty)
 ```
 
-# Events
+# Subscriptions
 
 ``` {.elm #subscriptions}
 keyDecoder : Decode.Decoder Msg
@@ -86,28 +178,40 @@ subscriptions model = Sub.batch
     ]
 ```
 
-``` {.elm #imports}
-import Browser
-import Array exposing (Array, repeat, indexedMap, toList, set, get)
-import List exposing (concat)
-import Browser.Events exposing (onAnimationFrameDelta, onKeyDown)
-import Html exposing (Html, button, div, text, p, input, main_)
-import Html.Events exposing (onClick, preventDefaultOn)
-import Svg exposing (svg, circle, line, rect, g, polygon)
-import Svg.Attributes exposing (..)
-import Random
-
-import Json.Decode as Decode
-```
-
 # Update
 
-``` {.elm #update}
+The `update` function has the following signature:
+
+``` {.elm #update-function}
+update : Msg -> Model -> (Model, Cmd Msg)
+```
+
+This means that, given a *message* and a *model* state, we can generate a new model state and a list of requests to the Elm run-time. This list of requests has the type `Cmd Msg`, telling Elm that, whatever the request, it has to respond with a `Msg`.
+
+``` {.elm #msg-type}
 type Msg
     = KeyPress String
     | TimeStep Float
     | PlaceSnitch (Int, Int)
+```
 
+In our case, a message is either a `KeyPress` indicating a key being pressed, a `TimeStep` when a new animation frame is triggered or a `PlaceSnitch` when the random number generator returns a fresh pair of coordinates. We'll defer the handling of these messages to helper functions.
+
+``` {.elm #update-function}
+update msg model =
+    case msg of
+        TimeStep dt   -> let next = timeStep dt model
+                         in (next, checkSnitchTime next)
+        KeyPress k    -> (keyMap k { model | lastPressed = k }, Cmd.none)
+        PlaceSnitch l -> (placeSnitch l model, Cmd.none)
+```
+
+``` {.elm #update}
+<<msg-type>>
+<<update-function>>
+```
+
+``` {.elm #update}
 activeGridLoc : Actor -> (Int, Int)
 activeGridLoc actor =
     let (x, y) = actor.location
@@ -186,44 +290,58 @@ updateActor grid dt actor =
         moveActor dt actor
 
 timeStep : Float -> Model -> Model
-timeStep dt ({actors, grid, time, state} as model) =
-    if state /= Running then model 
-    else { model
-        | time = time + dt
-        , actors = { actors
-            | player = updateActor grid dt actors.player } }
+timeStep dt ({actors, grid, snitchTime, state} as model) =
+    case state of
+        Running -> if didWeWin model
+                   then { model
+                        | state = Won }
+                   else { model
+                        | snitchTime = snitchTime - dt
+                        , actors =
+                            { actors
+                            | player = updateActor grid dt actors.player } }
+        _       -> model
 
 keyMap : String -> Model -> Model
 keyMap k ({state} as model) =
     case k of
-        " " -> { model | state = if state == Pause then Running else Pause }
-        "ArrowLeft" -> place BackSlash model
-        "ArrowRight" -> place Slash model
+        " " -> let newState = case state of
+                    Running -> Pause
+                    Start   -> Running
+                    Pause   -> Running
+                    Won     -> Won
+               in { model | state = newState }
+        "ArrowLeft"  -> if state == Running
+                        then place BackSlash model
+                        else model
+        "ArrowRight" -> if state == Running
+                        then place Slash model
+                        else model
         _   -> model
 
 placeSnitch : (Int, Int) -> Model -> Model
 placeSnitch (x, y) ({actors} as model) = 
-    { model 
-    | actors = 
+    { model
+    | snitchTime = config.snitchTime
+    , actors = 
         { actors 
         | snitch =
             { location = ((toFloat x) + 0.5, (toFloat y) + 0.5)
             , velocity = (0.0, 0.0) } } }
 
+checkSnitchTime : Model -> Cmd Msg
+checkSnitchTime {snitchTime} =
+    let (w, h) = config.gridSize
+    in if snitchTime < 0.0 
+    then Random.generate
+            PlaceSnitch
+            (Random.pair (Random.int 0 (w - 1))
+                         (Random.int 0 (h - 1)))
+    else Cmd.none
+
 didWeWin : Model -> Bool
 didWeWin ({actors} as model) =
     activeGridLoc actors.snitch == activeGridLoc actors.player
-
-update : Msg -> Model -> (Model, Cmd Msg)
-update msg model =
-    case msg of
-        TimeStep dt -> let next = timeStep dt model in
-                       if didWeWin next
-                       then ({ next | state = Win } , Cmd.none)
-                       else (next, Cmd.none)
-        KeyPress k -> (keyMap k { model | lastPressed = k }, Cmd.none)
-        PlaceSnitch l -> (placeSnitch l model, Cmd.none)
-        -- _ -> (model, Cmd.none)
 ```
 
 # View
@@ -274,7 +392,7 @@ viewHero actor =
             East  -> [ (x, y)
                      , (x - 1, y + 0.3)
                      , (x - 1, y - 0.3) ]
-    in polygon [ points <| formatPath path, style "fill: red" ] []
+    in polygon [ points <| formatPath path, style "fill: red; stroke: black" ] []
 
 viewSnitch : Actor -> Html Msg
 viewSnitch actor =
@@ -282,12 +400,44 @@ viewSnitch actor =
     in circle [ cx (String.fromFloat <| x * fScale)
               , cy (String.fromFloat <| y * fScale)
               , r (String.fromInt <| scale // 2)
-              , style "fill: gold"] []
+              , style "fill: gold; stroke: black;"] []
+
+viewOverlay : GameState -> Html Msg
+viewOverlay state =
+    let (w, h)  = config.gridSize
+        sWidth  = (String.fromInt <| config.scale * w)
+        sHeight = (String.fromInt <| config.scale * h)
+        middleX = (String.fromInt <| config.scale * w // 2)
+        middleY = (String.fromInt <| config.scale * h // 2)
+        rectA   = rect [ x "0", y "0", width sWidth
+                       , height sHeight
+                       , rx (String.fromInt <| scale)
+                       , ry (String.fromInt <| scale)
+                       , style "fill: black" ] []
+        textA s = text_ [ x middleX, y middleY, textAnchor "middle"
+                        , style "fill: white; font-size: 30pt;" ]
+                        [ text s ]
+    in case state of
+        Running -> g [] []
+        Won     -> g [ opacity "0.4" ] [ rectA, textA "YOU WIN!" ] 
+        Start   -> g [ opacity "0.4" ]
+                     [ rectA, textA "press space to start"]
+        Pause   -> g [ opacity "0.4" ]
+                     [ rectA, textA "PAUSED" ]
+
+viewSnitchBar : Float -> Html Msg
+viewSnitchBar t =
+    let u       = t / config.snitchTime
+        (w, h)  = config.gridSize
+        sWidth  = String.fromFloat <| (toFloat w) * u * (toFloat config.scale)
+    in rect [ x "0", y (String.fromInt <| h * config.scale + 10)
+            , width sWidth, height (String.fromInt <| config.scale // 2)
+            , style "fill: gold; stroke: black" ] []
 
 viewArena : Model -> Html Msg
-viewArena ({actors, grid} as model) =
+viewArena ({actors, grid, state, snitchTime} as model) =
     svg [ width "100%"
-        , viewBox ("-3 -3 " ++ (String.fromInt <| scale * 80 + 4) ++ " " ++ (String.fromInt <| scale * 50 + 4))]
+        , viewBox ("-3 -3 " ++ (String.fromInt <| scale * 80 + 4) ++ " " ++ (String.fromInt <| scale * 50 + 24))]
         [ g [] (concat (toList
             (indexedMap 
                 (\ y rows -> (concat (toList (indexedMap 
@@ -302,14 +452,43 @@ viewArena ({actors, grid} as model) =
                      , rx (String.fromInt <| scale)
                      , ry (String.fromInt <| scale)
                      , style "fill: none; stroke: black; stroke-width: 2pt;" ] []]
+        , (viewOverlay state)
+        , (viewSnitchBar snitchTime)
         ]
 
 view : Model -> Html Msg
-view ({time, lastPressed} as model) =
+view ({snitchTime, lastPressed} as model) =
     main_ []
-        [ p [] [ text "Hello, World!" ]
-        , div [] [ viewArena model ]
-        , p [] [ text (String.fromFloat time) ]
-        , p [] [ text ("Last pressed: \"" ++ lastPressed ++ "\"") ]
+        [ div [ id "header" ] [ text "⟍ ⟍ S L A S H E R ⟋ ⟋" ]
+        , div [ id "arena" ] [ viewArena model ]
+        , div [ id "help" ] [ text "keys: Left ⟍ | Right ⟋ | Space pause" ]
         ]
+```
+
+# Completing the game
+
+From the code we can either build a HTML or a JavaScript file for embedding. We will manually create the HTML so that we can also create a stylesheet.
+
+```
+$ elm make ./src --output=slasher.js
+```
+
+The HTML can be very short now:
+
+``` {.html file=index.html}
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="style.css">
+  </head>
+
+  <body>
+    <div id="slasher"></div>
+
+    <script src="slasher.js"></script>
+    <script>
+      Elm.Main.embed(document.getElementById("slasher"));
+    </script>
+  </body>
+</html>
 ```

@@ -313,7 +313,7 @@ mainLoop (WriteEvent SourceFile fp : xs) = do
 mainLoop (WriteEvent TargetFile fp : xs) = do
     liftIO $ putStrLn $ "Untangling " ++ fp
     setDaemonState Untangling
-    wait	        -- the write event may arrive before the editor 
+    wait            -- the write event may arrive before the editor 
                     -- has finished saving the document
     updateFromTarget fp
     stitchSources

@@ -107,11 +107,11 @@ tangleNaked (Document refs _) = Map.fromList $ zip fileNames sources
           fileNames = map referenceName fileRefs
 
 {- Annotated tangle -}
-topAnnotation :: ReferenceId -> String -> String -> String
-topAnnotation (NameReferenceId n i) comment lang =
-    comment ++ " begin <<" ++ n ++ ">>[" ++ show i ++ "]"
-topAnnotation (FileReferenceId n) comment lang =
-    comment ++ " language=\"" ++ lang ++ "\" file=\"" ++ n ++ "\""
+topAnnotation :: ReferenceId -> String -> String -> String -> String
+topAnnotation (NameReferenceId n i) comment close lang =
+    comment ++ " begin <<" ++ n ++ ">>[" ++ show i ++ "]" ++ close
+topAnnotation (FileReferenceId n) comment close lang =
+    comment ++ " language=\"" ++ lang ++ "\" file=\"" ++ n ++ "\"" ++ close
 
 lookupLanguage' :: (MonadReader Config m)
         => String -> m (Either TangleError Language)
@@ -126,9 +126,9 @@ annotate :: (MonadReader Config m)
 annotate id (CodeBlock lang _ text) = do
     l <- lookupLanguage' lang
     return $ do 
-        (Language _ _ comment) <- l
-        let top      = T.pack $ topAnnotation id comment lang
-            bottom   = T.pack $ comment ++ " end"
+        (Language _ _ comment close) <- l
+        let top      = T.pack $ topAnnotation id comment close lang
+            bottom   = T.pack $ comment ++ " end" ++ close
         return $ top <> T.pack "\n" <> text <> T.pack "\n" <> bottom
 
 expandAnnotated :: (MonadReader Config m)
