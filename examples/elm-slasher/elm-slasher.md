@@ -35,9 +35,11 @@ type alias Model =
     { actors : { player : Actor, buggers : List Actor, snitch : Actor }
     , grid : Grid
     , time : Float
-    , pause : Bool
+    , state : GameState
     , lastPressed : String
     }
+
+type GameState = Start | Running | Pause | Win
 
 type alias Grid = Array (Array Cell)
 
@@ -57,13 +59,13 @@ makeGrid (width, height) = repeat height (repeat width Empty)
 init : () -> (Model, Cmd Msg)
 init _ = (
     { actors =
-        { player = { location = (40.5, 0.5), velocity = (0.0, 0.01) }
+        { player = { location = (40.5, 0.5), velocity = (0.0, 0.03) }
         , buggers = []
         , snitch = { location = (0.0, 0.0), velocity = (0.0, 0.0) }
         }
     , grid = makeGrid (80, 50)
     , time = 0.0
-    , pause = True
+    , state = Pause
     , lastPressed = ""
     }, Cmd.batch
     [ Random.generate PlaceSnitch (Random.pair (Random.int 0 79)
@@ -92,7 +94,7 @@ import List exposing (concat)
 import Browser.Events exposing (onAnimationFrameDelta, onKeyDown)
 import Html exposing (Html, button, div, text, p, input, main_)
 import Html.Events exposing (onClick, preventDefaultOn)
-import Svg exposing (svg, circle, line, rect, g)
+import Svg exposing (svg, circle, line, rect, g, polygon)
 import Svg.Attributes exposing (..)
 import Random
 
@@ -169,7 +171,7 @@ bounceOffWall dt actor =
             South -> (x, 50.0)
             East  -> (80.0, y)
             West  -> (0.0, y)
-    in moveActor dt { location = newloc, velocity = (-vy, -vx) }
+    in moveActor dt { location = newloc, velocity = (-vx, -vy) }
 
 updateActor : Grid -> Float -> Actor -> Actor
 updateActor grid dt actor =
@@ -185,17 +187,17 @@ updateActor grid dt actor =
         moveActor dt actor
 
 timeStep : Float -> Model -> Model
-timeStep dt ({actors, grid, time, pause} as model) =
-    if pause then model 
+timeStep dt ({actors, grid, time, state} as model) =
+    if state /= Running then model 
     else { model
         | time = time + dt
         , actors = { actors
             | player = updateActor grid dt actors.player } }
 
 keyMap : String -> Model -> Model
-keyMap k ({pause} as model) =
+keyMap k ({state} as model) =
     case k of
-        " " -> { model | pause = not pause }
+        " " -> { model | state = if state == Pause then Running else Pause }
         "ArrowLeft" -> place BackSlash model
         "ArrowRight" -> place Slash model
         _   -> model
@@ -209,10 +211,17 @@ placeSnitch (x, y) ({actors} as model) =
             { location = ((toFloat x) + 0.5, (toFloat y) + 0.5)
             , velocity = (0.0, 0.0) } } }
 
+didWeWin : Model -> Bool
+didWeWin ({actors} as model) =
+    activeGridLoc actors.snitch == activeGridLoc actors.player
+
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
-        TimeStep dt -> (timeStep dt model, Cmd.none)
+        TimeStep dt -> let next = timeStep dt model in
+                       if didWeWin next
+                       then ({ next | state = Win } , Cmd.none)
+                       else (next, Cmd.none)
         KeyPress k -> (keyMap k { model | lastPressed = k }, Cmd.none)
         PlaceSnitch l -> (placeSnitch l model, Cmd.none)
         -- _ -> (model, Cmd.none)
@@ -252,10 +261,43 @@ viewCell (i, j) c =
 viewHero : Actor -> Html Msg
 viewHero actor =
     let (x, y) = actor.location
+    in case actorDirection actor of
+        South -> polygon
+            [ points <| (String.fromFloat <| x * fScale) ++ "," ++ (String.fromFloat <| y * fScale) ++ " " ++
+                        (String.fromFloat <| x * fScale + fScale * 0.3) ++ "," ++
+                        (String.fromFloat <| y * fScale - fScale) ++ " " ++
+                        (String.fromFloat <| x * fScale - fScale * 0.3) ++ "," ++
+                        (String.fromFloat <| y * fScale - fScale)
+            , style "fill: red" ] []
+        North -> polygon
+            [ points <| (String.fromFloat <| x * fScale) ++ "," ++ (String.fromFloat <| y * fScale) ++ " " ++
+                        (String.fromFloat <| x * fScale + fScale * 0.3) ++ "," ++
+                        (String.fromFloat <| y * fScale + fScale) ++ " " ++
+                        (String.fromFloat <| x * fScale - fScale * 0.3) ++ "," ++
+                        (String.fromFloat <| y * fScale + fScale)
+            , style "fill: red" ] []
+        East -> polygon
+            [ points <| (String.fromFloat <| x * fScale) ++ "," ++ (String.fromFloat <| y * fScale) ++ " " ++
+                        (String.fromFloat <| x * fScale - fScale) ++ "," ++
+                        (String.fromFloat <| y * fScale - fScale * 0.3) ++ " " ++
+                        (String.fromFloat <| x * fScale - fScale) ++ "," ++
+                        (String.fromFloat <| y * fScale + fScale * 0.3)
+            , style "fill: red" ] []
+        West -> polygon
+            [ points <| (String.fromFloat <| x * fScale) ++ "," ++ (String.fromFloat <| y * fScale) ++ " " ++
+                        (String.fromFloat <| x * fScale + fScale) ++ "," ++
+                        (String.fromFloat <| y * fScale - fScale * 0.3) ++ " " ++
+                        (String.fromFloat <| x * fScale + fScale) ++ "," ++
+                        (String.fromFloat <| y * fScale + fScale * 0.3)
+            , style "fill: red" ] []
+
+viewSnitch : Actor -> Html Msg
+viewSnitch actor =
+    let (x, y) = actor.location
     in circle [ cx (String.fromFloat <| x * fScale)
               , cy (String.fromFloat <| y * fScale)
               , r (String.fromInt <| scale // 2)
-              , style "fill: red"] []
+              , style "fill: gold"] []
 
 viewArena : Model -> Html Msg
 viewArena ({actors, grid} as model) =
@@ -267,7 +309,8 @@ viewArena ({actors, grid} as model) =
                             (\ x cell -> viewCell (x, y) cell)
                             rows))))
                 grid)))
-        , g [] [viewHero actors.player]
+        , g [] [ viewHero actors.player
+               , viewSnitch actors.snitch ]
         , g [] [rect [ x "0", y "0"
                      , width (String.fromInt (scale * 80))
                      , height (String.fromInt (scale * 50))
