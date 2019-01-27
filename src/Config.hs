@@ -46,7 +46,8 @@ defaultLanguages =
     , Language "Gnuplot"     ["gnuplot"]                  "## ------" ""
     , Language "Make"        ["make", "makefile"]         "## ------" ""
     , Language "Elm"         ["elm"]                      "-- ------" ""
-    , Language "HTML"        ["html"]                     "<!-- ----" "-->"
+    , Language "HTML"        ["html"]                     "<!-- ----" " -->"
+    , Language "CSS"         ["css"]                      "/* ------" " */"
     ]
 
 defaultConfig = Config defaultLanguages

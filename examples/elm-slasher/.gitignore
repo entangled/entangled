@@ -1,4 +1,8 @@
 elm-stuff
 index.html
 src
-
+slasher.js
+package-lock.json
+slasher.min.js
+style.css
+Makefile

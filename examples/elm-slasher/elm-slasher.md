@@ -360,14 +360,12 @@ viewCell (i, j) c =
                             , y1 (String.fromInt (scale * j))
                             , x2 (String.fromInt (scale * i))
                             , y2 (String.fromInt (scale * j + scale))
-                            , class "slash"
-                            , style "stroke: blue; stroke-width: 2pt;" ] [] ]
+                            , class "slash" ] [] ]
         BackSlash -> [ line [ x1 (String.fromInt (scale * i))
                             , y1 (String.fromInt (scale * j))
                             , x2 (String.fromInt (scale * i + scale))
                             , y2 (String.fromInt (scale * j + scale))
-                            , class "slash"
-                            , style "stroke: blue; stroke-width: 2pt;" ] [] ]
+                            , class "slash" ] [] ]
         Empty ->     []
 
 formatPath : List (Float, Float) -> String
@@ -392,7 +390,7 @@ viewHero actor =
             East  -> [ (x, y)
                      , (x - 1, y + 0.3)
                      , (x - 1, y - 0.3) ]
-    in polygon [ points <| formatPath path, style "fill: red; stroke: black" ] []
+    in polygon [ points <| formatPath path, class "hero" ] []
 
 viewSnitch : Actor -> Html Msg
 viewSnitch actor =
@@ -400,7 +398,7 @@ viewSnitch actor =
     in circle [ cx (String.fromFloat <| x * fScale)
               , cy (String.fromFloat <| y * fScale)
               , r (String.fromInt <| scale // 2)
-              , style "fill: gold; stroke: black;"] []
+              , class "snitch" ] []
 
 viewOverlay : GameState -> Html Msg
 viewOverlay state =
@@ -414,16 +412,14 @@ viewOverlay state =
                        , rx (String.fromInt <| scale)
                        , ry (String.fromInt <| scale)
                        , style "fill: black" ] []
-        textA s = text_ [ x middleX, y middleY, textAnchor "middle"
-                        , style "fill: white; font-size: 30pt;" ]
+        textA s = text_ [ x middleX, y middleY, textAnchor "middle" ]
                         [ text s ]
+        overlay s = g [ id "overlay" ] [ rectA, textA s ]
     in case state of
         Running -> g [] []
-        Won     -> g [ opacity "0.4" ] [ rectA, textA "YOU WIN!" ] 
-        Start   -> g [ opacity "0.4" ]
-                     [ rectA, textA "press space to start"]
-        Pause   -> g [ opacity "0.4" ]
-                     [ rectA, textA "PAUSED" ]
+        Won     -> overlay "YOU WIN!"
+        Start   -> overlay "press space to start"
+        Pause   -> overlay "PAUSE"
 
 viewSnitchBar : Float -> Html Msg
 viewSnitchBar t =
@@ -432,13 +428,19 @@ viewSnitchBar t =
         sWidth  = String.fromFloat <| (toFloat w) * u * (toFloat config.scale)
     in rect [ x "0", y (String.fromInt <| h * config.scale + 10)
             , width sWidth, height (String.fromInt <| config.scale // 2)
-            , style "fill: gold; stroke: black" ] []
+            , id "snitch-bar" ] []
 
 viewArena : Model -> Html Msg
 viewArena ({actors, grid, state, snitchTime} as model) =
     svg [ width "100%"
         , viewBox ("-3 -3 " ++ (String.fromInt <| scale * 80 + 4) ++ " " ++ (String.fromInt <| scale * 50 + 24))]
-        [ g [] (concat (toList
+        [ g [] [rect [ x "0", y "0"
+                     , width (String.fromInt (scale * 80))
+                     , height (String.fromInt (scale * 50))
+                     , rx (String.fromInt <| scale)
+                     , ry (String.fromInt <| scale)
+                     , id "box" ] []]
+        , g [] (concat (toList
             (indexedMap 
                 (\ y rows -> (concat (toList (indexedMap 
                             (\ x cell -> viewCell (x, y) cell)
@@ -446,12 +448,6 @@ viewArena ({actors, grid, state, snitchTime} as model) =
                 grid)))
         , g [] [ viewHero actors.player
                , viewSnitch actors.snitch ]
-        , g [] [rect [ x "0", y "0"
-                     , width (String.fromInt (scale * 80))
-                     , height (String.fromInt (scale * 50))
-                     , rx (String.fromInt <| scale)
-                     , ry (String.fromInt <| scale)
-                     , style "fill: none; stroke: black; stroke-width: 2pt;" ] []]
         , (viewOverlay state)
         , (viewSnitchBar snitchTime)
         ]
@@ -467,10 +463,18 @@ view ({snitchTime, lastPressed} as model) =
 
 # Completing the game
 
-From the code we can either build a HTML or a JavaScript file for embedding. We will manually create the HTML so that we can also create a stylesheet.
+From the code we can either build a HTML or a JavaScript file for embedding. We will manually create the HTML so that we can also create a stylesheet. Here's the `Makefile` for creating an optimized and uglified version of `slasher` (you can install `uglifyjs` with `npm install -g uglify-js`):
 
-```
-$ elm make ./src --output=slasher.js
+``` {.makefile file=Makefile}
+.PHONY: build
+
+build: slasher.min.js
+
+slasher.js: src/Main.elm
+	elm make src/Main.elm --output=slasher.js --optimize
+
+slasher.min.js: slasher.js
+	uglifyjs slasher.js --compress 'pure_funcs="F2,F3,F4,F5,F6,F7,F8,F9,A2,A3,A4,A5,A6,A7,A8,A9",pure_getters,keep_fargs=false,unsafe_comps,unsafe' | uglifyjs --mangle --output=slasher.min.js
 ```
 
 The HTML can be very short now:
@@ -480,16 +484,78 @@ The HTML can be very short now:
 <html>
   <head>
     <title>Slasher</title>
+    <meta charset="UTF-8"> 
     <link rel="stylesheet" href="style.css">
   </head>
 
   <body>
     <div id="slasher"></div>
 
-    <script src="slasher.js"></script>
+    <script src="slasher.min.js"></script>
     <script>
-      Elm.Main.embed(document.getElementById("slasher"));
+      Elm.Main.init({ node: document.getElementById("slasher") });
     </script>
   </body>
 </html>
+```
+
+And add some style
+
+``` {.css file=style.css}
+body {
+    font-family: sans serif;
+    background-image: radial-gradient(circle, #223355, #000033);
+    color: white;
+}
+
+#header {
+    text-align: center;
+    margin-bottom: 5pt;
+}
+
+#help {
+    text-align: center;
+}
+
+svg #overlay {
+    filter: blur(1pt);
+}
+
+svg #overlay rect {
+    opacity: 0.3;
+    fill: black;
+}
+
+svg #overlay text {
+    font-size: 50pt;
+    fill: white;
+}
+
+svg #box {
+    opacity: 0.5;
+    stroke: goldenrod;
+    stroke-width: 2pt;
+    fill: none;
+}
+
+svg line.slash {
+    stroke: #8888ff;
+    stroke-width: 2pt;
+}
+
+svg .hero {
+    fill: red;
+    stroke: black;
+}
+
+svg .snitch {
+    fill: gold;
+    stroke: black;
+}
+
+svg #snitch-bar {
+    opacity: 0.8;
+    fill: gold;
+    stroke: black;
+}
 ```
