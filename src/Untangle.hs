@@ -162,7 +162,7 @@ matchReference comment line =
 
 endPattern :: String -> String
 endPattern comment = "^[ \\t]*" ++ escape comment
-    ++ "[ \\t]+end[ \\t]*$"
+    ++ "[ \\t]+end"
 
 matchEnd :: String -> String -> Maybe ()
 matchEnd comment line = 

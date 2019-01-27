@@ -479,6 +479,7 @@ The HTML can be very short now:
 <!DOCTYPE html>
 <html>
   <head>
+    <title>Slasher</title>
     <link rel="stylesheet" href="style.css">
   </head>
 
