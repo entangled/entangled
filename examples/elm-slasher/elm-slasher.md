@@ -111,10 +111,10 @@ activeGridLoc : Actor -> (Int, Int)
 activeGridLoc actor =
     let (x, y) = actor.location
     in case (actorDirection actor) of
-        East  -> (round x, round y)
-        West  -> (round (x - 1.0), round y)
-        North -> (round x, round (y - 1.0))
-        South -> (round x, round y)            
+        East  -> (round x, floor y)
+        West  -> (round (x - 1.0), floor y)
+        North -> (floor x, round (y - 1.0))
+        South -> (floor x, round y)            
 
 place : Cell -> Model -> Model
 place cell ({actors, grid} as model) =
@@ -146,7 +146,10 @@ actorDirection actor =
         if vx > 0 then East else West
     else
         if vy > 0 then South else North
-        
+
+inRange : (Int, Int) -> Bool
+inRange (i, j) = i >= 0 && i < 80 && j >= 0 && j < 50
+
 bounceActor : Float -> Cell -> Actor -> Actor
 bounceActor dt cell actor =
     let (i, j)   = activeGridLoc actor
@@ -157,6 +160,17 @@ bounceActor dt cell actor =
         BackSlash -> moveActor dt { location = newloc, velocity = (vy, vx) }
         Empty     -> actor
 
+bounceOffWall : Float -> Actor -> Actor
+bounceOffWall dt actor =
+    let (x, y)   = actor.location
+        (vx, vy) = actor.velocity
+        newloc   = case actorDirection actor of
+            North -> (x, 0.0)
+            South -> (x, 50.0)
+            East  -> (80.0, y)
+            West  -> (0.0, y)
+    in moveActor dt { location = newloc, velocity = (-vy, -vx) }
+
 updateActor : Grid -> Float -> Actor -> Actor
 updateActor grid dt actor =
     let a = activeGridLoc actor
@@ -164,7 +178,9 @@ updateActor grid dt actor =
     in if a /= b then case (gridRef a grid) of
         Slash -> bounceActor dt Slash actor
         BackSlash -> bounceActor dt BackSlash actor
-        Empty -> moveActor dt actor
+        Empty -> if inRange b 
+            then moveActor dt actor
+            else bounceOffWall dt actor
     else
         moveActor dt actor
 
@@ -219,18 +235,19 @@ viewCell (i, j) c =
                             , x2 (String.fromInt (scale * i))
                             , y2 (String.fromInt (scale * j + scale))
                             , class "slash"
-                            , style "stroke: blue" ] [] ]
+                            , style "stroke: blue; stroke-width: 2pt;" ] [] ]
         BackSlash -> [ line [ x1 (String.fromInt (scale * i))
                             , y1 (String.fromInt (scale * j))
                             , x2 (String.fromInt (scale * i + scale))
                             , y2 (String.fromInt (scale * j + scale))
                             , class "slash"
-                            , style "stroke: blue" ] [] ]
-        Empty ->     [ rect [ x (String.fromInt (scale * i))
-                            , y (String.fromInt (scale * j))
-                            , width (String.fromInt scale)
-                            , height (String.fromInt scale)
-                            , style "fill: none; stroke: black;" ] [] ]
+                            , style "stroke: blue; stroke-width: 2pt;" ] [] ]
+        Empty ->     []
+                    --  rect [ x (String.fromInt (scale * i))
+                    --         , y (String.fromInt (scale * j))
+                    --         , width (String.fromInt scale)
+                    --         , height (String.fromInt scale)
+                    --         , style "fill: none; stroke: black;" ] [] ]
 
 viewHero : Actor -> Html Msg
 viewHero actor =
@@ -251,6 +268,10 @@ viewArena ({actors, grid} as model) =
                             rows))))
                 grid)))
         , g [] [viewHero actors.player]
+        , g [] [rect [ x "0", y "0"
+                     , width (String.fromInt (scale * 80))
+                     , height (String.fromInt (scale * 50))
+                     , style "fill: none; stroke: black; stroke-width: 3pt;" ] []]
         ]
 
 view : Model -> Html Msg
@@ -259,6 +280,6 @@ view ({time, lastPressed} as model) =
         [ p [] [ text "Hello, World!" ]
         , div [] [ viewArena model ]
         , p [] [ text (String.fromFloat time) ]
-        , p [] [ text ("Last pressed: " ++ lastPressed) ]
+        , p [] [ text ("Last pressed: \"" ++ lastPressed ++ "\"") ]
         ]
 ```
