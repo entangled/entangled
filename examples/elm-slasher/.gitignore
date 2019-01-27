@@ -4,5 +4,5 @@ src
 slasher.js
 package-lock.json
 slasher.min.js
-style.css
+slasher.css
 Makefile

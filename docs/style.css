@@ -83,7 +83,7 @@ code
     font-family: Courier, monospace;
 }
 
-.sourceCode
+.sourceCode, .elm
 {
     font-size: 10pt;
     border: solid thin #aaa;
@@ -96,7 +96,7 @@ code
     left: 25pt;
 }
 
-.sourceCode pre, .sourceCode code
+.elm pre, .sourceCode pre, .sourceCode code
 {
     padding: unset;
     background: none;

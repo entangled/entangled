@@ -31,9 +31,11 @@ Todo:
 
 ## Examples
 
-The `examples` folder contains currently a single example:
+The `examples` folder contains currently two examples:
 
 - [99-bottles in C++](https://jhidding.github.io/enTangleD/99-bottles.html): teaching how to setup a basic C++ program with enTangleD, use of ArgAgg to parse command-line arguments, use of FmtLib to do string formatting and setting up a slightly non-basic Makefile.
+
+- [Slasher](https://jhidding.github.io/enTangleD/slasher.html): a game written in Elm. The game works, but [the source](https://jhidding.github.io/enTangleD/elm-slasher.html) may need some more literacy in some places.
 
 A slightly larger literate program:
 

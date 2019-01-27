@@ -14,6 +14,8 @@ This document may teach you:
 
 Our game is simple. The original *slasher* game is one I remember from way back when I was playing with [GW Basic](https://en.wikipedia.org/wiki/GW-BASIC). Your hero is zipping around the screen at break neck speeds and the only way to control him is by placing slash `/` and backslash `\` characters from which it bounces off. The goal is to catch the golden snitch which only stays in one place for so long.
 
+![Screenshot of "Slasher"](screenshot.png)
+
 # Main
 
 Elm has a set of different application formats, depending on the level of interactivity that is needed:
@@ -59,7 +61,6 @@ The rest of the program has:
 
 ## Imports
 
-
 ``` {.elm #imports}
 import Browser
 import Array exposing (Array, repeat, indexedMap, toList, set, get)
@@ -84,7 +85,6 @@ type alias Model =
     , grid : Grid
     , snitchTime : Float
     , state : GameState
-    , lastPressed : String
     }
 ```
 
@@ -103,6 +103,18 @@ type Cell
     = Empty
     | Slash
     | BackSlash
+
+gridRef : (Int, Int) -> Grid -> Cell
+gridRef (i, j) grid = 
+    Maybe.withDefault Empty 
+    <| Maybe.andThen (\ row -> get i row) (get j grid)
+
+gridSet : (Int, Int) -> Cell -> Grid -> Grid
+gridSet (i, j) cell grid =
+    let row_ = get j grid
+    in case row_ of
+        Nothing  -> grid
+        Just row -> set j (set i cell row) grid
 ```
 
 Lastly, an `Actor` is something that has a location and a velocity, each a 2-tuple of floats.
@@ -131,6 +143,11 @@ config =
     , scale = 15
     , snitchTime = 10000
     }
+
+inRange : (Int, Int) -> Bool
+inRange (i, j) = 
+    let (w, h) = config.gridSize
+    in i >= 0 && i < w && j >= 0 && j < h
 ```
 
 ## Init
@@ -141,7 +158,7 @@ The model is initialised by the `init` function. This function has the funny sig
 init : () -> (Model, Cmd Msg)
 init _ = 
     let (width, height) = config.gridSize
-        playerLoc       = ((toFloat width)/2 + 0.5, 0.5)
+        playerLoc       = ((toFloat width)/2 + 0.5, 2.5)
     in (
     { actors =
         { player = { location = playerLoc
@@ -152,11 +169,10 @@ init _ =
     , grid = makeGrid config.gridSize
     , snitchTime = 0.0
     , state = Start
-    , lastPressed = ""
-    }, Cmd.batch
-    [ Random.generate PlaceSnitch (Random.pair (Random.int 0 79)
-                                               (Random.int 0 49))
-    ])
+    }, Random.generate
+            PlaceSnitch
+            (Random.pair (Random.int 0 (width - 1))
+                         (Random.int 0 (height - 1))))
 
 makeGrid : (Int, Int) -> Array (Array Cell)
 makeGrid (width, height) =
@@ -202,7 +218,7 @@ update msg model =
     case msg of
         TimeStep dt   -> let next = timeStep dt model
                          in (next, checkSnitchTime next)
-        KeyPress k    -> (keyMap k { model | lastPressed = k }, Cmd.none)
+        KeyPress k    -> (keyMap k model, Cmd.none)
         PlaceSnitch l -> (placeSnitch l model, Cmd.none)
 ```
 
@@ -211,37 +227,72 @@ update msg model =
 <<update-function>>
 ```
 
+## Time step
+
+Each time step, if the game in in `Running` state, we need to check if the game is won, and otherwise move all actors that need moving.
+
 ``` {.elm #update}
-activeGridLoc : Actor -> (Int, Int)
-activeGridLoc actor =
+timeStep : Float -> Model -> Model
+timeStep dt ({actors, grid, snitchTime, state} as model) =
+    case state of
+        Running -> if didWeWin model
+                   then { model
+                        | state = Won }
+                   else { model
+                        | snitchTime = snitchTime - dt
+                        , actors =
+                            { actors
+                            | player = updateActor grid dt actors.player } }
+        _       -> model
+```
+
+### Did we win?
+
+``` {.elm #update}
+didWeWin : Model -> Bool
+didWeWin ({actors} as model) =
+    activeCell actors.snitch == activeCell actors.player
+```
+
+### Update actors
+
+Updating an actor is a bit of boring bookkeeping.
+
+``` {.elm #update}
+updateActor : Grid -> Float -> Actor -> Actor
+updateActor grid dt actor =
+    let a = activeCell actor
+        b = activeCell <| moveActor dt actor 
+    in if a /= b then case (gridRef a grid) of
+        Slash     -> bounceActor dt Slash actor
+        BackSlash -> bounceActor dt BackSlash actor
+        Empty     -> if inRange b 
+            then moveActor dt actor
+            else bounceOffWall dt actor
+    else
+        moveActor dt actor
+```
+
+#### Active cell
+
+To get a smooth flying experience the actors have floating point coordinates. From the coordinates we need to compute the integer indices into the grid.
+
+``` {.elm #update}
+activeCell : Actor -> (Int, Int)
+activeCell actor =
     let (x, y) = actor.location
     in case (actorDirection actor) of
         East  -> (round x, floor y)
         West  -> (round (x - 1.0), floor y)
         North -> (floor x, round (y - 1.0))
         South -> (floor x, round y)            
+```
 
-place : Cell -> Model -> Model
-place cell ({actors, grid} as model) =
-    let (i, j) = activeGridLoc actors.player
-        row = get j grid
-    in case row of
-        Just r -> { model
-                  | grid = set j (set i cell r) grid
-                  }
-        Nothing -> model
+#### Direction
 
-moveActor : Float -> Actor -> Actor
-moveActor dt actor =
-    let (x, y) = actor.location
-        (vx, vy) = actor.velocity
-    in { actor | location = (x + dt * vx, y + dt * vy) }
+From the velocity we often need to know in which of the four cardinal directions an actor is moving.
 
-gridRef : (Int, Int) -> Grid -> Cell
-gridRef (i, j) grid = 
-    Maybe.withDefault Empty 
-    <| Maybe.andThen (\ row -> get i row) (get j grid)
-
+``` {.elm #update}
 type Direction = North | East | South | West
 
 actorDirection : Actor -> Direction
@@ -251,13 +302,20 @@ actorDirection actor =
         if vx > 0 then East else West
     else
         if vy > 0 then South else North
+```
 
-inRange : (Int, Int) -> Bool
-inRange (i, j) = i >= 0 && i < 80 && j >= 0 && j < 50
+#### Actor dynamics
+
+``` {.elm #update}
+moveActor : Float -> Actor -> Actor
+moveActor dt actor =
+    let (x, y)   = actor.location
+        (vx, vy) = actor.velocity
+    in { actor | location = (x + dt * vx, y + dt * vy) }
 
 bounceActor : Float -> Cell -> Actor -> Actor
 bounceActor dt cell actor =
-    let (i, j)   = activeGridLoc actor
+    let (i, j)   = activeCell actor
         (vx, vy) = actor.velocity
         newloc   = ((toFloat i) + 0.5, (toFloat j) + 0.5)
     in case cell of
@@ -275,33 +333,41 @@ bounceOffWall dt actor =
             East  -> (80.0, y)
             West  -> (0.0, y)
     in moveActor dt { location = newloc, velocity = (-vx, -vy) }
+```
 
-updateActor : Grid -> Float -> Actor -> Actor
-updateActor grid dt actor =
-    let a = activeGridLoc actor
-        b = activeGridLoc <| moveActor dt actor 
-    in if a /= b then case (gridRef a grid) of
-        Slash -> bounceActor dt Slash actor
-        BackSlash -> bounceActor dt BackSlash actor
-        Empty -> if inRange b 
-            then moveActor dt actor
-            else bounceOffWall dt actor
-    else
-        moveActor dt actor
+## Snitch time
 
-timeStep : Float -> Model -> Model
-timeStep dt ({actors, grid, snitchTime, state} as model) =
-    case state of
-        Running -> if didWeWin model
-                   then { model
-                        | state = Won }
-                   else { model
-                        | snitchTime = snitchTime - dt
-                        , actors =
-                            { actors
-                            | player = updateActor grid dt actors.player } }
-        _       -> model
+Each time step we decreased the `snitchTime` field. If it drops below 0, we ask the Elm runtime for a new random snitch location.
 
+``` {.elm #update}
+checkSnitchTime : Model -> Cmd Msg
+checkSnitchTime {snitchTime} =
+    let (w, h) = config.gridSize
+    in if snitchTime < 0.0 
+    then Random.generate
+            PlaceSnitch
+            (Random.pair (Random.int 0 (w - 1))
+                         (Random.int 0 (h - 1)))
+    else Cmd.none
+```
+
+### Moving the snitch
+
+``` {.elm #update}
+placeSnitch : (Int, Int) -> Model -> Model
+placeSnitch (x, y) ({actors} as model) = 
+    { model
+    | snitchTime = config.snitchTime
+    , actors = 
+        { actors 
+        | snitch =
+            { location = ((toFloat x) + 0.5, (toFloat y) + 0.5)
+            , velocity = (0.0, 0.0) } } }
+```
+
+## Keymap
+
+``` {.elm #update}
 keyMap : String -> Model -> Model
 keyMap k ({state} as model) =
     let slash cell = if state == Running
@@ -317,30 +383,15 @@ keyMap k ({state} as model) =
         "ArrowLeft"  -> slash BackSlash
         "ArrowRight" -> slash Slash
         _            -> model
+```
 
-placeSnitch : (Int, Int) -> Model -> Model
-placeSnitch (x, y) ({actors} as model) = 
-    { model
-    | snitchTime = config.snitchTime
-    , actors = 
-        { actors 
-        | snitch =
-            { location = ((toFloat x) + 0.5, (toFloat y) + 0.5)
-            , velocity = (0.0, 0.0) } } }
+### Placing a (back)slash
 
-checkSnitchTime : Model -> Cmd Msg
-checkSnitchTime {snitchTime} =
-    let (w, h) = config.gridSize
-    in if snitchTime < 0.0 
-    then Random.generate
-            PlaceSnitch
-            (Random.pair (Random.int 0 (w - 1))
-                         (Random.int 0 (h - 1)))
-    else Cmd.none
-
-didWeWin : Model -> Bool
-didWeWin ({actors} as model) =
-    activeGridLoc actors.snitch == activeGridLoc actors.player
+``` {.elm #update}
+place : Cell -> Model -> Model
+place cell ({actors, grid} as model) =
+    let loc = activeCell actors.player
+    in { model | grid = gridSet loc cell grid }
 ```
 
 # View
@@ -431,28 +482,33 @@ viewSnitchBar t =
 
 viewArena : Model -> Html Msg
 viewArena ({actors, grid, state, snitchTime} as model) =
-    svg [ width "100%"
-        , viewBox ("-3 -3 " ++ (String.fromInt <| scale * 80 + 4) ++ " " ++ (String.fromInt <| scale * 50 + 24))]
-        [ g [] [rect [ x "0", y "0"
-                     , width (String.fromInt (scale * 80))
-                     , height (String.fromInt (scale * 50))
-                     , rx (String.fromInt <| scale)
-                     , ry (String.fromInt <| scale)
-                     , id "box" ] []]
-        , g [] (concat (toList
-            (indexedMap 
-                (\ y rows -> (concat (toList (indexedMap 
-                            (\ x cell -> viewCell (x, y) cell)
-                            rows))))
-                grid)))
-        , g [] [ viewHero actors.player
-               , viewSnitch actors.snitch ]
-        , (viewOverlay state)
-        , (viewSnitchBar snitchTime)
-        ]
+    let blurAtPause = class 
+                    <| if state == Running
+                       then "non-blurred"
+                       else "blurred"
+    in svg [ width "100%"
+           , viewBox ("-3 -3 " ++ (String.fromInt <| scale * 80 + 4) ++ " " ++    (String.fromInt <| scale * 50 + 24))]
+           [ g [] [rect [ x "0", y "0"
+                        , width (String.fromInt (scale * 80))
+                        , height (String.fromInt (scale * 50))
+                        , rx (String.fromInt <| scale)
+                        , ry (String.fromInt <| scale)
+                        , id "box" ] []]
+           , g [blurAtPause]
+               (concat (toList
+               (indexedMap 
+                   (\ y rows -> (concat (toList (indexedMap 
+                               (\ x cell -> viewCell (x, y) cell)
+                               rows))))
+                   grid)))
+           , g [blurAtPause] [ viewHero actors.player
+                  , viewSnitch actors.snitch ]
+           , (viewOverlay state)
+           , (viewSnitchBar snitchTime)
+           ]
 
 view : Model -> Html Msg
-view ({snitchTime, lastPressed} as model) =
+view model =
     main_ []
         [ div [ id "header" ] [ text "\\ \\ S L A S H E R / /" ]
         , div [ id "arena" ] [ viewArena model ]
@@ -485,7 +541,7 @@ The HTML can be very short now:
     <title>Slasher</title>
     <meta charset="UTF-8"> 
     <<google-font>> 
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="slasher.css">
   </head>
 
   <body>
@@ -507,11 +563,15 @@ Browse Google fonts for a nice slashery font:
 
 And add some style
 
-``` {.css file=style.css}
+``` {.css file=slasher.css}
 body {
     font-family: "Love Ya Like A Sister", sans serif;
-    background-image: radial-gradient(circle, #223355, #000033);
+    background-image: radial-gradient(circle, #112233, #000033);
     color: white;
+}
+
+#arena svg {
+    max-height: 87vh;
 }
 
 #header {
@@ -524,9 +584,13 @@ body {
     text-align: center;
 }
 
-svg #overlay {
+.blurred {
     filter: blur(1pt);
 }
+
+/* svg #overlay {
+    filter: blur(1pt);
+} */
 
 svg #overlay rect {
     opacity: 0.3;

@@ -1,0 +1,67 @@
+/* ------ language="CSS" file="slasher.css" */
+body {
+    font-family: "Love Ya Like A Sister", sans serif;
+    background-image: radial-gradient(circle, #112233, #000033);
+    color: white;
+}
+
+#arena svg {
+    max-height: 87vh;
+}
+
+#header {
+    font-size: 20pt;
+    text-align: center;
+    margin-bottom: 5pt;
+}
+
+#help {
+    text-align: center;
+}
+
+.blurred {
+    filter: blur(1pt);
+}
+
+/* svg #overlay {
+    filter: blur(1pt);
+} */
+
+svg #overlay rect {
+    opacity: 0.3;
+    fill: black;
+}
+
+svg #overlay text {
+    font-size: 70pt;
+    fill: white;
+}
+
+svg #box {
+    opacity: 0.5;
+    stroke: goldenrod;
+    stroke-width: 2pt;
+    fill: none;
+}
+
+svg line.slash {
+    stroke: #8888ff;
+    stroke-width: 2pt;
+}
+
+svg .hero {
+    fill: red;
+    stroke: black;
+}
+
+svg .snitch {
+    fill: gold;
+    stroke: black;
+}
+
+svg #snitch-bar {
+    opacity: 0.8;
+    fill: gold;
+    stroke: black;
+}
+/* ------ end */
