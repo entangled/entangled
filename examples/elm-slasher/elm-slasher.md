@@ -304,20 +304,19 @@ timeStep dt ({actors, grid, snitchTime, state} as model) =
 
 keyMap : String -> Model -> Model
 keyMap k ({state} as model) =
-    case k of
+    let slash cell = if state == Running
+                     then place cell model
+                     else model
+    in case k of
         " " -> let newState = case state of
                     Running -> Pause
                     Start   -> Running
                     Pause   -> Running
                     Won     -> Won
                in { model | state = newState }
-        "ArrowLeft"  -> if state == Running
-                        then place BackSlash model
-                        else model
-        "ArrowRight" -> if state == Running
-                        then place Slash model
-                        else model
-        _   -> model
+        "ArrowLeft"  -> slash BackSlash
+        "ArrowRight" -> slash Slash
+        _            -> model
 
 placeSnitch : (Int, Int) -> Model -> Model
 placeSnitch (x, y) ({actors} as model) = 
@@ -455,9 +454,9 @@ viewArena ({actors, grid, state, snitchTime} as model) =
 view : Model -> Html Msg
 view ({snitchTime, lastPressed} as model) =
     main_ []
-        [ div [ id "header" ] [ text "⟍ ⟍ S L A S H E R ⟋ ⟋" ]
+        [ div [ id "header" ] [ text "\\ \\ S L A S H E R / /" ]
         , div [ id "arena" ] [ viewArena model ]
-        , div [ id "help" ] [ text "keys: Left ⟍ | Right ⟋ | Space pause" ]
+        , div [ id "help" ] [ text "keys: Left \\ | Right / | Space pause" ]
         ]
 ```
 
@@ -485,6 +484,7 @@ The HTML can be very short now:
   <head>
     <title>Slasher</title>
     <meta charset="UTF-8"> 
+    <<google-font>> 
     <link rel="stylesheet" href="style.css">
   </head>
 
@@ -499,16 +499,23 @@ The HTML can be very short now:
 </html>
 ```
 
+Browse Google fonts for a nice slashery font:
+
+``` {.html #google-font}
+<link href="https://fonts.googleapis.com/css?family=Love+Ya+Like+A+Sister" rel="stylesheet">
+```
+
 And add some style
 
 ``` {.css file=style.css}
 body {
-    font-family: sans serif;
+    font-family: "Love Ya Like A Sister", sans serif;
     background-image: radial-gradient(circle, #223355, #000033);
     color: white;
 }
 
 #header {
+    font-size: 20pt;
     text-align: center;
     margin-bottom: 5pt;
 }
@@ -527,7 +534,7 @@ svg #overlay rect {
 }
 
 svg #overlay text {
-    font-size: 50pt;
+    font-size: 70pt;
     fill: white;
 }
 
