@@ -32,7 +32,7 @@ The *model* will be a grid of cells and a list of actors with location and veloc
 
 ``` {.elm #model}
 type alias Model =
-    { actors : { player : Actor, buggers : List Actor, snitch : Actor }
+    { actors : { player : Actor, snitch : Actor }
     , grid : Grid
     , time : Float
     , state : GameState
@@ -60,7 +60,6 @@ init : () -> (Model, Cmd Msg)
 init _ = (
     { actors =
         { player = { location = (40.5, 0.5), velocity = (0.0, 0.03) }
-        , buggers = []
         , snitch = { location = (0.0, 0.0), velocity = (0.0, 0.0) }
         }
     , grid = makeGrid (80, 50)
@@ -252,44 +251,30 @@ viewCell (i, j) c =
                             , class "slash"
                             , style "stroke: blue; stroke-width: 2pt;" ] [] ]
         Empty ->     []
-                    --  rect [ x (String.fromInt (scale * i))
-                    --         , y (String.fromInt (scale * j))
-                    --         , width (String.fromInt scale)
-                    --         , height (String.fromInt scale)
-                    --         , style "fill: none; stroke: black;" ] [] ]
+
+formatPath : List (Float, Float) -> String
+formatPath pts = case pts of
+    []           -> ""
+    (x, y)::rest -> (String.fromFloat <| x * fScale) ++ "," ++
+                    (String.fromFloat <| y * fScale) ++ " " ++ formatPath rest
 
 viewHero : Actor -> Html Msg
 viewHero actor =
     let (x, y) = actor.location
-    in case actorDirection actor of
-        South -> polygon
-            [ points <| (String.fromFloat <| x * fScale) ++ "," ++ (String.fromFloat <| y * fScale) ++ " " ++
-                        (String.fromFloat <| x * fScale + fScale * 0.3) ++ "," ++
-                        (String.fromFloat <| y * fScale - fScale) ++ " " ++
-                        (String.fromFloat <| x * fScale - fScale * 0.3) ++ "," ++
-                        (String.fromFloat <| y * fScale - fScale)
-            , style "fill: red" ] []
-        North -> polygon
-            [ points <| (String.fromFloat <| x * fScale) ++ "," ++ (String.fromFloat <| y * fScale) ++ " " ++
-                        (String.fromFloat <| x * fScale + fScale * 0.3) ++ "," ++
-                        (String.fromFloat <| y * fScale + fScale) ++ " " ++
-                        (String.fromFloat <| x * fScale - fScale * 0.3) ++ "," ++
-                        (String.fromFloat <| y * fScale + fScale)
-            , style "fill: red" ] []
-        East -> polygon
-            [ points <| (String.fromFloat <| x * fScale) ++ "," ++ (String.fromFloat <| y * fScale) ++ " " ++
-                        (String.fromFloat <| x * fScale - fScale) ++ "," ++
-                        (String.fromFloat <| y * fScale - fScale * 0.3) ++ " " ++
-                        (String.fromFloat <| x * fScale - fScale) ++ "," ++
-                        (String.fromFloat <| y * fScale + fScale * 0.3)
-            , style "fill: red" ] []
-        West -> polygon
-            [ points <| (String.fromFloat <| x * fScale) ++ "," ++ (String.fromFloat <| y * fScale) ++ " " ++
-                        (String.fromFloat <| x * fScale + fScale) ++ "," ++
-                        (String.fromFloat <| y * fScale - fScale * 0.3) ++ " " ++
-                        (String.fromFloat <| x * fScale + fScale) ++ "," ++
-                        (String.fromFloat <| y * fScale + fScale * 0.3)
-            , style "fill: red" ] []
+        path   = case actorDirection actor of
+            South -> [ (x, y)
+                     , (x + 0.3, y - 1)
+                     , (x - 0.3, y - 1) ]
+            North -> [ (x, y)
+                     , (x + 0.3, y + 1)
+                     , (x - 0.3, y + 1) ]
+            West  -> [ (x, y)
+                     , (x + 1, y + 0.3)
+                     , (x + 1, y - 0.3) ]
+            East  -> [ (x, y)
+                     , (x - 1, y + 0.3)
+                     , (x - 1, y - 0.3) ]
+    in polygon [ points <| formatPath path, style "fill: red" ] []
 
 viewSnitch : Actor -> Html Msg
 viewSnitch actor =
@@ -302,7 +287,7 @@ viewSnitch actor =
 viewArena : Model -> Html Msg
 viewArena ({actors, grid} as model) =
     svg [ width "100%"
-        , viewBox ("0 0 " ++ (String.fromInt (scale * 80)) ++ " " ++ (String.fromInt (scale * 50)))]
+        , viewBox ("-3 -3 " ++ (String.fromInt <| scale * 80 + 4) ++ " " ++ (String.fromInt <| scale * 50 + 4))]
         [ g [] (concat (toList
             (indexedMap 
                 (\ y rows -> (concat (toList (indexedMap 
@@ -314,7 +299,9 @@ viewArena ({actors, grid} as model) =
         , g [] [rect [ x "0", y "0"
                      , width (String.fromInt (scale * 80))
                      , height (String.fromInt (scale * 50))
-                     , style "fill: none; stroke: black; stroke-width: 3pt;" ] []]
+                     , rx (String.fromInt <| scale)
+                     , ry (String.fromInt <| scale)
+                     , style "fill: none; stroke: black; stroke-width: 2pt;" ] []]
         ]
 
 view : Model -> Html Msg
