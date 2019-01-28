@@ -6,7 +6,7 @@ body {
 }
 
 #arena svg {
-    max-height: 87vh;
+    max-height: 80vh;
 }
 
 #header {
@@ -17,6 +17,20 @@ body {
 
 #help {
     text-align: center;
+}
+
+#footer {
+    font-family: sans serif;
+    font-size: 8pt;
+    background: #888;
+    color: black;
+    text-align: center;
+    padding: 4pt 0;
+    margin: 10pt 0 0 0;
+}
+
+#footer a {
+    color: #008;
 }
 
 .blurred {

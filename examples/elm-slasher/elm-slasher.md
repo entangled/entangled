@@ -16,6 +16,8 @@ Our game is simple. The original *slasher* game is one I remember from way back 
 
 ![Screenshot of "Slasher"](screenshot.png)
 
+[You can play this game here.](https://jhidding.github.io/enTangleD/slasher.html)
+
 # Main
 
 Elm has a set of different application formats, depending on the level of interactivity that is needed:
@@ -66,7 +68,8 @@ import Browser
 import Array exposing (Array, repeat, indexedMap, toList, set, get)
 import List exposing (concat)
 import Browser.Events exposing (onAnimationFrameDelta, onKeyDown)
-import Html exposing (Html, button, div, text, p, input, main_)
+import Html exposing (Html, button, div, text, p, input, main_, a)
+import Html.Attributes exposing (href)
 import Html.Events exposing (onClick, preventDefaultOn)
 import Svg exposing (svg, circle, line, rect, g, polygon, text_)
 import Svg.Attributes exposing (..)
@@ -256,7 +259,7 @@ didWeWin ({actors} as model) =
 
 ### Update actors
 
-Updating an actor is a bit of boring bookkeeping.
+Updating an actor is a bit of boring bookkeeping. We check whether the actor's active grid cell changes. This happens when the actor moves across the center of a cell. If the active cell changed, potentially the actor bounced off a (back)slash or a wall.
 
 ``` {.elm #update}
 updateActor : Grid -> Float -> Actor -> Actor
@@ -306,6 +309,14 @@ actorDirection actor =
 
 #### Actor dynamics
 
+When an actor moves, it may do so in one of three ways:
+
+* move without obstacle
+* bounce off a (back)slash)
+* bounce off the wall
+
+For each of these cases we have a separate function.
+
 ``` {.elm #update}
 moveActor : Float -> Actor -> Actor
 moveActor dt actor =
@@ -353,6 +364,8 @@ checkSnitchTime {snitchTime} =
 
 ### Moving the snitch
 
+When the snitch is placed we reset the `snitchTime` to the configured value
+
 ``` {.elm #update}
 placeSnitch : (Int, Int) -> Model -> Model
 placeSnitch (x, y) ({actors} as model) = 
@@ -366,6 +379,8 @@ placeSnitch (x, y) ({actors} as model) =
 ```
 
 ## Keymap
+
+We listen to three keys: space, left arrow and right arrow. We could have listened for `\` and `/` keys, but in Firefox the `/` key also activates quick search. We could work around this, but it is a bit of a hassle.
 
 ``` {.elm #update}
 keyMap : String -> Model -> Model
@@ -398,7 +413,7 @@ place cell ({actors, grid} as model) =
 
 ``` {.elm #view}
 scale : Int
-scale = 15
+scale = config.scale
 
 fScale : Float
 fScale = toFloat scale
@@ -513,6 +528,10 @@ view model =
         [ div [ id "header" ] [ text "\\ \\ S L A S H E R / /" ]
         , div [ id "arena" ] [ viewArena model ]
         , div [ id "help" ] [ text "keys: Left \\ | Right / | Space pause" ]
+        , div [ id "footer" ]
+        [ text "Use the source, at "
+        , a [ href "https://jhidding.github.io/enTangleD" ]
+            [ text "enTangleD!" ] ]
         ]
 ```
 
@@ -534,7 +553,7 @@ slasher.min.js: slasher.js
 
 The HTML can be very short now:
 
-``` {.html file=index.html}
+``` {.html file=slasher.html}
 <!DOCTYPE html>
 <html>
   <head>
@@ -571,7 +590,7 @@ body {
 }
 
 #arena svg {
-    max-height: 87vh;
+    max-height: 80vh;
 }
 
 #header {
@@ -582,6 +601,20 @@ body {
 
 #help {
     text-align: center;
+}
+
+#footer {
+    font-family: sans serif;
+    font-size: 8pt;
+    background: #888;
+    color: black;
+    text-align: center;
+    padding: 4pt 0;
+    margin: 10pt 0 0 0;
+}
+
+#footer a {
+    color: #008;
 }
 
 .blurred {
