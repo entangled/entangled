@@ -2,7 +2,7 @@
 
 script_dir=$(dirname "$(readlink -f "$0")")
 
-format="markdown+fenced_code_attributes+citations+all_symbols_escapable+fenced_divs+multiline_tables+fenced_divs"
+format="markdown+fenced_code_attributes+citations+all_symbols_escapable+fenced_divs+multiline_tables+fenced_divs+bracketed_spans"
 pandoc_filters="pandoc-eqnos pandoc-fignos pandoc-citeproc"
 
 filter_args=$(echo ${pandoc_filters} | sed -e 's/\([^ ]*\)/--filter \1/g')

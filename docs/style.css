@@ -32,7 +32,7 @@ a {
     font-weight: bold;
 }
 
-h2 {
+/* h2 {
     counter-reset: h2;
 }
 
@@ -53,7 +53,7 @@ h3:before {
 h4:before {
     content: counter(h1) "." counter(h2) "." counter(h3) ".\0000a0\0000a0";
     counter-increment: h3;
-}
+} */
 
 #TOC
 {
@@ -186,4 +186,14 @@ figure img
 #logobar img {
     height: 20pt;
     vertical-align: middle;
+}
+
+.phonetic {
+    font-family: serif;
+    font-size: 12pt;
+}
+
+blockquote {
+    background: #ddd;
+    padding: 8pt 20pt 8pt 20pt;
 }

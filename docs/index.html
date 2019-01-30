@@ -81,7 +81,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
   <link href="https://fonts.googleapis.com/css?family=Dosis" rel="stylesheet">
 </head>
 <body>
-<header id="title-block-header">
+<header>
 <h1 class="title">enTangleD</h1>
 </header>
 <nav id="TOC">
@@ -91,15 +91,22 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <li><a href="#using">Using</a><ul>
 <li><a href="#syntax-markdown-side">Syntax (markdown side)</a></li>
 <li><a href="#syntax-source-side">Syntax (source side)</a></li>
-<li><a href="#configuration">Configuration</a></li>
+<li><a href="#running-entangled">Running <code>entangled</code></a></li>
+<li><a href="#running-tangle">Running <code>tangle</code></a></li>
+<li><a href="#running-weave">Running <code>weave</code></a></li>
+<li><a href="#distribution">Distribution</a></li>
 </ul></li>
 </ul>
 </nav>
 <div id="logobar">
 <p><a href="https://github.com/jhidding/entangled"><img src="images/github.png" alt="Octocat" /> Find us on Github</a>  <a href="https://github.com/jhidding/enTangleD/releases"><img src="images/download.svg" alt="Download" /> Download enTangled</a></p>
 </div>
-<p>Literate programming is awesome! Write your documentation and code in one markdown document, tangle the source code from that document, compile and run your code. But ow what happens? Compiler error? Bug? Where? Your debugger is no longer pointing to your real source file! No worries, just edit the source file first, fix the bug and then copy the edits to your master document. Meh.</p>
-<p>Enter enTangleD! This monitors the tangled source files and reflects any change in master document or source files in one live source database. The markdown file is still the master document.</p>
+<blockquote>
+<p><strong>Literate programming</strong> <span class="phonetic">/ˈlɪtəɹət ˈpɹəʊɡɹæmɪŋ/</span> (computing) Literate programming is a programming paradigm introduced by Donald Knuth in which a program is given as an explanation of the program logic in a natural language, such as English, interspersed with snippets of macros and traditional source code, from which a compilable source code can be generated. <a href="https://en.wikipedia.org/wiki/Literate_programming">(Wikipedia)</a></p>
+</blockquote>
+<p>Literate programming is awesome! Write your documentation and code in one markdown document, tangle the source code from that document, compile and run your code. This is all fine if your code does not contain any bugs. But what if it does? Your compiler and debugger may point to locations in the source where things go wrong. But you cannot edit those sources directly, since you generated them from the mother document!</p>
+<p>Enter enTangleD! This monitors the tangled source files and reflects any change in master document or source files to the other.</p>
+<p>The markdown file is still the master document.</p>
 <h2 id="status">Status</h2>
 <p><code>enTangleD</code> is working, but still in a alpha stage. It has been tested Linux, and Windows and should work on MacOS equally well. If you edit anything serious with the enTangle Daemon running, I strongly recommend using version control and commit often. If you encounter unexpected behaviour, please post an issue and describe the steps to reproduce.</p>
 <p>Features:</p>
@@ -115,48 +122,66 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <li>robustness against wrongly edited output files</li>
 <li>integration with git: commit every change, squash when done</li>
 <li>add workflow to create figures for HTML/PDF reports</li>
-<li>distribute binaries</li>
 </ul>
 <div id="examples-div">
 <h2 id="literate-examples">Literate Examples</h2>
 <div class="example">
-<p><img src="images/99-bottles-thumb.jpg" alt="99 bottles thumbnail" /> <a href="99-bottles.html">99-bottles in C++</a>: Over-engineered song-text generator. Teaching how to setup a basic C++ program with enTangleD, use of ArgAgg to parse command-line arguments, use of FmtLib to do string formatting and setting up a slightly non-basic Makefile.</p>
+<p><a href="hello-world.html"><img src="images/hello-world-thumb.jpg" alt="Apollo Earthrise" /> Hello World in C++</a>: Teaches the basics of literate programming using Markdown and fenced code blocks.</p>
 </div>
 <div class="example">
-<p><img src="images/slasher-thumb.jpg" alt="Slasher thumbnail" /> <a href="elm-slasher.html">Slasher</a>: a browser game written in Elm. A dashing hero is zipping across the screen, only deflected by slashes and backslashes. The game works, but the source may need some more literacy in some places.</p>
+<p><a href="99-bottles.html"><img src="images/99-bottles-thumb.jpg" alt="99 bottles thumbnail" /> 99-bottles in C++</a>: Over-engineered song-text generator. Teaching how to setup a basic C++ program with enTangleD, use of ArgAgg to parse command-line arguments, use of FmtLib to do string formatting and setting up a slightly non-basic Makefile.</p>
 </div>
 <div class="example">
-<p><img src="images/adhesion-code-thumb.jpg" alt="Adhesion code thumbnail" /> <a href="https://jhidding.github.io/adhesion-code">Adhesion code</a>: presenting the cosmological adhesion model and its implementation in C++ and CGAL.</p>
+<p><a href="slasher.html"><img src="images/slasher-thumb.jpg" alt="Slasher thumbnail" /></a> <a href="elm-slasher.html">Slasher</a>: a browser game written in Elm. A dashing hero is zipping across the screen, only deflected by slashes and backslashes. The game works, but the source may need some more literacy in some places.</p>
+</div>
+<div class="example">
+<p><a href="https://jhidding.github.io/adhesion-code"><img src="images/adhesion-code-thumb.jpg" alt="Adhesion code thumbnail" /> Adhesion code</a>: presenting the cosmological adhesion model and its implementation in C++ and CGAL.</p>
 </div>
 </div>
 <h2 id="building">Building</h2>
-<p><code>enTangleD</code> is written in Haskell, and uses the <code>stack</code> build system. You can build an executable by running</p>
+<p><code>enTangleD</code> is written in <a href="https://www.haskell.org/">Haskell</a>, and uses the <code>stack</code> build system. You can build an executable by running</p>
 <pre><code>stack build</code></pre>
 <p>If this is the first time you run <code>stack</code>, this may take a while. Install the executable in your <code>~/.local/bin</code></p>
 <pre><code>stack install</code></pre>
 <p>Run unit tests</p>
 <pre><code>stack test</code></pre>
 <h2 id="using">Using</h2>
+<p>There are several tools included in the enTangleD distribution:</p>
+<ul>
+<li><code>entangled</code>: the main binary</li>
+<li><code>scripts/weave</code>: a bash script for creating HTML or PDF output using Pandoc.</li>
+<li><code>scripts/tangle</code>: a bash script for tangling sources other than through using <code>entangled</code>, this too uses Pandoc.</li>
+</ul>
 <h3 id="syntax-markdown-side">Syntax (markdown side)</h3>
 <p>The markdown syntax <code>enTangleD</code> uses is compatible with <code>Pandoc</code>’s. This relies on the use of <em>fenced code attributes</em>. To tangle a code block to a file:</p>
 <div class="sourceCode" id="cb4"><pre class="sourceCode markdown"><code class="sourceCode markdown"><a class="sourceLine" id="cb4-1" title="1"><span class="bn">``` {.bash file=src/count.sh}</span></a>
 <a class="sourceLine" id="cb4-2" title="2"><span class="bn">   ...</span></a>
 <a class="sourceLine" id="cb4-3" title="3"><span class="bn">```</span></a></code></pre></div>
 <p>Composing a file using multiple code blocks is done through <em>noweb</em> syntax. You can reference a named code block in another code block by putting something like <code>&lt;&lt;named-code-block&gt;&gt;</code> on a single line. This reference may be indented. Such an indentation is then prefixed to each line in the final result.</p>
-<p>A named code block is should have an identifier given:</p>
+<p>A named code block should have an identifier given:</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode markdown"><code class="sourceCode markdown"><a class="sourceLine" id="cb5-1" title="1"><span class="bn">``` {.python #named-code-block}</span></a>
 <a class="sourceLine" id="cb5-2" title="2"><span class="bn">   ...</span></a>
 <a class="sourceLine" id="cb5-3" title="3"><span class="bn">```</span></a></code></pre></div>
+<p>If a name appears multiple times in the source, the code blocks are concatenated during tangling. When weaving, the first code block with a certain name will appear as <code>&lt;&lt;name&gt;&gt;=</code>, while consecutive code blocks with the same name will appear as <code>&lt;&lt;name&gt;&gt;+=</code>.</p>
+<p>Please see the <a href="hello-world.html">Hello World</a> and other examples!</p>
 <h3 id="syntax-source-side">Syntax (source side)</h3>
 <p>In the source code we know exactly where the code came from, so there would be no strict need for extra syntax there. However, once we start to edit the source file it may not be clear where the extra code needs to end up. To make our life a little easier, named code blocks that were tangled into the file are marked with a comment at begin and end.</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode cpp"><code class="sourceCode cpp"><a class="sourceLine" id="cb6-1" title="1"><span class="co">// _____ begin &lt;&lt;main-body&gt;&gt;[0]</span></a>
+<div class="sourceCode" id="cb6"><pre class="sourceCode cpp"><code class="sourceCode cpp"><a class="sourceLine" id="cb6-1" title="1"><span class="co">// ----- begin &lt;&lt;main-body&gt;&gt;[0]</span></a>
 <a class="sourceLine" id="cb6-2" title="2"><span class="bu">std::</span>cout &lt;&lt; <span class="st">&quot;Hello, World!&quot;</span> &lt;&lt; <span class="bu">std::</span>endl;</a>
-<a class="sourceLine" id="cb6-3" title="3"><span class="co">// _____ end</span></a></code></pre></div>
+<a class="sourceLine" id="cb6-3" title="3"><span class="co">// ----- end</span></a></code></pre></div>
 <p>These comments should not be tampered with!</p>
-<h3 id="configuration">Configuration</h3>
-<blockquote>
-<p>Not yet implemented: The project should contain a <code>tangle.yaml</code> file.</p>
-</blockquote>
+<h3 id="running-entangled">Running <code>entangled</code></h3>
+<p>Assuming you have created a Markdown file, say <code>program.md</code>, you can start <code>entangled</code> by running</p>
+<pre><code>entangled ./program.md</code></pre>
+<p>in the shell. You may run <code>entangled --help</code> to get help on options, but currently there are none.</p>
+<h3 id="running-tangle">Running <code>tangle</code></h3>
+<p>The <code>tangle</code> script depends on a recent version of Pandoc being installed, as well as <code>rsync</code>.</p>
+<h3 id="running-weave">Running <code>weave</code></h3>
+<p>Next to Pandoc, <code>weave</code> requires the <code>pandoc-fignos</code>, <code>pandoc-eqnos</code> and <code>pandoc-citeproc</code> filters to be installed. <code>pandoc-citeproc</code> is distributed with Pandoc, however in some GNU/Linux it resides in a separate package. For <code>pandoc-fignos</code> and <code>pandoc-eqnos</code> make sure you have Python and <code>pip</code> installed, and run</p>
+<pre><code>pip install --user pandoc-fignos pandoc-eqnos</code></pre>
+<p>If you want to create PDF output, you’ll also need a LaTeX distribution installed.</p>
+<h3 id="distribution">Distribution</h3>
+<p>If you’ve written a literate code using enTangleD and would like to distribute it, one way is to include the tangled source code in the tar ball. The other way is to include the <code>scripts</code> folder in your repository. You may want to check out the <code>tangle</code> and <code>weave</code> scripts, include a different LaTeX theme or play with <code>style.css</code>.</p>
 <p><link href="https://fonts.googleapis.com/css?family=Dosis" rel="stylesheet"></p>
 </body>
 </html>
