@@ -1,11 +1,11 @@
 body
 {
-    margin:		0 auto 0 250pt;
+    margin:		0 30% 0 250pt;
     max-width:	600pt;
     background: #efefef;
     padding:	0 10pt 0 0;
-    /* font-family: "Cantarell", "Verdana", sans-serif; */
-    font-family: "Bitstream Charter", serif;
+    font-family: 'Dosis', sans-serif;
+    /* font-family: "Bitstream Charter", serif; */
     font-size: 14pt;
     counter-reset: h1;
 }
@@ -16,7 +16,7 @@ p {
 
 a {
     color: rgb(102, 41, 41);
-    text-decoration: none;
+    /* text-decoration: none; */
 }
 
 .TODO {
@@ -57,7 +57,7 @@ h4:before {
 
 #TOC
 {
-    font-size: 10pt;
+    font-size: 12pt;
     position: fixed;
     top: 0pt;
     left: 0pt;
@@ -72,6 +72,7 @@ h4:before {
 
 #TOC a {
     color: #eee;
+    text-decoration: none;
 }
 
 #TOC ul {
@@ -125,4 +126,64 @@ figure img
 {
     width: 100%;
     margin: 0 auto 0 auto;
+}
+
+#examples-div
+{
+    overflow-y: auto;
+    position: fixed;
+    top: 0pt;
+    right: 0pt;
+    bottom: 0pt;
+    width: 25%;
+    padding: 0 10pt 0 10pt;
+    font-size: 12pt;
+    background: rgb(161, 161, 161);
+}
+
+#examples-div h2 {
+    text-align: right;
+}
+
+#examples-div h2:before {
+    content: "";
+    counter-increment: none;
+}
+
+#examples-div img {
+    margin: 0 0 10pt 0;
+    padding: 0;
+    width: 100%;
+    border-radius: 5pt 5pt 0 0;
+}
+
+#examples-div .example p {
+    text-align: left;
+    margin: 0pt;
+    padding: 10pt;
+    color: black;
+}
+
+#examples-div .example {
+    padding: 0;
+    margin-bottom: 15pt;
+    border-radius: 8pt;
+    background: #7992a8;
+    box-shadow: 2pt 2pt 3pt 0pt #000;
+}
+
+#examples-div a
+{
+    text-decoration: underline;
+    font-size: 14pt;
+    color: #333399;
+}
+
+#logobar {
+    height: 20pt;
+}
+
+#logobar img {
+    height: 20pt;
+    vertical-align: middle;
 }

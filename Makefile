@@ -1,62 +1,33 @@
-input_files = README.md
-html_dir = ./public
-build_dir = ./build
+.PHONY: docs all
 
-# === Stuff ==============================================================
-SHELL := /bin/bash
+all: docs
 
-format = markdown+fenced_code_attributes+citations+all_symbols_escapable+fenced_divs+multiline_tables
-pandoc_filters = pandoc-eqnos pandoc-fignos pandoc-citeproc
-report_args = --toc $(pandoc_filters:%=--filter %) --lua-filter "scripts/annotate-code-blocks.lua" --template scripts/eisvogel.tex --listings 
-html_args = -s --toc --toc-depth=3 $(pandoc_filters:%=--filter %) --lua-filter "scripts/annotate-code-blocks.lua" --mathjax --css "style.css" --base-header-level=2
+docs: docs/99-bottles.html docs/elm-slasher.html docs/index.html docs/slasher.html docs/slasher.min.js docs/slasher.css docs/.nojekyll docs/screenshot.png
 
-pd_call = pandoc -f $(format) --lua-filter "scripts/$(1).lua" -t plain
-pd_list = $(call pd_call,list)
-pd_tangle = $(call pd_call,tangle)
+docs/.nojekyll:
+	@mkdir -p docs
+	touch $@
 
-sources = $(shell $(pd_list) $(input_files))
-targets = $(shell $(pd_list) README.md)
+docs/screenshot.png: examples/elm-slasher/screenshot.png
+	@mkdir -p docs
+	cp $^ $@
 
-# === Build docs =========================================================
-tangle: $(input_files)
-	mkdir -p $(build_dir)
-	$(pd_tangle) $^ > $(build_dir)/tangle.sh
-	source $(build_dir)/tangle.sh
+docs/slasher.html docs/slasher.min.js docs/slasher.css: examples/elm-slasher/elm-slasher.md
+	@mkdir -p docs
+	cp -r examples/elm-slasher build-slasher ; cd build-slasher ;\
+	../scripts/tangle ../$^ ;\
+	make ;\
+	cp slasher.html slasher.min.js slasher.css ../docs ;\
+	rm -rf build-slasher
 
-report: $(pdf_files)
+docs/99-bottles.html: examples/99-bottles/99-bottles.md scripts/header.html
+	@mkdir -p docs
+	./scripts/weave $^ --output=$@	
 
-html: $(html_files)
-	cp -r figures $(html_dir)
-	cp scripts/style.css $(html_dir)
+docs/elm-slasher.html: examples/elm-slasher/elm-slasher.md scripts/header.html
+	@mkdir -p docs
+	./scripts/weave $^ --output=$@
 
-$(html_dir)/%.html: $(input_files)
-	mkdir -p $(html_dir)
-	pandoc $^ -f $(format) $(html_args) -t html5 -o $@
-
-$(build_dir)/%.pdf : $(input_files)
-	pandoc $^ -f $(format) $(report_args) -t latex -o $@ --pdf-engine=xelatex
-
-$(sources): tangle
-
-# === Tests ==============================================================
-
-test_runner.py = python3
-test_runner.sh = bash
-
-run_tests = $(foreach x,$(targets),\
-	echo "Running $(x) ...";\
-	$(test_runner$(suffix $(x))) $(x);)
-
-all: $(targets)
-
-$(targets): $(input_files)
-	$(pd_tangle) $< | bash
-
-.PHONY: clean test tangle
-.SILENT: clean test
-
-clean:
-	rm -vf $$($(pd_list) README.md)
-
-test: all
-	$(run_tests)
+docs/index.html: README.md scripts/header.html
+	@mkdir -p docs
+	./scripts/weave $^ --output=$@

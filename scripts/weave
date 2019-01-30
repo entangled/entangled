@@ -2,12 +2,12 @@
 
 script_dir=$(dirname "$(readlink -f "$0")")
 
-format="markdown+fenced_code_attributes+citations+all_symbols_escapable+fenced_divs+multiline_tables"
+format="markdown+fenced_code_attributes+citations+all_symbols_escapable+fenced_divs+multiline_tables+fenced_divs"
 pandoc_filters="pandoc-eqnos pandoc-fignos pandoc-citeproc"
 
 filter_args=$(echo ${pandoc_filters} | sed -e 's/\([^ ]*\)/--filter \1/g')
 pdf_args="--toc ${filter_args} --lua-filter ${script_dir}/annotate-code-blocks.lua --template ${script_dir}/eisvogel.tex --listings"
-html_args="-s --toc --toc-depth=3 ${filter_args} --lua-filter ${script_dir}/annotate-code-blocks.lua --mathjax --css style.css --base-header-level=2"
+html_args="-s --toc --toc-depth=3 ${filter_args} --lua-filter ${script_dir}/annotate-code-blocks.lua --mathjax --css style.css --base-header-level=2 -H ${script_dir}/header.html"
 
 target="html"
 output="./public/index.html"
@@ -67,7 +67,7 @@ done
 case ${target} in
     html)
         mkdir -p "$(dirname ${output})"
-        cp "${css_file}" "$(dirname ${output})/style.css"
+        # cp "${css_file}" "$(dirname ${output})/style.css"
         pandoc ${sources} -f ${format} ${html_args} -t html5 -o "${output}"
         ;;
     pdf)

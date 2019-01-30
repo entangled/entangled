@@ -80,9 +80,10 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
   <!--[if lt IE 9]>
     <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
   <![endif]-->
+  <link href="https://fonts.googleapis.com/css?family=Dosis" rel="stylesheet">
 </head>
 <body>
-<header>
+<header id="title-block-header">
 <h1 class="title">99 Bottles of Beer</h1>
 <p class="author">Johan Hidding</p>
 </header>
@@ -139,7 +140,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="declare-arguments-6" title="6">    { <span class="st">&quot;version&quot;</span>, {<span class="st">&quot;-v&quot;</span>, <span class="st">&quot;--version&quot;</span>},</a>
 <a class="sourceLine" id="declare-arguments-7" title="7">        <span class="st">&quot;shows the software version&quot;</span>, <span class="dv">0</span> }</a>
 <a class="sourceLine" id="declare-arguments-8" title="8">}};</a></code></pre></div>
-<p>It is considered good behaviour to always include the <code>&quot;--help&quot;</code> and <code>&quot;--version&quot;</code> arguments (see for instance: <a href="https://www.tldp.org/LDP/abs/html/standard-options.html">tldp.org</a> and <a href="https://www.gnu.org/prep/standards/html_node/Command_002dLine-Interfaces.html">the GNU Coding Standards</a>). For good measure we also include an argument that gives the number of bottles that we’ll start the song with.</p>
+<p>It is considered good behaviour to always include the <code>"--help"</code> and <code>"--version"</code> arguments (see for instance: <a href="https://www.tldp.org/LDP/abs/html/standard-options.html">tldp.org</a> and <a href="https://www.gnu.org/prep/standards/html_node/Command_002dLine-Interfaces.html">the GNU Coding Standards</a>). For good measure we also include an argument that gives the number of bottles that we’ll start the song with.</p>
 <p>Using the <code>argagg::parser</code> instance we can parse the command-line arguments stored in <code>argc</code> and <code>argv</code>. Since this operation may fail, we perform it inside a <code>try</code>, <code>catch</code> block:</p>
 <p><em>«parse-arguments»=</em></p>
 <div class="sourceCode" id="parse-arguments"><pre class="sourceCode cpp"><code class="sourceCode cpp"><a class="sourceLine" id="parse-arguments-1" title="1">argagg::parser_results args;</a>
@@ -149,7 +150,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="parse-arguments-5" title="5">    <span class="bu">std::</span>cerr &lt;&lt; e.what() &lt;&lt; <span class="bu">std::</span>endl;</a>
 <a class="sourceLine" id="parse-arguments-6" title="6">    <span class="cf">return</span> EXIT_FAILURE;</a>
 <a class="sourceLine" id="parse-arguments-7" title="7">}</a></code></pre></div>
-<p>Now that we have parsed the arguments, we can implement the different ways the program will execute. If either the <code>&quot;--help&quot;</code> or <code>&quot;--version&quot;</code> flags was given, we print the requested information and exit the program.</p>
+<p>Now that we have parsed the arguments, we can implement the different ways the program will execute. If either the <code>"--help"</code> or <code>"--version"</code> flags was given, we print the requested information and exit the program.</p>
 <p><em>«print-help-or-version»=</em></p>
 <div class="sourceCode" id="print-help-or-version"><pre class="sourceCode cpp"><code class="sourceCode cpp"><a class="sourceLine" id="print-help-or-version-1" title="1"><span class="cf">if</span> (args[<span class="st">&quot;help&quot;</span>]) {</a>
 <a class="sourceLine" id="print-help-or-version-2" title="2">    <span class="bu">std::</span>cerr &lt;&lt; <span class="st">&quot;99 bottles -- &quot;</span> &lt;&lt; VERSION &lt;&lt; <span class="bu">std::</span>endl;</a>
@@ -186,7 +187,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="bottles-function-8" title="8">    }</a>
 <a class="sourceLine" id="bottles-function-9" title="9">    <span class="cf">return</span> <span class="st">&quot;no more bottles&quot;</span>;</a>
 <a class="sourceLine" id="bottles-function-10" title="10">}</a></code></pre></div>
-<p>The <code>fmt::format</code> function formats a string using <code>&quot;{}&quot;</code> as a placeholder for whatever arguments follow. This function is much easier to use than the native C++ method of opening a <code>std::ostringstream</code>, using <code>iomanip</code> and so on. There is an overview of the format string syntax on <a href="http://fmtlib.net/latest/syntax.html">the fmtlib homepage</a>.</p>
+<p>The <code>fmt::format</code> function formats a string using <code>"{}"</code> as a placeholder for whatever arguments follow. This function is much easier to use than the native C++ method of opening a <code>std::ostringstream</code>, using <code>iomanip</code> and so on. There is an overview of the format string syntax on <a href="http://fmtlib.net/latest/syntax.html">the fmtlib homepage</a>.</p>
 <p>Now, we may write out the song:</p>
 <p><em>«print-song-function»=</em></p>
 <div class="sourceCode" id="print-song-function"><pre class="sourceCode cpp"><code class="sourceCode cpp"><a class="sourceLine" id="print-song-function-1" title="1"><span class="dt">void</span> print_song(<span class="dt">unsigned</span> n)</a>
@@ -266,13 +267,15 @@ g++ src/99-bottles.cc -lfmt -o build/99-bottles</code></pre>
 <a class="sourceLine" id="declare-pattern-rules-9" title="9">    <span class="ch">$(</span><span class="dt">link</span><span class="ch">)</span> <span class="ch">$^</span> <span class="ch">$(</span><span class="dt">link_flags</span><span class="ch">)</span> -o <span class="ch">$@</span></a></code></pre></div>
 <p>The complete <code>Makefile</code>:</p>
 <p><em>file: «Makefile»=</em></p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode makefile"><code class="sourceCode makefile"><a class="sourceLine" id="cb3-1" title="1">&lt;&lt;set-build-dir&gt;&gt;</a>
-<a class="sourceLine" id="cb3-2" title="2">&lt;&lt;search-cc-files&gt;&gt;</a>
-<a class="sourceLine" id="cb3-3" title="3">&lt;&lt;set-obj-files&gt;&gt;</a>
-<a class="sourceLine" id="cb3-4" title="4">&lt;&lt;compile-flags&gt;&gt;</a>
-<a class="sourceLine" id="cb3-5" title="5"></a>
-<a class="sourceLine" id="cb3-6" title="6">&lt;&lt;declare-target-rules&gt;&gt;</a>
-<a class="sourceLine" id="cb3-7" title="7">&lt;&lt;declare-pattern-rules&gt;&gt;</a></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode makefile"><code class="sourceCode makefile"><a class="sourceLine" id="cb3-1" title="1"><span class="dt">.RECIPEPREFIX </span><span class="ch">+=</span></a>
+<a class="sourceLine" id="cb3-2" title="2"></a>
+<a class="sourceLine" id="cb3-3" title="3">&lt;&lt;set-build-dir&gt;&gt;</a>
+<a class="sourceLine" id="cb3-4" title="4">&lt;&lt;search-cc-files&gt;&gt;</a>
+<a class="sourceLine" id="cb3-5" title="5">&lt;&lt;set-obj-files&gt;&gt;</a>
+<a class="sourceLine" id="cb3-6" title="6">&lt;&lt;compile-flags&gt;&gt;</a>
+<a class="sourceLine" id="cb3-7" title="7"></a>
+<a class="sourceLine" id="cb3-8" title="8">&lt;&lt;declare-target-rules&gt;&gt;</a>
+<a class="sourceLine" id="cb3-9" title="9">&lt;&lt;declare-pattern-rules&gt;&gt;</a></code></pre></div>
 <p>Now, compiling is as simple as typing <code>make</code>. If compilation is successful we can run the program.</p>
 <pre><code>$ ./build/99-bottles -n 3
 3 bottles of beer on the wall, 3 bottles of beer.
@@ -283,5 +286,6 @@ Take one down and pass it around, 1 bottle of beer on the wall.
 Take one down and pass it around, no more bottles of beer on the wall.
 No more bottles of beer on the wall, no more bottles of beer.
 Go to the store and buy some more, 3 bottles of beer on the wall.</code></pre>
+<p><link href="https://fonts.googleapis.com/css?family=Dosis" rel="stylesheet"></p>
 </body>
 </html>

@@ -1,4 +1,3 @@
-/* ------ language="CSS" file="slasher.css" */
 body {
     font-family: "Love Ya Like A Sister", sans serif;
     background-image: radial-gradient(circle, #112233, #000033);
@@ -78,4 +77,3 @@ svg #snitch-bar {
     fill: gold;
     stroke: black;
 }
-/* ------ end */

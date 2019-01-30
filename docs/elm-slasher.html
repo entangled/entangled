@@ -79,9 +79,10 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
   <!--[if lt IE 9]>
     <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
   <![endif]-->
+  <link href="https://fonts.googleapis.com/css?family=Dosis" rel="stylesheet">
 </head>
 <body>
-<header>
+<header id="title-block-header">
 <h1 class="title">Slasher game in Elm</h1>
 <p class="author">Johan Hidding</p>
 </header>
@@ -551,15 +552,16 @@ view model =
 <h2 id="completing-the-game">Completing the game</h2>
 <p>From the code we can either build a HTML or a JavaScript file for embedding. We will manually create the HTML so that we can also create a stylesheet. Here’s the <code>Makefile</code> for creating an optimized and uglified version of <code>slasher</code> (you can install <code>uglifyjs</code> with <code>npm install -g uglify-js</code>):</p>
 <p><em>file: «Makefile»=</em></p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode makefile"><code class="sourceCode makefile"><a class="sourceLine" id="cb2-1" title="1"><span class="ot">.PHONY:</span><span class="dt"> build</span></a>
-<a class="sourceLine" id="cb2-2" title="2"></a>
-<a class="sourceLine" id="cb2-3" title="3"><span class="dv">build:</span><span class="dt"> slasher.min.js</span></a>
-<a class="sourceLine" id="cb2-4" title="4"></a>
-<a class="sourceLine" id="cb2-5" title="5"><span class="dv">slasher.js:</span><span class="dt"> src/Main.elm</span></a>
-<a class="sourceLine" id="cb2-6" title="6">    elm make src/Main.elm --output=slasher.js --optimize</a>
-<a class="sourceLine" id="cb2-7" title="7"></a>
-<a class="sourceLine" id="cb2-8" title="8"><span class="dv">slasher.min.js:</span><span class="dt"> slasher.js</span></a>
-<a class="sourceLine" id="cb2-9" title="9">    uglifyjs slasher.js --compress <span class="st">&#39;pure_funcs=&quot;F2,F3,F4,F5,F6,F7,F8,F9,A2,A3,A4,A5,A6,A7,A8,A9&quot;,pure_getters,keep_fargs=false,unsafe_comps,unsafe&#39;</span> | uglifyjs --mangle --output=slasher.min.js</a></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode makefile"><code class="sourceCode makefile"><a class="sourceLine" id="cb2-1" title="1"><span class="dt">.RECIPEPREFIX </span><span class="ch">+=</span></a>
+<a class="sourceLine" id="cb2-2" title="2"><span class="ot">.PHONY:</span><span class="dt"> build</span></a>
+<a class="sourceLine" id="cb2-3" title="3"></a>
+<a class="sourceLine" id="cb2-4" title="4"><span class="dv">build:</span><span class="dt"> slasher.min.js</span></a>
+<a class="sourceLine" id="cb2-5" title="5"></a>
+<a class="sourceLine" id="cb2-6" title="6"><span class="dv">slasher.js:</span><span class="dt"> src/Main.elm</span></a>
+<a class="sourceLine" id="cb2-7" title="7">    elm make src/Main.elm --output=slasher.js --optimize</a>
+<a class="sourceLine" id="cb2-8" title="8"></a>
+<a class="sourceLine" id="cb2-9" title="9"><span class="dv">slasher.min.js:</span><span class="dt"> slasher.js</span></a>
+<a class="sourceLine" id="cb2-10" title="10">    uglifyjs slasher.js --compress <span class="st">&#39;pure_funcs=&quot;F2,F3,F4,F5,F6,F7,F8,F9,A2,A3,A4,A5,A6,A7,A8,A9&quot;,pure_getters,keep_fargs=false,unsafe_comps,unsafe&#39;</span> | uglifyjs --mangle --output=slasher.min.js</a></code></pre></div>
 <p>The HTML can be very short now:</p>
 <p><em>file: «slasher.html»=</em></p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode html"><code class="sourceCode html"><a class="sourceLine" id="cb3-1" title="1"><span class="dt">&lt;!DOCTYPE </span>html<span class="dt">&gt;</span></a>
@@ -664,5 +666,6 @@ view model =
 <a class="sourceLine" id="cb4-77" title="77">    <span class="kw">fill</span>: <span class="cn">gold</span><span class="op">;</span></a>
 <a class="sourceLine" id="cb4-78" title="78">    stroke: <span class="cn">black</span><span class="op">;</span></a>
 <a class="sourceLine" id="cb4-79" title="79">}</a></code></pre></div>
+<p><link href="https://fonts.googleapis.com/css?family=Dosis" rel="stylesheet"></p>
 </body>
 </html>

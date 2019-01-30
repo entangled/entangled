@@ -49,10 +49,6 @@ do
             cmd="script"
             shift
             ;;
-        --build-dir=*)
-            build_dir="${i#*=}"
-            shift
-            ;;
         --*)
             echo "unknown argument: ${i}"
             usage

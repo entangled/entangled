@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>enTangleD – a bi-directional literate programming tool</title>
+  <title>enTangleD</title>
   <style type="text/css">
       code{white-space: pre-wrap;}
       span.smallcaps{font-variant: small-caps;}
@@ -78,28 +78,29 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
   <!--[if lt IE 9]>
     <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
   <![endif]-->
+  <link href="https://fonts.googleapis.com/css?family=Dosis" rel="stylesheet">
 </head>
 <body>
-<header>
-<h1 class="title">enTangleD – a bi-directional literate programming tool</h1>
+<header id="title-block-header">
+<h1 class="title">enTangleD</h1>
 </header>
 <nav id="TOC">
 <ul>
-<li><a href="#entangled">enTangleD</a><ul>
 <li><a href="#status">Status</a></li>
-<li><a href="#examples">Examples</a></li>
 <li><a href="#building">Building</a></li>
+<li><a href="#using">Using</a><ul>
 <li><a href="#syntax-markdown-side">Syntax (markdown side)</a></li>
 <li><a href="#syntax-source-side">Syntax (source side)</a></li>
 <li><a href="#configuration">Configuration</a></li>
 </ul></li>
 </ul>
 </nav>
-<p><a href="https://github.com/jhidding/entangled">github: https://github.com/jhidding/entangled</a></p>
-<h2 id="entangled">enTangleD</h2>
+<div id="logobar">
+<p><a href="https://github.com/jhidding/entangled"><img src="images/github.png" alt="Octocat" /> Find us on Github</a>  <a href="https://github.com/jhidding/enTangleD/releases"><img src="images/download.svg" alt="Download" /> Download enTangled</a></p>
+</div>
 <p>Literate programming is awesome! Write your documentation and code in one markdown document, tangle the source code from that document, compile and run your code. But ow what happens? Compiler error? Bug? Where? Your debugger is no longer pointing to your real source file! No worries, just edit the source file first, fix the bug and then copy the edits to your master document. Meh.</p>
 <p>Enter enTangleD! This monitors the tangled source files and reflects any change in master document or source files in one live source database. The markdown file is still the master document.</p>
-<h3 id="status">Status</h3>
+<h2 id="status">Status</h2>
 <p><code>enTangleD</code> is working, but still in a alpha stage. It has been tested Linux, and Windows and should work on MacOS equally well. If you edit anything serious with the enTangle Daemon running, I strongly recommend using version control and commit often. If you encounter unexpected behaviour, please post an issue and describe the steps to reproduce.</p>
 <p>Features:</p>
 <ul>
@@ -116,24 +117,26 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <li>add workflow to create figures for HTML/PDF reports</li>
 <li>distribute binaries</li>
 </ul>
-<h3 id="examples">Examples</h3>
-<p>The <code>examples</code> folder contains currently two examples:</p>
-<ul>
-<li><p><a href="https://jhidding.github.io/enTangleD/99-bottles.html">99-bottles in C++</a>: teaching how to setup a basic C++ program with enTangleD, use of ArgAgg to parse command-line arguments, use of FmtLib to do string formatting and setting up a slightly non-basic Makefile.</p></li>
-<li><p><a href="https://jhidding.github.io/enTangleD/slasher.html">Slasher</a>: a game written in Elm. The game works, but <a href="https://jhidding.github.io/enTangleD/elm-slasher.html">the source</a> may need some more literacy in some places.</p></li>
-</ul>
-<p>A slightly larger literate program:</p>
-<ul>
-<li><a href="https://jhidding.github.io/adhesion-code">Adhesion code</a>: presenting the cosmological adhesion model and its implementation in C++ and CGAL.</li>
-</ul>
-<p>More examples will follow!</p>
-<h3 id="building">Building</h3>
+<div id="examples-div">
+<h2 id="literate-examples">Literate Examples</h2>
+<div class="example">
+<p><img src="images/99-bottles-thumb.jpg" alt="99 bottles thumbnail" /> <a href="99-bottles.html">99-bottles in C++</a>: Over-engineered song-text generator. Teaching how to setup a basic C++ program with enTangleD, use of ArgAgg to parse command-line arguments, use of FmtLib to do string formatting and setting up a slightly non-basic Makefile.</p>
+</div>
+<div class="example">
+<p><img src="images/slasher-thumb.jpg" alt="Slasher thumbnail" /> <a href="elm-slasher.html">Slasher</a>: a browser game written in Elm. A dashing hero is zipping across the screen, only deflected by slashes and backslashes. The game works, but the source may need some more literacy in some places.</p>
+</div>
+<div class="example">
+<p><img src="images/adhesion-code-thumb.jpg" alt="Adhesion code thumbnail" /> <a href="https://jhidding.github.io/adhesion-code">Adhesion code</a>: presenting the cosmological adhesion model and its implementation in C++ and CGAL.</p>
+</div>
+</div>
+<h2 id="building">Building</h2>
 <p><code>enTangleD</code> is written in Haskell, and uses the <code>stack</code> build system. You can build an executable by running</p>
 <pre><code>stack build</code></pre>
 <p>If this is the first time you run <code>stack</code>, this may take a while. Install the executable in your <code>~/.local/bin</code></p>
 <pre><code>stack install</code></pre>
 <p>Run unit tests</p>
 <pre><code>stack test</code></pre>
+<h2 id="using">Using</h2>
 <h3 id="syntax-markdown-side">Syntax (markdown side)</h3>
 <p>The markdown syntax <code>enTangleD</code> uses is compatible with <code>Pandoc</code>’s. This relies on the use of <em>fenced code attributes</em>. To tangle a code block to a file:</p>
 <div class="sourceCode" id="cb4"><pre class="sourceCode markdown"><code class="sourceCode markdown"><a class="sourceLine" id="cb4-1" title="1"><span class="bn">``` {.bash file=src/count.sh}</span></a>
@@ -154,5 +157,6 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <blockquote>
 <p>Not yet implemented: The project should contain a <code>tangle.yaml</code> file.</p>
 </blockquote>
+<p><link href="https://fonts.googleapis.com/css?family=Dosis" rel="stylesheet"></p>
 </body>
 </html>

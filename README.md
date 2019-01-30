@@ -1,16 +1,17 @@
 ---
-title: enTangleD -- a bi-directional literate programming tool
+title: enTangleD
 ---
 
-[github: https://github.com/jhidding/entangled](https://github.com/jhidding/entangled)
-
-# enTangleD
+::: {#logobar}
+[![Octocat](images/github.png) Find us on Github](https://github.com/jhidding/entangled)&nbsp;
+[![Download](images/download.svg) Download enTangled](https://github.com/jhidding/enTangleD/releases)
+:::
 
 Literate programming is awesome! Write your documentation and code in one markdown document, tangle the source code from that document, compile and run your code. But ow what happens? Compiler error? Bug? Where? Your debugger is no longer pointing to your real source file! No worries, just edit the source file first, fix the bug and then copy the edits to your master document. Meh.
 
 Enter enTangleD! This monitors the tangled source files and reflects any change in master document or source files in one live source database. The markdown file is still the master document.
 
-## Status
+# Status
 
 `enTangleD` is working, but still in a alpha stage. It has been tested Linux, and Windows and should work on MacOS equally well. If you edit anything serious with the enTangle Daemon running, I strongly recommend using version control and commit often. If you encounter unexpected behaviour, please post an issue and describe the steps to reproduce.
 
@@ -29,21 +30,27 @@ Todo:
 - add workflow to create figures for HTML/PDF reports
 - distribute binaries
 
-## Examples
 
-The `examples` folder contains currently two examples:
+::: {#examples-div}
+# Literate Examples
 
-- [99-bottles in C++](https://jhidding.github.io/enTangleD/99-bottles.html): teaching how to setup a basic C++ program with enTangleD, use of ArgAgg to parse command-line arguments, use of FmtLib to do string formatting and setting up a slightly non-basic Makefile.
+:::: {.example}
+![99 bottles thumbnail](images/99-bottles-thumb.jpg)
+[99-bottles in C++](99-bottles.html): Over-engineered song-text generator. Teaching how to setup a basic C++ program with enTangleD, use of ArgAgg to parse command-line arguments, use of FmtLib to do string formatting and setting up a slightly non-basic Makefile.
+::::
 
-- [Slasher](https://jhidding.github.io/enTangleD/slasher.html): a game written in Elm. The game works, but [the source](https://jhidding.github.io/enTangleD/elm-slasher.html) may need some more literacy in some places.
+:::: {.example}
+![Slasher thumbnail](images/slasher-thumb.jpg)
+[Slasher](elm-slasher.html): a browser game written in Elm. A dashing hero is zipping across the screen, only deflected by slashes and backslashes. The game works, but the source may need some more literacy in some places.
+::::
 
-A slightly larger literate program:
+:::: {.example}
+![Adhesion code thumbnail](images/adhesion-code-thumb.jpg)
+[Adhesion code](https://jhidding.github.io/adhesion-code): presenting the cosmological adhesion model and its implementation in C++ and CGAL.
+::::
+:::
 
-- [Adhesion code](https://jhidding.github.io/adhesion-code): presenting the cosmological adhesion model and its implementation in C++ and CGAL.
-
-More examples will follow!
-
-## Building
+# Building
 
 `enTangleD` is written in Haskell, and uses the `stack` build system. You can build an executable by running
 
@@ -56,6 +63,8 @@ If this is the first time you run `stack`, this may take a while. Install the ex
 Run unit tests
 
     stack test
+
+# Using
 
 ## Syntax (markdown side)
 
