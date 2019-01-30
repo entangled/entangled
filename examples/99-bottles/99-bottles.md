@@ -244,6 +244,8 @@ $(build_dir)/99-bottles: $(obj_files)
 The complete `Makefile`:
 
 ``` {.makefile file=Makefile}
+.RECIPEPREFIX +=
+
 <<set-build-dir>>
 <<search-cc-files>>
 <<set-obj-files>>

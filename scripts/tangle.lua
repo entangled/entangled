@@ -91,7 +91,7 @@ function Pandoc (elem)
     for filename, code in pairs(files) do
         code = "prepare " .. filename .. "\n" ..
                "cat > " .. filename .. " << EOF\n" ..
-                expandFile(filename):gsub("%$", "\\$"):gsub("`", "\\`") ..
+                expandFile(filename):gsub("\\", "\\\\"):gsub("%$", "\\$"):gsub("`", "\\`") ..
                 "EOF\n\n"
         table.insert(content, pandoc.Str(code))
     end

@@ -540,6 +540,7 @@ view model =
 From the code we can either build a HTML or a JavaScript file for embedding. We will manually create the HTML so that we can also create a stylesheet. Here's the `Makefile` for creating an optimized and uglified version of `slasher` (you can install `uglifyjs` with `npm install -g uglify-js`):
 
 ``` {.makefile file=Makefile}
+.RECIPEPREFIX +=
 .PHONY: build
 
 build: slasher.min.js

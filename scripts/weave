@@ -11,15 +11,22 @@ html_args="-s --toc --toc-depth=3 ${filter_args} --lua-filter ${script_dir}/anno
 
 target="html"
 output="./public/index.html"
+css_file="${script_dir}/style.css"
 sources=""
 
 usage () {
     echo "Weave script"
-    echo "usage: weave [--html|--pdf] [--output=<path>] <sources>"
+    echo "usage: weave [options] <sources>"
     echo
     echo "By default, this builds HTML output from the list of Markdown"
-    echo "sources. The output directory defaults to './public'."
+    echo "sources. The output defaults to './public/index.html'."
     echo "If `--pdf` is chosen, the default output is set to 'report.pdf'."
+    echo
+    echo "options:"
+    echo "  --html           generate HTML"
+    echo "  --pdf            generate PDF"
+    echo "  --output=<path>  name of output file"
+    echo "  --css=<path>     name of CSS file"
 }
 
 for i in "$@"
@@ -27,6 +34,10 @@ do
     case $i in
         --output=*)
             output="${i#*=}"
+            shift
+            ;;
+        --css=*)
+            css_file="${i#*=}"
             shift
             ;;
         --html)
@@ -56,7 +67,7 @@ done
 case ${target} in
     html)
         mkdir -p "$(dirname ${output})"
-        cp "${script_dir}/style.css" "$(dirname ${output})"
+        cp "${css_file}" "$(dirname ${output})/style.css"
         pandoc ${sources} -f ${format} ${html_args} -t html5 -o "${output}"
         ;;
     pdf)

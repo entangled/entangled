@@ -1,0 +1,92 @@
+#!/bin/bash
+
+script_dir=$(dirname "$(readlink -f "$0")")
+format="markdown+fenced_code_attributes+citations+all_symbols_escapable+fenced_divs+multiline_tables"
+
+rm_if_empty () {
+    if [ -z "$(ls -A "$1")" ]; then
+        echo "removing empty dir '${1}'"
+        rm -r "$1"
+        rm_if_empty $(dirname "$1")
+    fi
+}
+
+usage () {
+    echo "Tangle script"
+    echo "usage: tangle [options] <sources>"
+    echo
+    echo "By default, this tangles code files from the list of Markdown"
+    echo "sources. A file called `tangle.sh` is placed in a build directory."
+    echo "`tangle.sh` creates the sources files and `rsync`s them with those"
+    echo "already existing. Default build directory is `./build`."
+    echo
+    echo "options:"
+    echo "  --help           print this message"
+    echo "  --list           list output files"
+    echo "  --script         generate tangle script"
+    echo "  --clean          delete generated files"
+}
+
+cmd="tangle"
+sources=""
+
+for i in "$@"
+do
+    case $i in
+        --help)
+            usage
+            exit 0
+            ;;
+        --list)
+            cmd="list"
+            shift
+            ;;
+        --clean)
+            cmd="clean"
+            shift
+            ;;
+        --script)
+            cmd="script"
+            shift
+            ;;
+        --build-dir=*)
+            build_dir="${i#*=}"
+            shift
+            ;;
+        --*)
+            echo "unknown argument: ${i}"
+            usage
+            exit 1
+            ;;
+        *)
+            sources="${sources} ${i}"
+            shift
+            ;;
+    esac
+done
+
+case ${cmd} in
+    list)
+        pandoc -f ${format} --lua-filter ${script_dir}/list.lua -t plain ${sources}
+        ;;
+    clean)
+        files=$(pandoc -f ${format} --lua-filter ${script_dir}/list.lua -t plain ${sources})
+        for f in ${files}; do
+            if [ -f "${f}" ]; then
+                echo "removing '${f}'"
+                rm "${f}"
+                rm_if_empty $(dirname "${f}")
+            fi
+        done
+        ;;
+    tangle)
+        source <(pandoc -f ${format} --lua-filter ${script_dir}/tangle.lua -t plain ${sources})
+        ;;
+    script)
+        pandoc -f ${format} --lua-filter ${script_dir}/tangle.lua -t plain ${sources}
+        ;;
+    *)
+        echo "Error: unknown command: ${cmd}"
+        exit 1
+        ;;
+esac
