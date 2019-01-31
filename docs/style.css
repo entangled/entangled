@@ -1,82 +1,15 @@
-body
-{
-    margin:		0 30% 0 250pt;
-    max-width:	600pt;
-    background: #efefef;
-    padding:	0 10pt 0 0;
+body {
     font-family: 'Dosis', sans-serif;
-    /* font-family: "Bitstream Charter", serif; */
-    font-size: 14pt;
-    counter-reset: h1;
 }
 
-p {
-    text-align: justify;
-}
-
-a {
-    color: rgb(102, 41, 41);
-    /* text-decoration: none; */
-}
-
-.TODO {
-    background: pink;
-    border: solid thin black;
-    margin: 5pt 30pt 5pt 30pt;
-    padding: 3pt;
-    box-shadow: 8pt 8pt 10pt 0pt #aaa;
-}
-
-.TODO :before {
-    content: "👷 TODO: ";
-    font-weight: bold;
-}
-
-/* h2 {
-    counter-reset: h2;
-}
-
-h3 {
-    counter-reset: h3;
-}
-
-h2:before {
-    content: counter(h1) ".\0000a0\0000a0";
-    counter-increment: h1;
-}
-
-h3:before {
-    content: counter(h1) "." counter(h2) ".\0000a0\0000a0";
-    counter-increment: h2;
-}
-
-h4:before {
-    content: counter(h1) "." counter(h2) "." counter(h3) ".\0000a0\0000a0";
-    counter-increment: h3;
-} */
-
-#TOC
-{
-    font-size: 12pt;
+#TOC {
     position: fixed;
-    top: 0pt;
-    left: 0pt;
-    bottom: 0pt;
-    background: rgb(0, 0, 0);
-    border-right: solid thin rgb(255, 255, 255);
-    padding: 20pt;
-    padding-right: 25pt;
-    width: 150pt;
-    color: #FFF;
+    visibility: hidden;
 }
 
-#TOC a {
-    color: #eee;
-    text-decoration: none;
-}
-
-#TOC ul {
-    padding: 3pt 0 3pt 10pt;
+blockquote {
+    background: #ddd;
+    padding: 8pt 20pt 8pt 20pt;
 }
 
 code
@@ -92,9 +25,10 @@ code
     background: #eff2f2;
     padding: 10pt;
 
-    width: 40em;
+    width: 90%;
+    /* width: 40em; */
     position: relative;
-    left: 25pt;
+    left: 5pt;
 }
 
 .elm pre, .sourceCode pre, .sourceCode code
@@ -128,21 +62,22 @@ figure img
     margin: 0 auto 0 auto;
 }
 
-#examples-div
-{
-    overflow-y: auto;
-    position: fixed;
-    top: 0pt;
-    right: 0pt;
-    bottom: 0pt;
-    width: 25%;
-    padding: 0 10pt 0 10pt;
-    font-size: 12pt;
-    background: rgb(161, 161, 161);
+#logobar {
+    height: 20pt;
 }
 
-#examples-div h2 {
-    text-align: right;
+#logobar img {
+    height: 20pt;
+    vertical-align: middle;
+}
+
+.phonetic {
+    font-family: serif;
+    font-size: 12pt;
+}
+
+#examples-div .example {
+    margin: 0 20pt 0 20pt;
 }
 
 #examples-div h2:before {
@@ -179,21 +114,117 @@ figure img
     color: #333399;
 }
 
-#logobar {
-    height: 20pt;
-}
+@media only screen and (min-width: 768px) {
+    body
+    {
+        margin:		0 30% 0 250pt;
+        max-width:	600pt;
+        background: #efefef;
+        padding:	0 10pt 0 0;
+        font-family: 'Dosis', sans-serif;
+        /* font-family: "Bitstream Charter", serif; */
+        font-size: 14pt;
+        counter-reset: h1;
+    }
 
-#logobar img {
-    height: 20pt;
-    vertical-align: middle;
-}
+    p {
+        text-align: justify;
+    }
 
-.phonetic {
-    font-family: serif;
-    font-size: 12pt;
-}
+    a {
+        color: rgb(102, 41, 41);
+        /* text-decoration: none; */
+    }
 
-blockquote {
-    background: #ddd;
-    padding: 8pt 20pt 8pt 20pt;
+    .TODO {
+        background: pink;
+        border: solid thin black;
+        margin: 5pt 30pt 5pt 30pt;
+        padding: 3pt;
+        box-shadow: 8pt 8pt 10pt 0pt #aaa;
+    }
+
+    .TODO :before {
+        content: "👷 TODO: ";
+        font-weight: bold;
+    }
+
+    .sourceCode, .elm
+    {
+        font-size: 10pt;
+        border: solid thin #aaa;
+        border-radius: 5pt;
+        background: #eff2f2;
+        padding: 10pt;
+
+        width: 40em;
+        position: relative;
+        left: 25pt;
+    }
+
+
+    /* h2 {
+        counter-reset: h2;
+    }
+
+    h3 {
+        counter-reset: h3;
+    }
+
+    h2:before {
+        content: counter(h1) ".\0000a0\0000a0";
+        counter-increment: h1;
+    }
+
+    h3:before {
+        content: counter(h1) "." counter(h2) ".\0000a0\0000a0";
+        counter-increment: h2;
+    }
+
+    h4:before {
+        content: counter(h1) "." counter(h2) "." counter(h3) ".\0000a0\0000a0";
+        counter-increment: h3;
+    } */
+
+    #TOC
+    {
+        visibility: visible;
+        font-size: 12pt;
+        position: fixed;
+        top: 0pt;
+        left: 0pt;
+        bottom: 0pt;
+        background: rgb(0, 0, 0);
+        border-right: solid thin rgb(255, 255, 255);
+        padding: 20pt;
+        padding-right: 25pt;
+        width: 150pt;
+        color: #FFF;
+    }
+
+    #TOC a {
+        color: #eee;
+        text-decoration: none;
+    }
+
+    #TOC ul {
+        padding: 3pt 0 3pt 10pt;
+    }
+
+    #examples-div
+    {
+        overflow-y: auto;
+        position: fixed;
+        top: 0pt;
+        right: 0pt;
+        bottom: 0pt;
+        width: 25%;
+        padding: 0 10pt 0 10pt;
+        font-size: 12pt;
+        background: rgb(161, 161, 161);
+    }
+
+    #examples-div h2 {
+        text-align: right;
+    }
 }
