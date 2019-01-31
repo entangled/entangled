@@ -37,7 +37,7 @@ Todo:
 # Literate Examples
 
 :::: {.example}
-[![Apollo Earthrise](images/hello-world-thumb.jpg) Hello World in C++](hello-world.html): Teaches the basics of literate programming using Markdown and fenced code blocks.
+[![Apollo Earthrise](images/hello-world-thumb.jpg) Hello World in C++](hello-world.html): Teaches the basics of literate programming using Markdown and fenced code blocks. Also shows how to use a BibTeX file for references.
 ::::
 
 :::: {.example}
