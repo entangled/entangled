@@ -98,7 +98,7 @@ document = do
 
     comment <- getComment
     content <- intercalate "\n" . catMaybes
-        <$> manyTill (try reference <|> Just <$> anyToken)
+        <$> manyTill (reference <|> Just <$> anyToken)
                      (token $ matchEnd comment)
 
     addReference (FileReferenceId $ headerFilename header)
@@ -116,8 +116,8 @@ reference = do
     language <- getLanguage
     comment  <- getComment
 
-    ref     <- token $ matchReference comment
-    lines   <- catMaybes <$> manyTill (try reference <|> Just <$> anyToken)
+    ref     <- try $ token $ matchReference comment
+    lines   <- catMaybes <$> manyTill (reference <|> Just <$> anyToken)
                                       (token $ matchEnd comment)
     let strippedContent = map (unindent $ rtIndent ref) lines
     when (isJust $ find isNothing strippedContent) $ fail "Indentation error"
