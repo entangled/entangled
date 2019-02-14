@@ -118,19 +118,21 @@ tryReadFile f = do
 
 changeFile :: FilePath -> T.Text -> IO ()
 changeFile filename text = do
+    shortPath <- makeRelativeToCurrentDirectory filename
     createDirectoryIfMissing True (takeDirectory filename)
     oldText <- tryReadFile filename
     case oldText of
         Just ot -> when (ot /= text) $ do
-            putStrLn $ "\027[32m    ~ overwriting '" ++ filename ++ "'\027[m"
+            putStrLn $ "\027[32m    ~ overwriting '" ++ shortPath ++ "'\027[m"
             T.IO.writeFile filename text
         Nothing -> do
-            putStrLn $ "\027[32m    ~ creating '" ++ filename ++ "'\027[m"
+            putStrLn $ "\027[32m    ~ creating '" ++ shortPath ++ "'\027[m"
             T.IO.writeFile filename text
 
 removeIfExists :: FilePath -> IO ()
 removeIfExists f = do
-    putStrLn $ "\027[31m    ~ removing '" ++ f ++ "'\027[m"
+    shortPath <- makeRelativeToCurrentDirectory f
+    putStrLn $ "\027[31m    ~ removing '" ++ shortPath ++ "'\027[m"
     fileExists <- doesFileExist f
     when fileExists (removeFile f)
 
@@ -138,8 +140,9 @@ removeFiles :: [FilePath] -> IO ()
 removeFiles = mapM_ removeIfExists
 
 writeFileOrWarn :: Show a => FilePath -> Either a T.Text -> IO ()
-writeFileOrWarn filename (Left error)
-    = putStrLn $ "Error tangling '" ++ filename ++ "': " ++ show error
+writeFileOrWarn filename (Left error) = do
+    shortPath <- makeRelativeToCurrentDirectory filename
+    putStrLn $ "Error tangling '" ++ shortPath ++ "': " ++ show error
 writeFileOrWarn filename (Right text) =
     changeFile filename text
 
@@ -160,11 +163,12 @@ loadSourceFile f = do
 
 addSourceFile :: FilePath -> TangleM ()
 addSourceFile f = do
+    shortPath <- liftIO $ makeRelativeToCurrentDirectory f
     source  <- liftIO $ T.IO.readFile f
     refs    <- use referenceMap
     doc'    <- parseMarkdown' refs f source
     case doc' of
-        Left err -> liftIO $ putStrLn $ "Error loading '" ++ f ++ "': "
+        Left err -> liftIO $ putStrLn $ "Error loading '" ++ shortPath ++ "': "
                         ++ show err
         Right (Document r c) -> do
             setReferenceMap r
@@ -177,9 +181,10 @@ removeActiveReferences doc = do
 
 updateFromSource :: FilePath -> TangleM ()
 updateFromSource fp = do
+    shortPath <- liftIO $ makeRelativeToCurrentDirectory fp
     doc' <- loadSourceFile fp
     case doc' of
-        Left err -> liftIO $ putStrLn $ "Error loading '" ++ fp ++ "': " ++ show err
+        Left err -> liftIO $ putStrLn $ "Error loading '" ++ shortPath ++ "': " ++ show err
         Right (Document r c) -> do
             modifying referenceMap (M.union r)
             modifying sourceData (M.insert fp c)
@@ -189,7 +194,10 @@ updateFromSource fp = do
 -- ========================================================================= --
 
 untangleTarget :: FilePath -> ReaderT Config IO (Either TangleError ReferenceMap)
-untangleTarget f = liftIO (readFile f) >>= untangle f
+untangleTarget f = do
+    shortPath <- liftIO $ makeRelativeToCurrentDirectory f
+    content <- liftIO (readFile f)
+    untangle shortPath content
 
 getCodeBlock :: Monad m => ReferenceId -> StateT Session m (Maybe CodeBlock)
 getCodeBlock id = use $ referenceMap . to (M.lookup id)
@@ -205,12 +213,12 @@ updateCodeBlock r c = do
 
 updateFromTarget :: FilePath -> TangleM ()
 updateFromTarget f = do
+    shortPath <- liftIO $ makeRelativeToCurrentDirectory f
     refs' <- lift $ untangleTarget f
     case refs' of
-        Left err -> liftIO $ putStrLn $ "Error updating from '" ++ f ++ "': "
-                        ++ show err
+        Left err -> liftIO $ putStrLn $ show err
         Right refs -> do
-            liftIO $ putStrLn $ "  -- updating from '" ++ f ++ "':"
+            liftIO $ putStrLn $ "  -- updating from '" ++ shortPath ++ "':"
             mapM_ (uncurry updateCodeBlock) (M.toList refs)
 
 -- ========================================================================= --
@@ -311,7 +319,8 @@ mainLoop (WriteEvent SourceFile fp : xs) = do
     mainLoop xs
 
 mainLoop (WriteEvent TargetFile fp : xs) = do
-    liftIO $ putStrLn $ "Untangling " ++ fp
+    shortPath <- liftIO $ makeRelativeToCurrentDirectory fp
+    liftIO $ putStrLn $ "Untangling " ++ shortPath
     setDaemonState Untangling
     wait            -- the write event may arrive before the editor 
                     -- has finished saving the document

@@ -7,7 +7,11 @@ module Model
 data TangleError
     = TangleError String
     | CyclicReference String
-    deriving (Eq, Show)
+    deriving (Eq)
+
+instance Show TangleError where
+    show (TangleError msg) = "Error: " <> msg
+    show (CyclicReference msg) = "Cyclic reference: " <> msg
 
 isCyclicReference :: Either TangleError a -> Bool
 isCyclicReference (Left (CyclicReference _)) = True
