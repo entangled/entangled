@@ -105,6 +105,12 @@ document = do
                  (CodeBlock language [] (T.pack content))
     getRefs
 
+unindent :: String -> String -> Maybe String
+unindent prefix s =
+    if s =~ "^[ \\t]*$"
+    then Just ""
+    else stripPrefix prefix s
+
 reference :: Monad m => Parser m (Maybe String)
 reference = do
     language <- getLanguage
@@ -113,7 +119,7 @@ reference = do
     ref     <- token $ matchReference comment
     lines   <- catMaybes <$> manyTill (try reference <|> Just <$> anyToken)
                                       (token $ matchEnd comment)
-    let strippedContent = map (stripPrefix $ rtIndent ref) lines
+    let strippedContent = map (unindent $ rtIndent ref) lines
     when (isJust $ find isNothing strippedContent) $ fail "Indentation error"
     let content = intercalate "\n" $ catMaybes strippedContent
 
@@ -148,7 +154,7 @@ matchHeader line =
 referencePattern :: String -> String
 referencePattern comment = "^([ \\t]*)" ++ escape comment
     ++ "[ \\t]+begin[ \\t]+<<(.+)>>\\[([0-9]+)\\]"
-                                    
+
 matchReference :: String -> String -> Maybe ReferenceTag
 matchReference comment line =
     case line =~ referencePattern comment :: [MatchText String] of
@@ -165,7 +171,7 @@ endPattern comment = "^[ \\t]*" ++ escape comment
     ++ "[ \\t]+end"
 
 matchEnd :: String -> String -> Maybe ()
-matchEnd comment line = 
+matchEnd comment line =
     if line =~ endPattern comment :: Bool
         then Just ()
         else Nothing
