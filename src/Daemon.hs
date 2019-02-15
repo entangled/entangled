@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Daemon
     ( runSession ) where
 
@@ -35,6 +37,9 @@ import Untangle
 import Markdown
 import Document
 
+import Console (ConsoleT)
+import qualified Console
+
 type Message = String
 
 data FileType = SourceFile | TargetFile deriving (Show, Eq, Ord)
@@ -57,7 +62,7 @@ data Session = Session
     , _randomGen      :: StdGen
     }
 
-type TangleM = StateT Session (ReaderT Config IO)
+type TangleM = StateT Session (ReaderT Config (ConsoleT IO))
 
 sourceData :: Lens' Session (M.Map FilePath [Content])
 sourceData = lens _sourceData (\s n -> s { _sourceData = n })
@@ -78,7 +83,7 @@ randomGen :: Lens' Session StdGen
 randomGen = lens _randomGen (\s n -> s { _randomGen = n })
 
 instance RandomGen Session where
-    next s  = (s ^. randomGen ^. to next) 
+    next s  = (s ^. randomGen ^. to next)
             & _2 %~ (\ x -> s & randomGen .~ x)
     split s = (s ^. randomGen ^. to split)
             & _1 %~ (\ x -> s & randomGen .~ x)
@@ -109,37 +114,38 @@ listAllSourceFiles = use $ sourceData . to M.keys
 -- Tangling                                                                  --
 -- ========================================================================= --
 
-tryReadFile :: FilePath -> IO (Maybe T.Text)
+tryReadFile :: MonadIO m => FilePath -> m (Maybe T.Text)
 tryReadFile f = do
-    exists <- doesFileExist f
+    exists <- liftIO $ doesFileExist f
     if exists
-        then Just <$> T.IO.readFile f
+        then Just <$> liftIO (T.IO.readFile f)
         else return Nothing
 
-changeFile :: FilePath -> T.Text -> IO ()
+changeFile :: (MonadIO m) => FilePath -> T.Text -> ConsoleT m ()
 changeFile filename text = do
-    createDirectoryIfMissing True (takeDirectory filename)
+    liftIO $ createDirectoryIfMissing True (takeDirectory filename)
     oldText <- tryReadFile filename
     case oldText of
         Just ot -> when (ot /= text) $ do
-            putStrLn $ "\027[32m    ~ overwriting '" ++ filename ++ "'\027[m"
-            T.IO.writeFile filename text
+            Console.message $ "overwriting '" <> filename <> "'"
+            liftIO $ T.IO.writeFile filename text
         Nothing -> do
-            putStrLn $ "\027[32m    ~ creating '" ++ filename ++ "'\027[m"
-            T.IO.writeFile filename text
+            Console.message $ "creating '" <> filename <> "'"
+            -- putStrLn $ "\027[32m    ~ creating '" ++ filename ++ "'\027[m"
+            liftIO $ T.IO.writeFile filename text
 
-removeIfExists :: FilePath -> IO ()
+removeIfExists :: (MonadIO m) => FilePath -> ConsoleT m ()
 removeIfExists f = do
-    putStrLn $ "\027[31m    ~ removing '" ++ f ++ "'\027[m"
-    fileExists <- doesFileExist f
-    when fileExists (removeFile f)
+    Console.message $ "removing '" <> f <> "'"
+    fileExists <- liftIO $ doesFileExist f
+    when fileExists (liftIO $ removeFile f)
 
-removeFiles :: [FilePath] -> IO ()
+removeFiles :: (MonadIO m) => [FilePath] -> ConsoleT m ()
 removeFiles = mapM_ removeIfExists
 
-writeFileOrWarn :: Show a => FilePath -> Either a T.Text -> IO ()
+writeFileOrWarn :: (MonadIO m, Show a) => FilePath -> Either a T.Text -> ConsoleT m ()
 writeFileOrWarn filename (Left error)
-    = putStrLn $ "Error tangling '" ++ filename ++ "': " ++ show error
+    = Console.message $ "Error tangling '" ++ filename ++ "': " ++ show error
 writeFileOrWarn filename (Right text) =
     changeFile filename text
 
@@ -147,7 +153,7 @@ tangleTargets :: TangleM ()
 tangleTargets = do
     refs <- use referenceMap
     fileMap <- lift $ tangleAnnotated refs
-    liftIO $ mapM_ (uncurry writeFileOrWarn) (M.toList fileMap)
+    lift $ lift $ mapM_ (uncurry writeFileOrWarn) (M.toList fileMap)
 
 -- ========================================================================= --
 -- Loading                                                                   --
@@ -164,7 +170,7 @@ addSourceFile f = do
     refs    <- use referenceMap
     doc'    <- parseMarkdown' refs f source
     case doc' of
-        Left err -> liftIO $ putStrLn $ "Error loading '" ++ f ++ "': "
+        Left err -> lift $ lift $ Console.message $ "Error loading '" ++ f ++ "': "
                         ++ show err
         Right (Document r c) -> do
             setReferenceMap r
@@ -179,7 +185,7 @@ updateFromSource :: FilePath -> TangleM ()
 updateFromSource fp = do
     doc' <- loadSourceFile fp
     case doc' of
-        Left err -> liftIO $ putStrLn $ "Error loading '" ++ fp ++ "': " ++ show err
+        Left err -> lift $ lift $ Console.message $ "Error loading '" ++ fp ++ "': " ++ show err
         Right (Document r c) -> do
             modifying referenceMap (M.union r)
             modifying sourceData (M.insert fp c)
@@ -188,7 +194,7 @@ updateFromSource fp = do
 -- Untangle                                                                  --
 -- ========================================================================= --
 
-untangleTarget :: FilePath -> ReaderT Config IO (Either TangleError ReferenceMap)
+untangleTarget :: (MonadIO m) => FilePath -> ReaderT Config m (Either TangleError ReferenceMap)
 untangleTarget f = liftIO (readFile f) >>= untangle f
 
 getCodeBlock :: Monad m => ReferenceId -> StateT Session m (Maybe CodeBlock)
@@ -222,7 +228,7 @@ stitchSourceFile f = do
     doc' <- getDocument f
     case doc' of
         Nothing  -> return ()
-        Just doc -> liftIO $ changeFile f (stitchText doc)
+        Just doc -> lift $ lift $ changeFile f (stitchText doc)
 
 stitchSources :: TangleM ()
 stitchSources = do
@@ -302,7 +308,7 @@ mainLoop (WriteEvent SourceFile fp : xs) = do
     updateFromSource fp
     tangleTargets
     newTgtFiles <- listAllTargetFiles
-    liftIO $ removeFiles (oldTgtFiles \\ newTgtFiles)
+    lift $ lift $ removeFiles (oldTgtFiles \\ newTgtFiles)
     wait
     removeWatch
     setWatch
@@ -313,7 +319,7 @@ mainLoop (WriteEvent SourceFile fp : xs) = do
 mainLoop (WriteEvent TargetFile fp : xs) = do
     liftIO $ putStrLn $ "Untangling " ++ fp
     setDaemonState Untangling
-    wait            -- the write event may arrive before the editor 
+    wait            -- the write event may arrive before the editor
                     -- has finished saving the document
     updateFromTarget fp
     stitchSources
@@ -344,5 +350,5 @@ runSession cfg fs = do
     ds <- newMVar Idle
     rnd <- getStdGen
     let session = Session M.empty M.empty [] fsnotify channel ds rnd
-    runReaderT (runStateT (startSession fs') session) cfg
+    Console.run $ runReaderT (runStateT (startSession fs') session) cfg
     liftIO $ FSNotify.stopManager fsnotify
