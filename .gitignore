@@ -1,5 +1,6 @@
 .stack-work/
 entangled.cabal
+*.swp
 *~
 playground
 example/*

@@ -10,7 +10,11 @@ module Console
     , run
     , Info(..)
     , HyperElement(..)
+    , HyperText
+    , HyperTextable
     , message
+    , errorMessage
+    , warning
     , indent
     , unindent ) where
 
@@ -54,6 +58,9 @@ instance HyperTextable String where
 instance HyperTextable Text where
     toHyperText t = [Content t]
 
+instance HyperTextable HyperText where
+    toHyperText = id
+
 getColour :: MonadState Info m => ColourName -> m Text
 getColour n = gets (M.findWithDefault "" n . consolePalette)
 
@@ -79,10 +86,11 @@ initInfoLinux :: IO Info
 initInfoLinux = do
     size <- fromMaybe (Terminal.Window 24 80) <$> Terminal.size
     let palette = M.fromList
-            [ ("reset",   "\ESC[m")
+            [ ("decoration", "\ESC[38m")
+            , ("reset",   "\ESC[m")
             , ("error",   "\ESC[31m")
             , ("warning", "\ESC[33m")
-            , ("message", "\ESC[32m")
+            , ("message", "\ESC[m")
             ]
     return $ Info size palette []
 
@@ -94,8 +102,8 @@ defaultTail :: [a] -> [a] -> [a]
 defaultTail d []     = d
 defaultTail d (x:xs) = xs
 
-indent :: MonadState Info m => HyperText -> m ()
-indent = modify . addIndent
+indent :: (HyperTextable a, MonadState Info m) => a -> m ()
+indent x = modify $ addIndent $ toHyperText x
     where addIndent i info = info
             { consoleIndent = i : consoleIndent info }
 
@@ -111,6 +119,20 @@ message :: (HyperTextable a, MonadIO m, MonadState Info m) => a -> m ()
 message t = do
     indent <- gets prefix
     hyperPrint $ indent <> [ Colour "message" ]
+                        <> toHyperText t
+                        <> [ Colour "reset" ]
+
+errorMessage :: (HyperTextable a, MonadIO m, MonadState Info m) => a -> m ()
+errorMessage t = do
+    indent <- gets prefix
+    hyperPrint $ indent <> [ Colour "error" ]
+                        <> toHyperText t
+                        <> [ Colour "reset" ]
+
+warning :: (HyperTextable a, MonadIO m, MonadState Info m) => a -> m ()
+warning t = do
+    indent <- gets prefix
+    hyperPrint $ indent <> [ Colour "warning" ]
                         <> toHyperText t
                         <> [ Colour "reset" ]
 

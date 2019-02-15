@@ -37,7 +37,7 @@ import Untangle
 import Markdown
 import Document
 
-import Console (ConsoleT)
+import Console (ConsoleT, HyperTextable, HyperElement(..))
 import qualified Console
 
 type Message = String
@@ -63,6 +63,18 @@ data Session = Session
     }
 
 type TangleM = StateT Session (ReaderT Config (ConsoleT IO))
+
+message :: HyperTextable a => a -> TangleM ()
+message = lift . lift . Console.message
+
+errorMessage :: HyperTextable a => a -> TangleM ()
+errorMessage = lift . lift . Console.errorMessage
+
+indent :: HyperTextable a => a -> TangleM ()
+indent = lift . lift . Console.indent
+
+unindent :: TangleM ()
+unindent = lift $ lift Console.unindent
 
 sourceData :: Lens' Session (M.Map FilePath [Content])
 sourceData = lens _sourceData (\s n -> s { _sourceData = n })
@@ -123,20 +135,20 @@ tryReadFile f = do
 
 changeFile :: (MonadIO m) => FilePath -> T.Text -> ConsoleT m ()
 changeFile filename text = do
+    shortPath <- liftIO $ makeRelativeToCurrentDirectory filename
     liftIO $ createDirectoryIfMissing True (takeDirectory filename)
     oldText <- tryReadFile filename
     case oldText of
         Just ot -> when (ot /= text) $ do
-            Console.message $ "overwriting '" <> filename <> "'"
+            Console.warning $ "overwriting '" <> shortPath <> "'"
             liftIO $ T.IO.writeFile filename text
         Nothing -> do
-            Console.message $ "creating '" <> filename <> "'"
-            -- putStrLn $ "\027[32m    ~ creating '" ++ filename ++ "'\027[m"
+            Console.warning $ "creating '" <> shortPath <> "'"
             liftIO $ T.IO.writeFile filename text
 
 removeIfExists :: (MonadIO m) => FilePath -> ConsoleT m ()
 removeIfExists f = do
-    Console.message $ "removing '" <> f <> "'"
+    Console.warning $ "removing '" <> f <> "'"
     fileExists <- liftIO $ doesFileExist f
     when fileExists (liftIO $ removeFile f)
 
@@ -144,8 +156,9 @@ removeFiles :: (MonadIO m) => [FilePath] -> ConsoleT m ()
 removeFiles = mapM_ removeIfExists
 
 writeFileOrWarn :: (MonadIO m, Show a) => FilePath -> Either a T.Text -> ConsoleT m ()
-writeFileOrWarn filename (Left error)
-    = Console.message $ "Error tangling '" ++ filename ++ "': " ++ show error
+writeFileOrWarn filename (Left error) = do
+    shortPath <- liftIO $ makeRelativeToCurrentDirectory filename
+    Console.errorMessage $ "Error tangling '" ++ shortPath ++ "': " ++ show error
 writeFileOrWarn filename (Right text) =
     changeFile filename text
 
@@ -166,11 +179,12 @@ loadSourceFile f = do
 
 addSourceFile :: FilePath -> TangleM ()
 addSourceFile f = do
+    shortPath <- liftIO $ makeRelativeToCurrentDirectory f
     source  <- liftIO $ T.IO.readFile f
     refs    <- use referenceMap
     doc'    <- parseMarkdown' refs f source
     case doc' of
-        Left err -> lift $ lift $ Console.message $ "Error loading '" ++ f ++ "': "
+        Left err -> message $ "Error loading '" ++ shortPath ++ "': "
                         ++ show err
         Right (Document r c) -> do
             setReferenceMap r
@@ -183,9 +197,10 @@ removeActiveReferences doc = do
 
 updateFromSource :: FilePath -> TangleM ()
 updateFromSource fp = do
+    shortPath <- liftIO $ makeRelativeToCurrentDirectory fp
     doc' <- loadSourceFile fp
     case doc' of
-        Left err -> lift $ lift $ Console.message $ "Error loading '" ++ fp ++ "': " ++ show err
+        Left err -> message $ "Error loading '" ++ shortPath ++ "': " ++ show err
         Right (Document r c) -> do
             modifying referenceMap (M.union r)
             modifying sourceData (M.insert fp c)
@@ -194,8 +209,11 @@ updateFromSource fp = do
 -- Untangle                                                                  --
 -- ========================================================================= --
 
-untangleTarget :: (MonadIO m) => FilePath -> ReaderT Config m (Either TangleError ReferenceMap)
-untangleTarget f = liftIO (readFile f) >>= untangle f
+untangleTarget :: MonadIO m => FilePath -> ReaderT Config m (Either TangleError ReferenceMap)
+untangleTarget f = do
+    shortPath <- liftIO $ makeRelativeToCurrentDirectory f
+    content <- liftIO (readFile f)
+    untangle shortPath content
 
 getCodeBlock :: Monad m => ReferenceId -> StateT Session m (Maybe CodeBlock)
 getCodeBlock id = use $ referenceMap . to (M.lookup id)
@@ -204,20 +222,22 @@ updateCodeBlock :: ReferenceId -> CodeBlock -> TangleM ()
 updateCodeBlock r c = do
     old' <- getCodeBlock r
     case old' of
-        Nothing -> liftIO $ putStrLn $ "  Error: code block " ++ show r ++ " not present."
+        Nothing -> errorMessage $ "Error: code block " ++ show r ++ " not present."
         Just old -> when (old /= c) $ do
-            liftIO $ putStrLn $ "    ~ updating " ++ show r
+            message $ "updating " <> show r
             updateReferenceMap $ M.insert r c
 
 updateFromTarget :: FilePath -> TangleM ()
 updateFromTarget f = do
+    shortPath <- liftIO $ makeRelativeToCurrentDirectory f
     refs' <- lift $ untangleTarget f
     case refs' of
-        Left err -> liftIO $ putStrLn $ "Error updating from '" ++ f ++ "': "
-                        ++ show err
+        Left err -> errorMessage $ show err
         Right refs -> do
-            liftIO $ putStrLn $ "  -- updating from '" ++ f ++ "':"
+            message $ "updating from '" <> shortPath <> "':"
+            indent "   ~ "
             mapM_ (uncurry updateCodeBlock) (M.toList refs)
+            unindent
 
 -- ========================================================================= --
 -- Stitching                                                                 --
@@ -254,7 +274,7 @@ passEvent ds channel srcs tgts fsEvent = do
     when pass $ do
         let filetype = if isSourceFile then SourceFile else TargetFile
             event = WriteEvent filetype path
-        putStrLn $ "\027[33m----- :state: " ++ show ds' ++ " :event: " ++ show event ++ " -----\027[m"
+        -- putStrLn $ "\027[33m----- :state: " ++ show ds' ++ " :event: " ++ show event ++ " -----\027[m"
         writeChan channel event
 
 setWatch :: TangleM ()
@@ -267,7 +287,7 @@ setWatch = do
 
     let dirs = nub $ map takeDirectory (srcs ++ tgts)
     reldirs <- liftIO $ mapM makeRelativeToCurrentDirectory dirs
-    liftIO $ putStrLn $ "    ~ Setting watch on: "
+    message $ "Setting watch on: "
         ++ show reldirs
     ds <- use daemonState
     stopActions <- liftIO $ mapM
@@ -278,7 +298,7 @@ setWatch = do
 
 removeWatch :: TangleM ()
 removeWatch = do
-    liftIO $ putStrLn "    ~ Removing watches."
+    message "Removing watches."
     w <- use watches
     liftIO $ sequence_ w
 
@@ -299,7 +319,8 @@ mainLoop :: [Event] -> TangleM ()
 mainLoop [] = return ()
 
 mainLoop (WriteEvent SourceFile fp : xs) = do
-    liftIO $ putStrLn $ "Tangling " ++ fp
+    message "Tangling"
+    indent [ Colour $ T.pack "decoration", Content $ T.pack "| " ]
     wait
     setDaemonState Tangling
     doc <- fromJust <$> getDocument fp  -- TODO: do proper error handling here
@@ -313,11 +334,14 @@ mainLoop (WriteEvent SourceFile fp : xs) = do
     removeWatch
     setWatch
     setDaemonState Idle
-    liftIO $ putStrLn "  -- done tangling "
+    message "done tangling "
+    unindent
     mainLoop xs
 
 mainLoop (WriteEvent TargetFile fp : xs) = do
-    liftIO $ putStrLn $ "Untangling " ++ fp
+    shortPath <- liftIO $ makeRelativeToCurrentDirectory fp
+    message $ "Untangling " <> shortPath
+    indent [ Colour $ T.pack "decoration", Content $ T.pack "| " ]
     setDaemonState Untangling
     wait            -- the write event may arrive before the editor
                     -- has finished saving the document
@@ -325,7 +349,8 @@ mainLoop (WriteEvent TargetFile fp : xs) = do
     stitchSources
     wait
     setDaemonState Idle
-    liftIO $ putStrLn "  -- done untangling"
+    message "done untangling"
+    unindent
     mainLoop xs
 
 mainLoop (DebugEvent msg : xs)   = do
