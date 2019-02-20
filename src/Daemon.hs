@@ -37,16 +37,23 @@ import Untangle
 import Markdown
 import Document
 
-import Console (ConsoleT, HyperTextable, HyperElement(..))
+import Console (ConsoleT, Error, Warning, Doc, log, Message)
 import qualified Console
-
-type Message = String
+import qualified Data.Text.Prettyprint.Doc as P
 
 data FileType = SourceFile | TargetFile deriving (Show, Eq, Ord)
 data DaemonState = Idle | Tangling | Untangling deriving (Show, Eq)
 data Event = WriteEvent FileType FilePath
-           | DebugEvent Message
+           | DebugEvent T.Text
            deriving (Show)
+
+data IOAction = IOAction (IO ()) Doc
+
+instance Semigroup IOAction where
+    (IOAction al dl) <> (IOAction ar dr) = IOAction (al <> ar) (dl <> dr)
+
+instance Monoid IOAcation where
+    mempty = IOAction mempty mempty
 
 -- ========================================================================= --
 -- Session                                                                   --
@@ -63,18 +70,6 @@ data Session = Session
     }
 
 type TangleM = StateT Session (ReaderT Config (ConsoleT IO))
-
-message :: HyperTextable a => a -> TangleM ()
-message = lift . lift . Console.message
-
-errorMessage :: HyperTextable a => a -> TangleM ()
-errorMessage = lift . lift . Console.errorMessage
-
-indent :: HyperTextable a => a -> TangleM ()
-indent = lift . lift . Console.indent
-
-unindent :: TangleM ()
-unindent = lift $ lift Console.unindent
 
 sourceData :: Lens' Session (M.Map FilePath [Content])
 sourceData = lens _sourceData (\s n -> s { _sourceData = n })
@@ -127,46 +122,47 @@ listAllSourceFiles = use $ sourceData . to M.keys
 -- ========================================================================= --
 
 tryReadFile :: MonadIO m => FilePath -> m (Maybe T.Text)
-tryReadFile f = do
-    exists <- liftIO $ doesFileExist f
+tryReadFile f = liftIO $ do
+    exists <- doesFileExist f
     if exists
-        then Just <$> liftIO (T.IO.readFile f)
+        then Just <$> T.IO.readFile f
         else return Nothing
 
-changeFile :: (MonadIO m) => FilePath -> T.Text -> ConsoleT m ()
+changeFile :: (MonadIO m) => FilePath -> T.Text -> m IOAction
 changeFile filename text = do
     shortPath <- liftIO $ makeRelativeToCurrentDirectory filename
     liftIO $ createDirectoryIfMissing True (takeDirectory filename)
     oldText <- tryReadFile filename
     case oldText of
-        Just ot -> when (ot /= text) $ do
-            Console.warning $ "overwriting '" <> shortPath <> "'"
-            liftIO $ T.IO.writeFile filename text
-        Nothing -> do
-            Console.warning $ "creating '" <> shortPath <> "'"
-            liftIO $ T.IO.writeFile filename text
+        Just ot -> if (ot /= text)
+            then IOAction (T.IO.writeFile filename text)
+                          (log Message $ "overwriting '" <> shortPath <> "'")
+            else return mempty
+        Nothing -> IOAction
+                (T.IO.writeFile filename text)
+                (log Message $ "creating '" <> shortPath <> "'")
 
-removeIfExists :: (MonadIO m) => FilePath -> ConsoleT m ()
-removeIfExists f = do
-    Console.warning $ "removing '" <> f <> "'"
-    fileExists <- liftIO $ doesFileExist f
-    when fileExists (liftIO $ removeFile f)
+removeIfExists :: FilePath -> IOAction
+removeIfExists f = IOAction
+    (do fileExists <- doesFileExist f
+        when fileExists $ removeFile f)
+    (log Message $ "removing '" <> f <> "'")
 
-removeFiles :: (MonadIO m) => [FilePath] -> ConsoleT m ()
-removeFiles = mapM_ removeIfExists
+removeFiles :: [FilePath] -> IOAction
+removeFiles = foldMap removeIfExists
 
-writeFileOrWarn :: (MonadIO m, Show a) => FilePath -> Either a T.Text -> ConsoleT m ()
+writeFileOrWarn :: (MonadIO m, Show a) => FilePath -> Either a T.Text -> m IOAction
 writeFileOrWarn filename (Left error) = do
     shortPath <- liftIO $ makeRelativeToCurrentDirectory filename
-    Console.errorMessage $ "Error tangling '" ++ shortPath ++ "': " ++ show error
+    return $ IOAction mempty $ log Message $ "Error tangling '" ++ shortPath ++ "': " ++ show error
 writeFileOrWarn filename (Right text) =
     changeFile filename text
 
-tangleTargets :: TangleM ()
+tangleTargets :: TangleM IOAction
 tangleTargets = do
     refs <- use referenceMap
     fileMap <- lift $ tangleAnnotated refs
-    lift $ lift $ mapM_ (uncurry writeFileOrWarn) (M.toList fileMap)
+    foldMapM (uncurry writeFileOrWarn) (M.toList fileMap)
 
 -- ========================================================================= --
 -- Loading                                                                   --
@@ -177,33 +173,36 @@ loadSourceFile f = do
     source  <- liftIO $ T.IO.readFile f
     parseMarkdown f source
 
-addSourceFile :: FilePath -> TangleM ()
+addSourceFile :: FilePath -> TangleM IOAction
 addSourceFile f = do
     shortPath <- liftIO $ makeRelativeToCurrentDirectory f
     source  <- liftIO $ T.IO.readFile f
     refs    <- use referenceMap
     doc'    <- parseMarkdown' refs f source
     case doc' of
-        Left err -> message $ "Error loading '" ++ shortPath ++ "': "
-                        ++ show err
+        Left err -> return $ IOAction mempty $ log Error $
+            "Error loading '" ++ shortPath ++ "': " ++ show err
         Right (Document r c) -> do
             setReferenceMap r
             addFileContent f c
+            return mempty
 
 removeActiveReferences :: Document -> TangleM ()
 removeActiveReferences doc = do
     let rs = listActiveReferences doc
     mapM_ (modifying referenceMap . M.delete) rs
 
-updateFromSource :: FilePath -> TangleM ()
+updateFromSource :: FilePath -> TangleM IOAction
 updateFromSource fp = do
     shortPath <- liftIO $ makeRelativeToCurrentDirectory fp
     doc' <- loadSourceFile fp
     case doc' of
-        Left err -> message $ "Error loading '" ++ shortPath ++ "': " ++ show err
+        Left err -> return $ IOAction mempty $ log Error $
+            "Error loading '" ++ shortPath ++ "': " ++ show err
         Right (Document r c) -> do
             modifying referenceMap (M.union r)
             modifying sourceData (M.insert fp c)
+            return mempty
 
 -- ========================================================================= --
 -- Untangle                                                                  --
@@ -212,32 +211,34 @@ updateFromSource fp = do
 untangleTarget :: MonadIO m => FilePath -> ReaderT Config m (Either TangleError ReferenceMap)
 untangleTarget f = do
     shortPath <- liftIO $ makeRelativeToCurrentDirectory f
-    content <- liftIO (readFile f)
+    content <- liftIO $ readFile f
     untangle shortPath content
 
 getCodeBlock :: Monad m => ReferenceId -> StateT Session m (Maybe CodeBlock)
 getCodeBlock id = use $ referenceMap . to (M.lookup id)
 
-updateCodeBlock :: ReferenceId -> CodeBlock -> TangleM ()
+updateCodeBlock :: ReferenceId -> CodeBlock -> TangleM IOAction
 updateCodeBlock r c = do
     old' <- getCodeBlock r
     case old' of
-        Nothing -> errorMessage $ "Error: code block " ++ show r ++ " not present."
-        Just old -> when (old /= c) $ do
-            message $ "updating " <> show r
-            updateReferenceMap $ M.insert r c
+        Nothing -> return $ IOAction mempty $ log Error $
+            "Error: code block " ++ show r ++ " not present."
+        Just old -> if (old /= c)
+            then do
+                updateReferenceMap $ M.insert r c
+                return $ IOAction mempty $ log Message $
+                    "updated " <> show r
+            else return mempty
 
-updateFromTarget :: FilePath -> TangleM ()
+updateFromTarget :: FilePath -> TangleM IOAction
 updateFromTarget f = do
     shortPath <- liftIO $ makeRelativeToCurrentDirectory f
     refs' <- lift $ untangleTarget f
     case refs' of
-        Left err -> errorMessage $ show err
-        Right refs -> do
-            message $ "updating from '" <> shortPath <> "':"
-            indent "   ~ "
-            mapM_ (uncurry updateCodeBlock) (M.toList refs)
-            unindent
+        Left err -> return $ IOAction mempty $ log Error $ show err
+        Right refs -> 
+            IOAction mempty $ log Message $ "updating from '" <> shortPath <> "':"
+            foldMapM (uncurry updateCodeBlock) (M.toList refs)
 
 -- ========================================================================= --
 -- Stitching                                                                 --
