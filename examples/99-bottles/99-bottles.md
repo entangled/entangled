@@ -15,7 +15,7 @@ This example shows how to create a basic C++ executable including some basic arg
 * Setting up a basic `Makefile`.
 * An annoying drinking song.
 
-This program wil be so tiny, that it will fit into a single source file:
+This program will be so tiny, that it will fit into a single source file:
 
 ``` {.cpp file=src/99-bottles.cc}
 <<includes>>
