@@ -50,19 +50,36 @@ data Event = WriteEvent FileType FilePath
            | DebugEvent T.Text
            deriving (Show)
 
-data IOAction = IOAction (IO ()) Doc
+data IOAction = IOAction (Maybe (IO ())) Doc
 
 instance Semigroup IOAction where
-    (IOAction al dl) <> (IOAction ar dr) = IOAction (al <> ar) (P.vsep [dl, dr])
+    (IOAction al dl) <> (IOAction ar dr) = IOAction (al <> ar) (dl <> dr)
 
 instance Monoid IOAction where
     mempty = IOAction mempty mempty
 
 msg :: P.Pretty a => Console.LogLevel -> a -> IOAction
-msg level m = IOAction mempty $ Console.msg level m
+msg Error m = IOAction (Just $ return ()) $ Console.msg Error m <> P.line
+msg Warning m = IOAction (Just $ return ()) $ Console.msg Warning m <> P.line
+msg level m = IOAction mempty $ Console.msg level m <> P.line
+
+msgOverwrite = IOAction mempty . Console.msgOverwrite
+msgDelete = IOAction mempty . Console.msgDelete
+msgCreate = IOAction mempty . Console.msgCreate
+msgGroup h (IOAction x d) = IOAction x $ Console.group h d
 
 plan :: IO () -> IOAction
-plan action = IOAction action mempty
+plan action = IOAction (Just action) mempty
+
+printMsg :: Doc -> TangleM ()
+printMsg = liftIO . Console.putTerminal
+
+run :: IOAction -> TangleM ()
+run (IOAction x d) = liftIO $
+    case x of
+        Nothing -> return ()
+        Just x' -> do { Console.putTerminal d; x' }
+        
 
 foldMapM :: (Traversable t, Monad m, Monoid b) => (a -> m b) -> t a -> m b
 foldMapM f lst = F.fold <$> mapM f lst
@@ -148,16 +165,16 @@ changeFile filename text = do
     case oldText of
         Just ot -> if ot /= text
             then return $ plan (T.IO.writeFile filename text)
-                <> msg Message ("overwriting '" <> shortPath <> "'")
+                <> msgOverwrite shortPath
             else return mempty
         Nothing -> return $ plan (T.IO.writeFile filename text)
-                   <> msg Message ("creating '" <> shortPath <> "'")
+                   <> msgCreate shortPath
 
 removeIfExists :: FilePath -> IOAction
 removeIfExists f =
     plan (do fileExists <- doesFileExist f
              when fileExists $ removeFile f)
-    <> msg Message ("removing '" <> f <> "'")
+    <> msgDelete f
 
 removeFiles :: [FilePath] -> IOAction
 removeFiles = foldMap removeIfExists
@@ -165,7 +182,7 @@ removeFiles = foldMap removeIfExists
 writeFileOrWarn :: (MonadIO m, Show a) => FilePath -> Either a T.Text -> m IOAction
 writeFileOrWarn filename (Left error) = do
     shortPath <- liftIO $ makeRelativeToCurrentDirectory filename
-    return $ msg Message $ "Error tangling '" ++ shortPath ++ "': " ++ show error
+    return $ msg Error $ "Error tangling '" ++ shortPath ++ "': " ++ show error
 writeFileOrWarn filename (Right text) =
     changeFile filename text
 
@@ -246,9 +263,7 @@ updateFromTarget f = do
     refs' <- lift $ untangleTarget f
     case refs' of
         Left err -> return $ msg Error $ show err
-        Right refs -> do
-            x <- foldMapM (uncurry updateCodeBlock) (M.toList refs)
-            return $ msg Message ("updating from '" <> shortPath <> "':") <> x
+        Right refs -> foldMapM (uncurry updateCodeBlock) (M.toList refs)
 
 -- ========================================================================= --
 -- Stitching                                                                 --
@@ -324,17 +339,12 @@ setDaemonState s = do
 wait :: TangleM ()
 wait = liftIO $ threadDelay 100000
 
-run :: IOAction -> TangleM ()
-run (IOAction x d) = do
-    liftIO $ putStrLn $ show d
-    liftIO x
-
 mainLoop :: [Event] -> TangleM ()
 
 mainLoop [] = return ()
 
 mainLoop (WriteEvent SourceFile fp : xs) = do
-    run $ msg Message "Tangling"
+    shortPath <- liftIO $ makeRelativeToCurrentDirectory fp
     wait
     setDaemonState Tangling
     doc <- fromJust <$> getDocument fp  -- TODO: do proper error handling here
@@ -343,7 +353,8 @@ mainLoop (WriteEvent SourceFile fp : xs) = do
     x <- updateFromSource fp
     y <- tangleTargets
     newTgtFiles <- listAllTargetFiles 
-    run $ x <> y <> removeFiles (oldTgtFiles \\ newTgtFiles)
+    run $ msgGroup (P.pretty "Tangling" P.<+> Console.fileRead shortPath)
+        $ x <> y <> removeFiles (oldTgtFiles \\ newTgtFiles)
     wait
     removeWatch >>= run
     setWatch >>= run
@@ -352,13 +363,13 @@ mainLoop (WriteEvent SourceFile fp : xs) = do
 
 mainLoop (WriteEvent TargetFile fp : xs) = do
     shortPath <- liftIO $ makeRelativeToCurrentDirectory fp
-    run $ msg Message $ "Untangling " <> shortPath
     setDaemonState Untangling
     wait            -- the write event may arrive before the editor
                     -- has finished saving the document
     x <- updateFromTarget fp
     y <- stitchSources
-    run $ x <> y
+    run $ msgGroup (P.pretty "Untangling" P.<+> Console.fileRead shortPath)
+        $ x <> y
     wait
     setDaemonState Idle
     mainLoop xs
@@ -369,8 +380,20 @@ mainLoop (DebugEvent msg : xs)   = do
 
 startSession :: [FilePath] -> TangleM ()
 startSession fs = do
-    foldMapM addSourceFile fs >>= run
-    tangleTargets >>= run
+    shortPaths <- liftIO $ mapM makeRelativeToCurrentDirectory fs
+    printMsg Console.banner
+
+    let w = IOAction (Just mempty) 
+                $ (P.align $ P.vsep
+                   $ map (Console.bullet
+                         . (<> P.line)
+                         . (P.pretty "Monitoring " <> )
+                         . Console.fileRead
+                         ) shortPaths)
+    x <- foldMapM addSourceFile fs
+    y <- tangleTargets
+    run $ msgGroup (P.pretty "Initializing")
+        $ w <> x <> y
     setWatch >>= run
     eventList' <- use $ eventChannel . to getChanContents
     eventList  <- liftIO eventList'

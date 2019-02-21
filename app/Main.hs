@@ -21,11 +21,11 @@ main = run =<< execParser args
     where args = info (parseArgs <**> helper)
             (  fullDesc
             <> progDesc "Automatically tangles and untangles 'FILES...'."
-            <> header   "TangleD -- daemonised literate programming"
+            <> header   "enTangleD -- daemonised literate programming"
             )
 
 run :: Args -> IO ()
 run args
-    | versionFlag args       = putStrLn "TangleD 0.1.0.0"
+    | versionFlag args       = putStrLn "enTangleD 0.2.0"
     | null (inputFiles args) = putStrLn "Need input files"
     | otherwise              = runSession defaultConfig (inputFiles args)

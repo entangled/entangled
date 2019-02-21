@@ -1,14 +1,22 @@
 name:                entangled
-version:             0.1.0.0
-github:              "jhidding/pandoc-noweb-daemon"
-license:             GPL-3
-author:              "Johannes Hidding"
+version:             0.2.0.0
+github:              "jhidding/enTangleD"
+license:             Apache-2
+author:              "Johan Hidding"
 maintainer:          "j.hidding@esciencecenter.nl"
-copyright:           "2018 Johannes Hidding"
+copyright:           "2018-2019 Johan Hidding, Netherlands eScience Center"
 
 extra-source-files:
 - README.md
 - ChangeLog.md
+- scripts/tangle
+- scripts/weave
+- scripts/annotate-code-blocks.lua
+- scripts/list.lua
+- scripts/tangle.lua
+- scripts/header.html
+- scripts/style.css
+- scripts/eisvogel.tex
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -40,6 +48,7 @@ dependencies:
 - array >= 0.5 && < 1
 - terminal-size >= 0.3 && < 1
 - prettyprinter >= 1.2 && < 2
+- prettyprinter-ansi-terminal >= 1.1 && < 2
 
 # dependencies I may want to get rid of
 - either >= 5 && < 6
