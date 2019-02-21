@@ -251,7 +251,7 @@ updateCodeBlock r c = do
     case old' of
         Nothing -> return $ msg Error $
             "Error: code block " ++ show r ++ " not present."
-        Just old -> if old /= c
+        Just old -> if (codeSource old) /= (codeSource c)
             then do
                 updateReferenceMap $ M.insert r c
                 return $ msg Message $ "updated " <> show r
