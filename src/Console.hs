@@ -1,25 +1,19 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Console
     ( ConsoleT
     , run
-    , Info(..)
-    , HyperElement(..)
-    , HyperText
-    , HyperTextable
-    , message
-    , errorMessage
-    , warning
-    , indent
-    , unindent ) where
+    , msg
+    , Doc
+    , LogLevel(..)
+    , FileAction(..)
+    ) where
 
-import Control.Monad.State
-import Control.Monad.State.Class
+import Control.Monad.Reader
+-- import Control.Monad.State.Class
 import Control.Monad.IO.Class
 
 import Data.Maybe (fromMaybe)
@@ -44,11 +38,8 @@ data Annotation
 
 type Doc = P.Doc Annotation
 
-log :: P.Pretty a => LogLevel -> a -> Doc
-log level = annotate (Log level) . pretty
-
-message :: P.Pretty a => a -> Doc
-message = logMessage Message
+msg :: P.Pretty a => LogLevel -> a -> Doc
+msg level = P.annotate (Log level) . P.pretty
 
 -- ==== Pretty Printing document to console ==== --
 
@@ -60,6 +51,8 @@ data Info = Info
 newtype ConsoleT m a = ConsoleT {
     runConsole :: ReaderT Info m a
 } deriving (Applicative, Functor, Monad, MonadReader Info, MonadTrans)
+
+type ColourName = T.Text
 
 getColour :: MonadReader Info m => ColourName -> m Text
 getColour n = reader (M.findWithDefault "" n . consolePalette)
@@ -77,5 +70,5 @@ initInfoLinux = do
     return $ Info size palette
 
 run :: MonadIO m => ConsoleT m a -> m a
-run x = liftIO initInfoLinux >>= evalStateT (runConsole x)
+run x = liftIO initInfoLinux >>= runReaderT (runConsole x)
 

@@ -23,6 +23,8 @@ import qualified Data.Map as M
 import Data.List
 import Data.Either
 import Data.Maybe
+import Data.Traversable
+import qualified Data.Foldable as F
 import System.Random
 
 import Control.Monad.Reader
@@ -37,9 +39,10 @@ import Untangle
 import Markdown
 import Document
 
-import Console (ConsoleT, Error, Warning, Doc, log, Message)
+import Console (ConsoleT, LogLevel(..), Doc)
 import qualified Console
 import qualified Data.Text.Prettyprint.Doc as P
+import Data.Text.Prettyprint.Doc.Render.Text (putDoc)
 
 data FileType = SourceFile | TargetFile deriving (Show, Eq, Ord)
 data DaemonState = Idle | Tangling | Untangling deriving (Show, Eq)
@@ -50,10 +53,19 @@ data Event = WriteEvent FileType FilePath
 data IOAction = IOAction (IO ()) Doc
 
 instance Semigroup IOAction where
-    (IOAction al dl) <> (IOAction ar dr) = IOAction (al <> ar) (dl <> dr)
+    (IOAction al dl) <> (IOAction ar dr) = IOAction (al <> ar) (P.vsep [dl, dr])
 
-instance Monoid IOAcation where
+instance Monoid IOAction where
     mempty = IOAction mempty mempty
+
+msg :: P.Pretty a => Console.LogLevel -> a -> IOAction
+msg level m = IOAction mempty $ Console.msg level m
+
+plan :: IO () -> IOAction
+plan action = IOAction action mempty
+
+foldMapM :: (Traversable t, Monad m, Monoid b) => (a -> m b) -> t a -> m b
+foldMapM f lst = F.fold <$> mapM f lst
 
 -- ========================================================================= --
 -- Session                                                                   --
@@ -69,7 +81,7 @@ data Session = Session
     , _randomGen      :: StdGen
     }
 
-type TangleM = StateT Session (ReaderT Config (ConsoleT IO))
+type TangleM = StateT Session (ReaderT Config IO)
 
 sourceData :: Lens' Session (M.Map FilePath [Content])
 sourceData = lens _sourceData (\s n -> s { _sourceData = n })
@@ -134,19 +146,18 @@ changeFile filename text = do
     liftIO $ createDirectoryIfMissing True (takeDirectory filename)
     oldText <- tryReadFile filename
     case oldText of
-        Just ot -> if (ot /= text)
-            then IOAction (T.IO.writeFile filename text)
-                          (log Message $ "overwriting '" <> shortPath <> "'")
+        Just ot -> if ot /= text
+            then return $ plan (T.IO.writeFile filename text)
+                <> msg Message ("overwriting '" <> shortPath <> "'")
             else return mempty
-        Nothing -> IOAction
-                (T.IO.writeFile filename text)
-                (log Message $ "creating '" <> shortPath <> "'")
+        Nothing -> return $ plan (T.IO.writeFile filename text)
+                   <> msg Message ("creating '" <> shortPath <> "'")
 
 removeIfExists :: FilePath -> IOAction
-removeIfExists f = IOAction
-    (do fileExists <- doesFileExist f
-        when fileExists $ removeFile f)
-    (log Message $ "removing '" <> f <> "'")
+removeIfExists f =
+    plan (do fileExists <- doesFileExist f
+             when fileExists $ removeFile f)
+    <> msg Message ("removing '" <> f <> "'")
 
 removeFiles :: [FilePath] -> IOAction
 removeFiles = foldMap removeIfExists
@@ -154,7 +165,7 @@ removeFiles = foldMap removeIfExists
 writeFileOrWarn :: (MonadIO m, Show a) => FilePath -> Either a T.Text -> m IOAction
 writeFileOrWarn filename (Left error) = do
     shortPath <- liftIO $ makeRelativeToCurrentDirectory filename
-    return $ IOAction mempty $ log Message $ "Error tangling '" ++ shortPath ++ "': " ++ show error
+    return $ msg Message $ "Error tangling '" ++ shortPath ++ "': " ++ show error
 writeFileOrWarn filename (Right text) =
     changeFile filename text
 
@@ -180,7 +191,7 @@ addSourceFile f = do
     refs    <- use referenceMap
     doc'    <- parseMarkdown' refs f source
     case doc' of
-        Left err -> return $ IOAction mempty $ log Error $
+        Left err -> return $ msg Error $
             "Error loading '" ++ shortPath ++ "': " ++ show err
         Right (Document r c) -> do
             setReferenceMap r
@@ -197,7 +208,7 @@ updateFromSource fp = do
     shortPath <- liftIO $ makeRelativeToCurrentDirectory fp
     doc' <- loadSourceFile fp
     case doc' of
-        Left err -> return $ IOAction mempty $ log Error $
+        Left err -> return $ msg Error $
             "Error loading '" ++ shortPath ++ "': " ++ show err
         Right (Document r c) -> do
             modifying referenceMap (M.union r)
@@ -221,13 +232,12 @@ updateCodeBlock :: ReferenceId -> CodeBlock -> TangleM IOAction
 updateCodeBlock r c = do
     old' <- getCodeBlock r
     case old' of
-        Nothing -> return $ IOAction mempty $ log Error $
+        Nothing -> return $ msg Error $
             "Error: code block " ++ show r ++ " not present."
-        Just old -> if (old /= c)
+        Just old -> if old /= c
             then do
                 updateReferenceMap $ M.insert r c
-                return $ IOAction mempty $ log Message $
-                    "updated " <> show r
+                return $ msg Message $ "updated " <> show r
             else return mempty
 
 updateFromTarget :: FilePath -> TangleM IOAction
@@ -235,26 +245,26 @@ updateFromTarget f = do
     shortPath <- liftIO $ makeRelativeToCurrentDirectory f
     refs' <- lift $ untangleTarget f
     case refs' of
-        Left err -> return $ IOAction mempty $ log Error $ show err
-        Right refs -> 
-            IOAction mempty $ log Message $ "updating from '" <> shortPath <> "':"
-            foldMapM (uncurry updateCodeBlock) (M.toList refs)
+        Left err -> return $ msg Error $ show err
+        Right refs -> do
+            x <- foldMapM (uncurry updateCodeBlock) (M.toList refs)
+            return $ msg Message ("updating from '" <> shortPath <> "':") <> x
 
 -- ========================================================================= --
 -- Stitching                                                                 --
 -- ========================================================================= --
 
-stitchSourceFile :: FilePath -> TangleM ()
+stitchSourceFile :: FilePath -> TangleM IOAction
 stitchSourceFile f = do
     doc' <- getDocument f
     case doc' of
-        Nothing  -> return ()
-        Just doc -> lift $ lift $ changeFile f (stitchText doc)
+        Nothing  -> return mempty
+        Just doc -> changeFile f (stitchText doc)
 
-stitchSources :: TangleM ()
+stitchSources :: TangleM IOAction
 stitchSources = do
     srcs <- listAllSourceFiles
-    mapM_ stitchSourceFile srcs
+    foldMapM stitchSourceFile srcs
 
 -- ========================================================================= --
 -- Watching                                                                  --
@@ -278,7 +288,7 @@ passEvent ds channel srcs tgts fsEvent = do
         -- putStrLn $ "\027[33m----- :state: " ++ show ds' ++ " :event: " ++ show event ++ " -----\027[m"
         writeChan channel event
 
-setWatch :: TangleM ()
+setWatch :: TangleM IOAction
 setWatch = do
     srcs <- listAllSourceFiles >>= (liftIO . mapM canonicalizePath)
     tgts <- listAllTargetFiles >>= (liftIO . mapM canonicalizePath)
@@ -288,20 +298,19 @@ setWatch = do
 
     let dirs = nub $ map takeDirectory (srcs ++ tgts)
     reldirs <- liftIO $ mapM makeRelativeToCurrentDirectory dirs
-    message $ "Setting watch on: "
-        ++ show reldirs
     ds <- use daemonState
     stopActions <- liftIO $ mapM
         (\dir -> FSNotify.watchDir fsnotify dir (const True)
                                    (passEvent ds channel srcs tgts))
         dirs
     assign watches stopActions
+    return $ msg Message $ "watching: " <> show reldirs
 
-removeWatch :: TangleM ()
+removeWatch :: TangleM IOAction
 removeWatch = do
-    message "Removing watches."
     w <- use watches
     liftIO $ sequence_ w
+    return $ msg Message "suspended watches."
 
 -- ========================================================================= --
 -- Main interface                                                            --
@@ -315,54 +324,54 @@ setDaemonState s = do
 wait :: TangleM ()
 wait = liftIO $ threadDelay 100000
 
+run :: IOAction -> TangleM ()
+run (IOAction x d) = do
+    liftIO $ putStrLn $ show d
+    liftIO x
+
 mainLoop :: [Event] -> TangleM ()
 
 mainLoop [] = return ()
 
 mainLoop (WriteEvent SourceFile fp : xs) = do
-    message "Tangling"
-    indent [ Colour $ T.pack "decoration", Content $ T.pack "| " ]
+    run $ msg Message "Tangling"
     wait
     setDaemonState Tangling
     doc <- fromJust <$> getDocument fp  -- TODO: do proper error handling here
     oldTgtFiles <- listAllTargetFiles
     removeActiveReferences doc
-    updateFromSource fp
-    tangleTargets
-    newTgtFiles <- listAllTargetFiles
-    lift $ lift $ removeFiles (oldTgtFiles \\ newTgtFiles)
+    x <- updateFromSource fp
+    y <- tangleTargets
+    newTgtFiles <- listAllTargetFiles 
+    run $ x <> y <> removeFiles (oldTgtFiles \\ newTgtFiles)
     wait
-    removeWatch
-    setWatch
+    removeWatch >>= run
+    setWatch >>= run
     setDaemonState Idle
-    message "done tangling "
-    unindent
     mainLoop xs
 
 mainLoop (WriteEvent TargetFile fp : xs) = do
     shortPath <- liftIO $ makeRelativeToCurrentDirectory fp
-    message $ "Untangling " <> shortPath
-    indent [ Colour $ T.pack "decoration", Content $ T.pack "| " ]
+    run $ msg Message $ "Untangling " <> shortPath
     setDaemonState Untangling
     wait            -- the write event may arrive before the editor
                     -- has finished saving the document
-    updateFromTarget fp
-    stitchSources
+    x <- updateFromTarget fp
+    y <- stitchSources
+    run $ x <> y
     wait
     setDaemonState Idle
-    message "done untangling"
-    unindent
     mainLoop xs
 
 mainLoop (DebugEvent msg : xs)   = do
-    liftIO $ putStrLn $ "Debug: " ++ msg
+    liftIO $ putStrLn $ "Debug: " ++ show msg
     mainLoop xs
 
 startSession :: [FilePath] -> TangleM ()
 startSession fs = do
-    mapM_ addSourceFile fs
-    tangleTargets
-    setWatch
+    foldMapM addSourceFile fs >>= run
+    tangleTargets >>= run
+    setWatch >>= run
     eventList' <- use $ eventChannel . to getChanContents
     eventList  <- liftIO eventList'
     mainLoop eventList
@@ -376,5 +385,5 @@ runSession cfg fs = do
     ds <- newMVar Idle
     rnd <- getStdGen
     let session = Session M.empty M.empty [] fsnotify channel ds rnd
-    Console.run $ runReaderT (runStateT (startSession fs') session) cfg
+    runReaderT (runStateT (startSession fs') session) cfg
     liftIO $ FSNotify.stopManager fsnotify
