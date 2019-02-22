@@ -7,11 +7,12 @@ pandoc_filters="pandoc-eqnos pandoc-fignos pandoc-citeproc"
 
 filter_args=$(echo ${pandoc_filters} | sed -e 's/\([^ ]*\)/--filter \1/g')
 pdf_args="--toc ${filter_args} --lua-filter ${script_dir}/annotate-code-blocks.lua --template ${script_dir}/eisvogel.tex --listings"
-html_args="-s --toc --toc-depth=3 ${filter_args} --lua-filter ${script_dir}/annotate-code-blocks.lua --mathjax --css style.css --base-header-level=2 -H ${script_dir}/header.html"
+html_args="-s --toc --toc-depth=3 ${filter_args} --lua-filter ${script_dir}/annotate-code-blocks.lua --mathjax --css style.css --base-header-level=2"
 
 target="html"
 output="./public/index.html"
 css_file="${script_dir}/style.css"
+html_header="${script_dir}/header.html"
 sources=""
 
 usage () {
@@ -27,6 +28,7 @@ usage () {
     echo "  --pdf            generate PDF"
     echo "  --output=<path>  name of output file"
     echo "  --css=<path>     name of CSS file"
+    echo "  --header=<path>  name of HTML header"
 }
 
 for i in "$@"
@@ -44,6 +46,10 @@ do
             target="html"
             shift
             ;;
+        --header=*)
+            html_header="${i#*=}"
+            shift
+            ;; 
         --pdf)
             target="pdf"
             output="report.pdf"
@@ -68,7 +74,7 @@ case ${target} in
     html)
         mkdir -p "$(dirname ${output})"
         # cp "${css_file}" "$(dirname ${output})/style.css"
-        pandoc ${sources} -f ${format} ${html_args} -t html5 -o "${output}"
+        pandoc ${sources} -f ${format} ${html_args} -H ${html_header} -t html5 -o "${output}"
         ;;
     pdf)
         pandoc ${sources} -f ${format} ${pdf_args} -t latex -o "${output}" --pdf-engine=xelatex

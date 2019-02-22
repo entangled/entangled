@@ -11,3 +11,5 @@ __pycache__
 examples/**/src
 examples/**/build
 examples/**/Makefile
+website
+

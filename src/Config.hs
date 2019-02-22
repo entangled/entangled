@@ -39,6 +39,7 @@ defaultLanguages =
     , Language "Rust"        ["rust"]                     "// ------" ""
     , Language "Haskell"     ["hs", "haskell"]            "-- ------" ""
     , Language "Python"      ["py", "python", "python3"]  "## ------" ""
+    , Language "Julia"       ["jl", "julia"]              "## ------" ""
     , Language "JavaScript"  ["js", "javascript", "ecma"] "// ------" ""
     , Language "Scheme"      ["scm", "scheme"]            ";; ------" ""
     , Language "R"           ["r"]                        "## ------" ""

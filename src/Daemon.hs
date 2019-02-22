@@ -79,7 +79,6 @@ run (IOAction x d) = liftIO $
     case x of
         Nothing -> return ()
         Just x' -> do { Console.putTerminal d; x' }
-        
 
 foldMapM :: (Traversable t, Monad m, Monoid b) => (a -> m b) -> t a -> m b
 foldMapM f lst = F.fold <$> mapM f lst
@@ -352,7 +351,7 @@ mainLoop (WriteEvent SourceFile fp : xs) = do
     removeActiveReferences doc
     x <- updateFromSource fp
     y <- tangleTargets
-    newTgtFiles <- listAllTargetFiles 
+    newTgtFiles <- listAllTargetFiles
     run $ msgGroup (P.pretty "Tangling" P.<+> Console.fileRead shortPath)
         $ x <> y <> removeFiles (oldTgtFiles \\ newTgtFiles)
     wait
@@ -383,13 +382,12 @@ startSession fs = do
     shortPaths <- liftIO $ mapM makeRelativeToCurrentDirectory fs
     printMsg Console.banner
 
-    let w = IOAction (Just mempty) 
+    let w = IOAction (Just mempty)
                 $ (P.align $ P.vsep
                    $ map (Console.bullet
-                         . (<> P.line)
                          . (P.pretty "Monitoring " <> )
                          . Console.fileRead
-                         ) shortPaths)
+                         ) shortPaths) <> P.line
     x <- foldMapM addSourceFile fs
     y <- tangleTargets
     run $ msgGroup (P.pretty "Initializing")
