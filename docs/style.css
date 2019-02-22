@@ -1,11 +1,11 @@
 body {
     font-family: 'Dosis', sans-serif;
+    font-size: 12pt;
     background: #efefef;
 }
 
-#TOC {
-    position: fixed;
-    visibility: hidden;
+h1, h2, h3 {
+    color: #000088;
 }
 
 blockquote {
@@ -16,6 +16,7 @@ blockquote {
 code
 {
     font-family: Courier, monospace;
+    font-size: 10pt;
 }
 
 .sourceCode, .elm
@@ -46,9 +47,17 @@ figure
     border: solid 1px #aaa;
     border-radius: 5pt;
     padding: 10pt;
-    background: white;
+    /* background: white; */
     box-shadow: 8pt 8pt 10pt 0pt #aaa;
     text-align: center;
+}
+
+#slide-show figure {
+   border-radius: 0;
+   padding: 0;
+   background: #282828;
+   color: white;
+   margin: 0;
 }
 
 figcaption
@@ -81,6 +90,10 @@ figure img
     margin: 0 20pt 0 20pt;
 }
 
+#examples-div h2 {
+    color: black;
+}
+
 #examples-div h2:before {
     content: "";
     counter-increment: none;
@@ -104,8 +117,8 @@ figure img
     padding: 0;
     margin-bottom: 15pt;
     border-radius: 8pt;
-    background: #7992a8;
-    box-shadow: 2pt 2pt 3pt 0pt #000;
+    background: #c4c8cf;
+    box-shadow: 5pt 5pt 8pt 0pt #00000033;
 }
 
 #examples-div a
@@ -118,43 +131,46 @@ figure img
 
 /* Slideshow container */
 .slideshow-container {
-  max-width: 1000px;
+  max-width: 1024px;
   position: relative;
   margin: auto;
+  background: #555555;
 }
 
 /* Hide the images by default */
-.mySlides {
+.slide {
   display: none;
 }
-* {
-  box-sizing: border-box;
+
+.nav {
+  position: relative;
+  top: -50%;
 }
+
 /* Next & previous buttons */
 .prev, .next {
   cursor: pointer;
-  position: absolute;
-  top: 50%;
   width: auto;
-  margin-top: -22px;
-  padding: 16px;
-  color: red;
+  position: absolute;
+  bottom: 0;
+  margin: 5pt;
+  padding: 2pt 5pt 5pt 5pt;
+  color: white;
   font-weight: bold;
   font-size: 18px;
   transition: 0.6s ease;
-  border-radius: 0 3px 3px 0;
+  border-radius: 5pt;
   user-select: none;
 }
 
 /* Position the "next button" to the right */
 .next {
   right: 0;
-  border-radius: 3px 0 0 3px;
 }
 
 /* On hover, add a black background color with a little bit see-through */
 .prev:hover, .next:hover {
-  background-color: rgba(0,0,0,0.8);
+  background: #555555;
 }
 
 /* Fading animation */
@@ -168,7 +184,7 @@ figure img
   cursor: pointer;
   height: 15px;
   width: 15px;
-  margin: 0 2px;
+  margin: 10pt 2pt;
   background-color: #bbb;
   border-radius: 50%;
   display: inline-block;
@@ -177,6 +193,11 @@ figure img
 
 .active, .dot:hover {
   background-color: #717171;
+}
+
+#slide-show figcaption {
+   margin: 5pt 10pt 10pt 30pt;
+   font-size: 12pt;
 }
 
 /* Caption text */
@@ -196,15 +217,20 @@ figure img
 }
 
 @media only screen and (min-width: 768px) {
+#TOC {
+    position: fixed;
+    visibility: hidden;
+}
+
     body
     {
-        margin:		0 30% 0 250pt;
+        margin:		0 40% 0 150pt;
         max-width:	600pt;
         background: #efefef;
         padding:	0 10pt 0 0;
         font-family: 'Dosis', sans-serif;
         /* font-family: "Bitstream Charter", serif; */
-        font-size: 14pt;
+        font-size: 12pt;
         counter-reset: h1;
     }
 
@@ -265,7 +291,7 @@ figure img
     h4:before {
         content: counter(h1) "." counter(h2) "." counter(h3) ".\0000a0\0000a0";
         counter-increment: h3;
-    } */
+    } 
 
     #TOC
     {
@@ -281,7 +307,7 @@ figure img
         padding-right: 25pt;
         width: 150pt;
         color: #FFF;
-    }
+    } */
 
     #TOC a {
         color: #eee;
@@ -302,7 +328,7 @@ figure img
         width: 25%;
         padding: 0 10pt 0 10pt;
         font-size: 12pt;
-        background: rgb(161, 161, 161);
+        background: #dddddd;
     }
 
     #examples-div h2 {

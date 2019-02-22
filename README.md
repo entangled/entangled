@@ -2,18 +2,15 @@
 title: enTangleD
 ---
 
-::: {#logobar}
-[![Octocat](images/github.png) Find us on Github](https://github.com/jhidding/entangled)&nbsp;
-[![Download](images/download.svg) Download enTangled](https://github.com/jhidding/enTangleD/releases)
-:::
-
 > **Literate programming** [/ˈlɪtəɹət ˈpɹəʊɡɹæmɪŋ/]{.phonetic} (computing) Literate programming is a programming paradigm introduced by Donald Knuth in which a program is given as an explanation of the program logic in a natural language, such as English, interspersed with snippets of macros and traditional source code, from which a compilable source code can be generated. [(Wikipedia)](https://en.wikipedia.org/wiki/Literate_programming)
 
-Literate programming is awesome! Write your documentation and code in one markdown document, tangle the source code from that document, compile and run your code. This is all fine if your code does not contain any bugs. But what if it does? Your compiler and debugger may point to locations in the source where things go wrong. But you cannot edit those sources directly, since you generated them from the mother document!
 
-Enter enTangleD! This monitors the tangled source files and reflects any change in master document or source files to the other.
+`enTangleD` makes writing literate programs easier by keeping code blocks in markdown up-to-date with generated source files. By monitoring the tangled source files, any change in the master document or source files is reflected in the other. In practice this means:
 
-The markdown file is still the master document.
+*    Write well documented code using Markdown.
+*    Use any programming language you like (or are forced to use).
+*    Keep debugging and using other IDE features without change.
+*    Generate a report in PDF or HTML from the same source (see examples on the right).
 
 # Status
 
@@ -23,36 +20,14 @@ Features:
 
 - live bi-directional updates
 - monitor multiple markdown files
-- PanDoc filter and `Makefile` to generate report
-- create HTML pages from literate source
-  
+- (reasonably) robust against wrongly edited source files
+- create PDF or HTML pages from literate source
+
 Todo:
 
 - configurability using Yaml file
-- robustness against wrongly edited output files
 - integration with git: commit every change, squash when done
 - add workflow to create figures for HTML/PDF reports
-
-::: {#examples-div}
-# Literate Examples
-
-:::: {.example}
-[![Apollo Earthrise](images/hello-world-thumb.jpg) Hello World in C++](hello-world.html): Teaches the basics of literate programming using Markdown and fenced code blocks. Also shows how to use a BibTeX file for references.
-::::
-
-:::: {.example}
-[![99 bottles thumbnail](images/99-bottles-thumb.jpg) 99-bottles in C++](99-bottles.html): Over-engineered song-text generator. Teaching how to setup a basic C++ program with enTangleD, use of ArgAgg to parse command-line arguments, use of FmtLib to do string formatting and setting up a slightly non-basic Makefile.
-::::
-
-:::: {.example}
-[![Slasher thumbnail](images/slasher-thumb.jpg)](slasher.html)
-[Slasher](elm-slasher.html): a browser game written in Elm. A dashing hero is zipping across the screen, only deflected by slashes and backslashes. The game works, but the source may need some more literacy in some places.
-::::
-
-:::: {.example}
-[![Adhesion code thumbnail](images/adhesion-code-thumb.jpg) Adhesion code](https://jhidding.github.io/adhesion-code): presenting the cosmological adhesion model and its implementation in C++ and CGAL.
-::::
-:::
 
 # Building
 

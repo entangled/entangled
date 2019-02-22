@@ -86,7 +86,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </header>
 <nav id="TOC">
 <ul>
-<li><a href="#entangled-in-4-screencasts">enTangleD in 4 screencasts</a></li>
+        <!-- <li><a href="#entangled-in-4-screencasts">enTangleD in 4 screencasts</a></li> -->
 <li><a href="#status">Status</a></li>
 <li><a href="#building">Building</a></li>
 <li><a href="#using">Using</a><ul>
@@ -105,53 +105,72 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <blockquote>
 <p><strong>Literate programming</strong> <span class="phonetic">/ˈlɪtəɹət ˈpɹəʊɡɹæmɪŋ/</span> (computing) Literate programming is a programming paradigm introduced by Donald Knuth in which a program is given as an explanation of the program logic in a natural language, such as English, interspersed with snippets of macros and traditional source code, from which a compilable source code can be generated. <a href="https://en.wikipedia.org/wiki/Literate_programming">(Wikipedia)</a></p>
 </blockquote>
-<p>Literate programming is awesome! Write your documentation and code in one markdown document, tangle the source code from that document, compile and run your code. This is all fine if your code does not contain any bugs. But what if it does? Your compiler and debugger may point to locations in the source where things go wrong. But you cannot edit those sources directly, since you generated them from the mother document!</p>
-<p>Enter enTangleD! This monitors the tangled source files and reflects any change in master document or source files to the other.</p>
-<p>The markdown file is still the master document.</p>
-<h2 id="entangled-in-4-screencasts">enTangleD in 4 screencasts</h2>
+
+<p><code>enTangleD</code> makes writing literate programs easier by keeping code blocks in markdown up-to-date with generated source files. By monitoring the tangled source files, any change in the master document or source files is reflected in the other. In practice this means:</p>
+
+<ul>
+        <li> Write well documented code using Markdown. </li>
+        <li> Use any programming language you like (or are forced to use). </li>
+        <li> Keep debugging and using other IDE features without change. </li>
+        <li> Generate a report in PDF or HTML from the same source (see examples on the right). </li>
+</ul>
+
+<p>This is how you use <code>enTangleD</code> (hover to play):</p>
+
 <div id="slide-show">
-<div class="slide fade">
-<figure>
-<img src="screencasts/01-getting-started.png" alt="Write your documentation, and fire up enTangleD" class="anim" data-still="screencasts/01-getting-started.png" width="768" /><figcaption>Write your documentation, and fire up enTangleD</figcaption>
-</figure>
+        <div class="slide fade">
+        <figure>
+        <img src="screencasts/01-getting-started.png" alt="Write your documentation, and fire up enTangleD" class="anim" data-still="screencasts/01-getting-started.png" width="768" /><figcaption>1. Write your documentation in (Pandoc compatible) markdown, and fire up enTangleD</figcaption>
+        </figure>
+        </div>
+
+        <div class="slide fade">
+        <figure>
+        <img src="screencasts/02-adding-code.png" alt="Add annotated code blocks" class="anim" data-still="screencasts/02-adding-code.png" width="768" /><figcaption>2. Add annotated code blocks to create files</figcaption>
+        </figure>
+        </div>
+
+        <div class="slide fade">
+        <figure>
+        <img src="screencasts/03-edit-code.png" alt="Use references to grow your program" class="anim" data-still="screencasts/03-edit-code.png" width="768" /><figcaption>3. Use references to grow your program</figcaption>
+        </figure>
+        </div>
+
+        <div class="slide fade">
+        <figure>
+        <img src="screencasts/04-fixing-bugs.png" alt="Fix bugs like you’d normally do" class="anim" data-still="screencasts/04-fixing-bugs.png" width="768" /><figcaption>4. Fix bugs like you’d normally do</figcaption>
+        </figure>
+        </div>
+
+        <div class="nav">
+        <a class="prev" onclick="plusSlides(-1)">❮</a>
+        <a class="next" onclick="plusSlides(1)">❯</a>
+        </div>
 </div>
-<div class="slide fade">
-<figure>
-<img src="screencasts/02-adding-code.png" alt="Add annotated code blocks" class="anim" data-still="screencasts/02-adding-code.png" width="768" /><figcaption>Add annotated code blocks</figcaption>
-</figure>
-</div>
-<div class="slide fade">
-<figure>
-<img src="screencasts/03-edit-code.png" alt="Use references to grow your program" class="anim" data-still="screencasts/03-edit-code.png" width="768" /><figcaption>Use references to grow your program</figcaption>
-</figure>
-</div>
-<div class="slide fade">
-<figure>
-<img src="screencasts/04-fixing-bugs.png" alt="Fix bugs like you’d normally do" class="anim" data-still="screencasts/04-fixing-bugs.png" width="768" /><figcaption>Fix bugs like you’d normally do</figcaption>
-</figure>
-</div>
-<div>
-<a class="prev" onclick="plusSlides(-1)">❮</a> <a class="next" onclick="plusSlides(1)">❯</a>
-</div>
-</div>
+
 <div style="text-align: center;">
-<p><span class="dot" onclick="currentSlide(1)"></span> <span class="dot" onclick="currentSlide(2)"></span> <span class="dot" onclick="currentSlide(3)"></span> <span class="dot" onclick="currentSlide(4)"></span></p>
+<span class="dot" onclick="currentSlide(1)"></span>
+<span class="dot" onclick="currentSlide(2)"></span>
+<span class="dot" onclick="currentSlide(3)"></span>
+<span class="dot" onclick="currentSlide(4)"></span>
 </div>
+
 <script src="jquery-3.3.1.slim.min.js"></script>
 <script src="anim.js"></script>
+
+<!-- <h2 id="entangled-in-4-screencasts">enTangleD in 4 screencasts</h2> -->
 <h2 id="status">Status</h2>
-<p><code>enTangleD</code> is working, but still in a alpha stage. It has been tested Linux, and Windows and should work on MacOS equally well. If you edit anything serious with the enTangle Daemon running, I strongly recommend using version control and commit often. If you encounter unexpected behaviour, please post an issue and describe the steps to reproduce.</p>
+<p><code>enTangleD</code> is working, but still in a alpha stage. It has been tested Linux, and Windows and should work on MacOS equally well. If you edit anything serious with the enTangle Daemon running, I strongly recommend using version control and commit often. If you encounter unexpected behaviour, please post an <a href="https://github.com/jhidding/enTangleD/issues">issue on github</a> and describe the steps to reproduce.</p>
 <p>Features:</p>
 <ul>
 <li>live bi-directional updates</li>
 <li>monitor multiple markdown files</li>
-<li>PanDoc filter and <code>Makefile</code> to generate report</li>
-<li>create HTML pages from literate source</li>
+<li>(reasonably) robust against wrongly edited source files</li>
+<li>create PDF or HTML pages from literate source</li>
 </ul>
 <p>Todo:</p>
 <ul>
 <li>configurability using Yaml file</li>
-<li>robustness against wrongly edited output files</li>
 <li>integration with git: commit every change, squash when done</li>
 <li>add workflow to create figures for HTML/PDF reports</li>
 </ul>
