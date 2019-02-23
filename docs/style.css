@@ -1,6 +1,6 @@
 body {
     font-family: 'Dosis', sans-serif;
-    font-size: 12pt;
+    font-size: 14pt;
     background: #efefef;
 }
 
@@ -16,7 +16,7 @@ blockquote {
 code
 {
     font-family: Courier, monospace;
-    font-size: 10pt;
+    font-size: 12pt;
 }
 
 .sourceCode, .elm
@@ -224,13 +224,13 @@ figure img
 
     body
     {
-        margin:		0 40% 0 150pt;
+        margin:		0 30% 0 50pt;
         max-width:	600pt;
         background: #efefef;
         padding:	0 10pt 0 0;
         font-family: 'Dosis', sans-serif;
         /* font-family: "Bitstream Charter", serif; */
-        font-size: 12pt;
+        font-size: 14pt;
         counter-reset: h1;
     }
 
