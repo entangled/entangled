@@ -33,6 +33,7 @@ import qualified Data.Map as M
 import qualified Data.Text.Prettyprint.Doc as P
 import qualified System.Console.Terminal.Size as Terminal
 import qualified Data.Text.Prettyprint.Doc.Render.Terminal as ANSI
+import qualified System.Info
 
 -- ==== Pretty Printing document tree ==== --
 
@@ -62,7 +63,8 @@ msg :: P.Pretty a => LogLevel -> a -> Doc
 msg level = P.annotate (Log level) . P.pretty
 
 bullet :: Doc -> Doc
-bullet = (P.annotate Decoration "•" P.<+>)
+bullet = (P.annotate Decoration bulletChar P.<+>)
+    where bulletChar = if System.Info.os == "linux" then "•" else "*"
 
 group :: Doc -> Doc -> Doc
 group h d = bullet (P.annotate Header h) <> P.line <> P.indent 4 d <> P.line
