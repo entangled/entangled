@@ -49,6 +49,7 @@ defaultLanguages =
     , Language "Elm"         ["elm"]                      "-- ------" ""
     , Language "HTML"        ["html"]                     "<!-- ----" " -->"
     , Language "CSS"         ["css"]                      "/* ------" " */"
+    , Language "Awk"         ["awk"]                      "## ------" ""
     ]
 
 defaultConfig = Config defaultLanguages
