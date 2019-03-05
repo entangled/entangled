@@ -39,7 +39,7 @@ import Untangle
 import Markdown
 import Document
 
-import Console (ConsoleT, LogLevel(..), Doc)
+import Console (ConsoleT, LogLevel(..), Doc, timeStamp)
 import qualified Console
 import qualified Data.Text.Prettyprint.Doc as P
 import Data.Text.Prettyprint.Doc.Render.Text (putDoc)
@@ -352,7 +352,8 @@ mainLoop (WriteEvent SourceFile fp : xs) = do
     x <- updateFromSource fp
     y <- tangleTargets
     newTgtFiles <- listAllTargetFiles
-    run $ msgGroup (P.pretty "Tangling" P.<+> Console.fileRead shortPath)
+    ts <- timeStamp
+    run $ msgGroup (ts P.<+> P.pretty "Tangling" P.<+> Console.fileRead shortPath)
         $ x <> y <> removeFiles (oldTgtFiles \\ newTgtFiles)
     wait
     removeWatch >>= run
@@ -367,7 +368,8 @@ mainLoop (WriteEvent TargetFile fp : xs) = do
                     -- has finished saving the document
     x <- updateFromTarget fp
     y <- stitchSources
-    run $ msgGroup (P.pretty "Untangling" P.<+> Console.fileRead shortPath)
+    ts <- timeStamp
+    run $ msgGroup (ts P.<+> P.pretty "Untangling" P.<+> Console.fileRead shortPath)
         $ x <> y
     wait
     setDaemonState Idle
@@ -390,7 +392,8 @@ startSession fs = do
                          ) shortPaths) <> P.line
     x <- foldMapM addSourceFile fs
     y <- tangleTargets
-    run $ msgGroup (P.pretty "Initializing")
+    ts <- timeStamp
+    run $ msgGroup (ts P.<+> P.pretty "Initializing")
         $ w <> x <> y
     setWatch >>= run
     eventList' <- use $ eventChannel . to getChanContents

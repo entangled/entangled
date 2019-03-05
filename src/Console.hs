@@ -18,6 +18,7 @@ module Console
     , group
     , banner
     , bullet
+    , timeStamp
     ) where
 
 import Control.Monad.Reader
@@ -34,6 +35,7 @@ import qualified Data.Text.Prettyprint.Doc as P
 import qualified System.Console.Terminal.Size as Terminal
 import qualified Data.Text.Prettyprint.Doc.Render.Terminal as ANSI
 import qualified System.Info
+import Data.Time
 
 -- ==== Pretty Printing document tree ==== --
 
@@ -44,6 +46,7 @@ data Annotation
     = Emphasise
     | Header
     | Decoration
+    | TimeStamp
     | File FileAction
     | Log LogLevel
     deriving (Show)
@@ -62,6 +65,13 @@ banner =  P.annotate Emphasise "enTangleD"
 msg :: P.Pretty a => LogLevel -> a -> Doc
 msg level = P.annotate (Log level) . P.pretty
 
+timeStamp :: MonadIO m => m Doc
+timeStamp = do
+    t <- liftIO getZonedTime
+    return $ P.annotate TimeStamp 
+           $ "[" <> P.pretty (formatTime defaultTimeLocale "%T" t)
+           <> "]"
+
 bullet :: Doc -> Doc
 bullet = (P.annotate Decoration bulletChar P.<+>)
     where bulletChar = if System.Info.os == "linux" then "•" else "*"
@@ -71,17 +81,17 @@ group h d = bullet (P.annotate Header h) <> P.line <> P.indent 4 d <> P.line
 
 msgOverwrite :: FilePath -> Doc
 msgOverwrite f = bullet "Overwriting"
-    P.<+> (P.annotate (File OverWrite) $ P.squotes $ P.pretty f)
+    P.<+> P.annotate (File OverWrite) (P.squotes $ P.pretty f)
     <> P.line
 
 msgCreate :: FilePath -> Doc
 msgCreate f = bullet "Creating"
-    P.<+> (P.annotate (File Create) $ P.squotes $ P.pretty f)
+    P.<+> P.annotate (File Create) (P.squotes $ P.pretty f)
     <> P.line
 
 msgDelete :: FilePath -> Doc
 msgDelete f = bullet "Deleting"
-    P.<+> (P.annotate (File Delete) $ P.squotes $ P.pretty f)
+    P.<+> P.annotate (File Delete) (P.squotes $ P.pretty f)
     <> P.line
 
 fileRead :: FilePath -> Doc
@@ -92,6 +102,7 @@ toTerminal d = P.reAnnotateS tr $ P.layoutPretty P.defaultLayoutOptions d
     where tr Emphasise = ANSI.bold
           tr Header = ANSI.bold <> ANSI.color ANSI.White
           tr Decoration = ANSI.color ANSI.Black
+          tr TimeStamp = ANSI.color ANSI.Black
           tr (File Read) = ANSI.color ANSI.White <> ANSI.italicized
           tr (File OverWrite) = ANSI.color ANSI.Yellow <> ANSI.italicized
           tr (File Delete) = ANSI.color ANSI.Red <> ANSI.italicized
