@@ -1,4 +1,4 @@
-.PHONY: docs all
+.PHONY: docs all debian build install clean
 
 all: docs
 
@@ -29,3 +29,16 @@ docs/index.html: docs/site.md scripts/header.html
 docs/hello-world.html: examples/hello-world/hello-world.md
 	cd $(<D) ;\
 	../../scripts/weave $(<F) --output=../../$@
+
+build: 
+	stack build
+
+install:
+	stack install
+
+debian: package.yaml
+	cabal-debian -m "Johan Hidding <j.hidding@esciencecenter.nl>" --native -s entangled -e entangled --depends "entangled:libatomic1 (>= 8)"
+	debuild -us -uc
+
+clean:
+	rm -rf debian

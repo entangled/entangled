@@ -12,4 +12,7 @@ examples/**/src
 examples/**/build
 examples/**/Makefile
 website
+debian
+dist-ghc
+*-stamp
 

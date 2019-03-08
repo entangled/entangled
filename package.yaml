@@ -1,6 +1,16 @@
 name:                entangled
 version:             0.2.0.0
+synopsis:            bi-directional tangle daemon for literate programming
+description:         ! 'Makes literate programming easier. EnTangleD allows you
+                     to write programs as code blocks in a markdown file. These 
+                     code blocks are tangled into compilable source files 
+                     whenever you write the markdown files. The other way 
+                     around, if you change any of the generated source files, 
+                     the markdown is updated to match the changes. This way, 
+                     you can still use your editor, debugger or IDE on the 
+                     generated code.'
 github:              "jhidding/enTangleD"
+homepage:            https://jhidding.github.io/enTangleD
 license:             Apache-2
 author:              "Johan Hidding"
 maintainer:          "j.hidding@esciencecenter.nl"
@@ -20,12 +30,12 @@ extra-source-files:
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
-# category:            Web
+category:            Development
 
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/githubuser/pandoc-noweb-daemon#readme>
+# description:         Please see the README on GitHub at <https://github.com/githubuser/pandoc-noweb-daemon#readme>
 
 dependencies:
 # standard libraries
