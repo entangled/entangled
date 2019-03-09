@@ -12,7 +12,8 @@ examples/**/src
 examples/**/build
 examples/**/Makefile
 website
-debian
 dist-ghc
 *-stamp
 
+docker/**/*.tar.gz
+docker/**/*.deb

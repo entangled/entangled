@@ -11,7 +11,7 @@ description:         ! 'Makes literate programming easier. EnTangleD allows you
                      generated code.'
 github:              "jhidding/enTangleD"
 homepage:            https://jhidding.github.io/enTangleD
-license:             Apache-2
+license:             Apache-2.0
 author:              "Johan Hidding"
 maintainer:          "j.hidding@esciencecenter.nl"
 copyright:           "2018-2019 Johan Hidding, Netherlands eScience Center"
@@ -40,7 +40,7 @@ category:            Development
 dependencies:
 # standard libraries
 - base >= 4.7 && < 5
-- containers >= 0.5 && < 0.7
+- containers >= 0.5.9 && < 0.7
 - mtl >= 2.2 && < 3
 - hspec >= 2.5 && < 3
 - microlens-platform >= 0.3 && < 0.4
