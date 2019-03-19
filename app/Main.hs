@@ -2,6 +2,7 @@ module Main where
 
 import Options.Applicative
 import Data.Semigroup ((<>))
+import GHC.IO.Encoding
 
 import Config
 import Daemon
@@ -17,7 +18,9 @@ parseArgs = Args
     <*> many (argument str (metavar "FILES..."))
 
 main :: IO ()
-main = run =<< execParser args
+main = do
+    setLocaleEncoding utf8
+    run =<< execParser args
     where args = info (parseArgs <**> helper)
             (  fullDesc
             <> progDesc "Automatically tangles and untangles 'FILES...'."
