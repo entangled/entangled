@@ -50,6 +50,7 @@ defaultLanguages =
     , Language "HTML"        ["html"]                     "<!-- ----" " -->"
     , Language "CSS"         ["css"]                      "/* ------" " */"
     , Language "Awk"         ["awk"]                      "## ------" ""
+    , Language "OpenCL"      ["opencl"]                   "// ------" ""
     ]
 
 defaultConfig = Config defaultLanguages
