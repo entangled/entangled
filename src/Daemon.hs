@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts,OverloadedStrings #-}
 
 module Daemon
     ( runSession ) where
@@ -16,6 +16,7 @@ import System.IO
 import qualified System.FSNotify as FSNotify
 import Data.Function (on)
 
+import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T.IO
 
@@ -50,35 +51,51 @@ data Event = WriteEvent FileType FilePath
            | DebugEvent T.Text
            deriving (Show)
 
-data IOAction = IOAction (Maybe (IO ())) Doc
+data IOAction = IOAction
+  { action :: Maybe (IO ())
+  , description :: Doc
+  , needConfirm :: Bool }
 
 instance Semigroup IOAction where
-    (IOAction al dl) <> (IOAction ar dr) = IOAction (al <> ar) (dl <> dr)
+    (IOAction al dl cl) <> (IOAction ar dr cr)
+      = IOAction (al <> ar) (dl <> dr) (cl || cr)
 
 instance Monoid IOAction where
-    mempty = IOAction mempty mempty
+    mempty = IOAction mempty mempty False
 
 msg :: P.Pretty a => Console.LogLevel -> a -> IOAction
-msg Error m = IOAction (Just $ return ()) $ Console.msg Error m <> P.line
-msg Warning m = IOAction (Just $ return ()) $ Console.msg Warning m <> P.line
-msg level m = IOAction mempty $ Console.msg level m <> P.line
+msg Error m = IOAction (Just $ return ()) (Console.msg Error m <> P.line) False
+msg Warning m = IOAction (Just $ return ()) (Console.msg Warning m <> P.line) False
+msg level m = IOAction mempty (Console.msg level m <> P.line) False
 
-msgOverwrite = IOAction mempty . Console.msgOverwrite
-msgDelete = IOAction mempty . Console.msgDelete
-msgCreate = IOAction mempty . Console.msgCreate
-msgGroup h (IOAction x d) = IOAction x $ Console.group h d
+msgOverwrite m = IOAction mempty (Console.msgOverwrite m) False
+msgDelete m = IOAction mempty (Console.msgDelete m) False
+msgCreate m = IOAction mempty (Console.msgCreate m) False
+msgGroup h (IOAction x d c) = IOAction x (Console.group h d) c
 
 plan :: IO () -> IOAction
-plan action = IOAction (Just action) mempty
+plan action = IOAction (Just action) mempty False
+
+confirm :: P.Pretty a => IOAction -> a -> IOAction
+confirm x@(IOAction Nothing _ _) _ = x
+confirm x m = x <> IOAction mempty (Console.msg Warning m <> P.line) True
 
 printMsg :: Doc -> TangleM ()
 printMsg = liftIO . Console.putTerminal
 
 run :: IOAction -> TangleM ()
-run (IOAction x d) = liftIO $
+run (IOAction x d c) = liftIO $
     case x of
         Nothing -> return ()
-        Just x' -> do { Console.putTerminal d; x' }
+        Just x' -> do
+            Console.putTerminal d
+            if c then do
+              T.IO.putStr "confirm? (y/n) "
+              hFlush stdout
+              reply <- getLine
+              T.IO.putStrLn ""
+              when (reply == "y") x'
+            else x'
 
 foldMapM :: (Traversable t, Monad m, Monoid b) => (a -> m b) -> t a -> m b
 foldMapM f lst = F.fold <$> mapM f lst
@@ -324,7 +341,7 @@ removeWatch :: TangleM IOAction
 removeWatch = do
     w <- use watches
     liftIO $ sequence_ w
-    return $ msg Message "suspended watches."
+    return $ msg Message ("suspended watches." :: Text)
 
 -- ========================================================================= --
 -- Main interface                                                            --
@@ -353,7 +370,7 @@ mainLoop (WriteEvent SourceFile fp : xs) = do
     y <- tangleTargets
     newTgtFiles <- listAllTargetFiles
     ts <- timeStamp
-    run $ msgGroup (ts P.<+> P.pretty "Tangling" P.<+> Console.fileRead shortPath)
+    run $ msgGroup (ts P.<+> P.pretty ("Tangling" :: Text) P.<+> Console.fileRead shortPath)
         $ x <> y <> removeFiles (oldTgtFiles \\ newTgtFiles)
     wait
     removeWatch >>= run
@@ -369,7 +386,7 @@ mainLoop (WriteEvent TargetFile fp : xs) = do
     x <- updateFromTarget fp
     y <- stitchSources
     ts <- timeStamp
-    run $ msgGroup (ts P.<+> P.pretty "Untangling" P.<+> Console.fileRead shortPath)
+    run $ msgGroup (ts P.<+> P.pretty ("Untangling" :: Text) P.<+> Console.fileRead shortPath)
         $ x <> y
     wait
     setDaemonState Idle
@@ -384,17 +401,20 @@ startSession fs = do
     shortPaths <- liftIO $ mapM makeRelativeToCurrentDirectory fs
     printMsg Console.banner
 
-    let w = IOAction (Just mempty)
-                $ (P.align $ P.vsep
-                   $ map (Console.bullet
-                         . (P.pretty "Monitoring " <> )
-                         . Console.fileRead
-                         ) shortPaths) <> P.line
+    let w = IOAction
+            { action = Just mempty
+            , description = (P.align $ P.vsep
+                             $ map (Console.bullet
+                                     . (P.pretty ("Monitoring " :: Text) <>)
+                                     . Console.fileRead)
+                                   shortPaths) <> P.line
+            , needConfirm = False }
+
     x <- foldMapM addSourceFile fs
     y <- tangleTargets
     ts <- timeStamp
-    run $ msgGroup (ts P.<+> P.pretty "Initializing")
-        $ w <> x <> y
+    run $ msgGroup (ts P.<+> P.pretty ("Initializing" :: Text))
+        $ w <> x <> confirm y ("Files are not in sync." :: Text)
     setWatch >>= run
     eventList' <- use $ eventChannel . to getChanContents
     eventList  <- liftIO eventList'

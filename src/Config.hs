@@ -8,7 +8,6 @@ module Config
 
 import Languages
 import Data.List
-import Model
 
 newtype Config = Config
     { configLanguages :: [Language]
@@ -33,6 +32,7 @@ languageFromName x cfg
 {-| List of languages. This should eventually end up in a separate
     configuration file.
  -}
+defaultLanguages :: [ Language ]
 defaultLanguages =
     [ Language "C++"         ["cpp", "c++"]               "// ------" ""
     , Language "C"           ["c"]                        "// ------" ""
@@ -50,6 +50,8 @@ defaultLanguages =
     , Language "HTML"        ["html"]                     "<!-- ----" " -->"
     , Language "CSS"         ["css"]                      "/* ------" " */"
     , Language "Awk"         ["awk"]                      "## ------" ""
+    , Language "OCaml"       ["ocaml"]                    "(* ------" " *)"
     ]
 
+defaultConfig :: Config
 defaultConfig = Config defaultLanguages
