@@ -17,21 +17,25 @@ For those who have been living under the proverbial stone, markdown is a way of 
 Level 1 Header
 ==============
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor 
+incididunt ut labore et dolore magna aliqua.
 
 Level 2 Header
 --------------
 
-Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut 
+aliquip ex ea commodo consequat.
 
 * list item
 * Another item
 
 ## Also a Level 2 Header
 
-Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
+fugiat nulla pariatur.
 
-> quote: Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+> quote: Excepteur sint occaecat cupidatat non proident, sunt in culpa qui
+> officia deserunt mollit anim id est laborum.
 ~~~
 
 Read [Daring Fireball](https://daringfireball.net/projects/markdown/syntax) for more syntax.
@@ -224,21 +228,18 @@ end
 The filter checks if the `div` has class `warning`; if not, don't change a thing.
 
 ``` {.lua #filter-body}
-    if el.classes[1] == "warning" then
-        <<generate-latex>>
-    else
-        return el
-    end
+if el.classes[1] == "warning" then
+    <<generate-latex>>
+end
+return el
 ```
 
 We have to convert the contents of the `div` to a raw string, and create a `RawBlock` for LaTeX.
 
 
 ``` {.lua #generate-latex}
-el.content = [
-    pandoc.RawBlock("latex", "\\begin{warning}"), 
-    pandoc.Para(el.content),
-    pandoc.RawBlock("latex", "\\end{warning}") ]
+table.insert(el.content, 1, pandoc.RawBlock("latex", "\\begin{warning}"))
+table.insert(el.content, pandoc.RawBlock("latex", "\\end{warning}"))            
 ```
 
 Running Pandoc with `--lua-filter=warning-div.lua` now converts the `div` element to a raw LaTeX string 
