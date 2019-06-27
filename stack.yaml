@@ -64,12 +64,4 @@ resolver: lts-12.9
 # Allow a newer minor version of GHC than the snapshot specifies
 # compiler-check: newer-minor
 
-packages:
-- .
-- location:
-    git: https://github.com/st3ll1s/haddock/
-    commit: b3912d70f74b0693f1ea8cffb8f547b1303ef325
-  subdirs:
-    - haddock-library
-  extra-dep: true
 

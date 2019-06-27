@@ -51,6 +51,8 @@ defaultLanguages =
     , Language "CSS"         ["css"]                      "/* ------" " */"
     , Language "Awk"         ["awk"]                      "## ------" ""
     , Language "OCaml"       ["ocaml"]                    "(* ------" " *)"
+    , Language "LaTeX"       ["latex"]                    "%% ------" ""
+    , Language "Lua"         ["lua"]                      "## ------" ""
     ]
 
 defaultConfig :: Config
