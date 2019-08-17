@@ -1,5 +1,5 @@
 ---
-title: Entangled, literate programming army knife
+title: Entangled, literate programming Swiss army knife
 author: Johan Hidding
 ---
 

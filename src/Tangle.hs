@@ -74,7 +74,10 @@ parseCode id x = case parse nowebCode (referenceName id) x of
 addIndent :: String -> T.Text -> T.Text
 addIndent indent text 
     = T.intercalate (T.pack "\n") 
-    $ map (T.append (T.pack indent)) $ T.lines text
+    $ map indentLine $ T.lines text
+    where indentLine line
+            | line == (T.pack "")  = line
+            | otherwise            = T.append (T.pack indent) line
 
 type History = [ReferenceId]
 type Expander = History -> ReferenceId -> Either TangleError T.Text
