@@ -53,6 +53,7 @@ defaultLanguages =
     , Language "OCaml"       ["ocaml"]                    "(* ------" " *)"
     , Language "LaTeX"       ["latex"]                    "%% ------" ""
     , Language "Lua"         ["lua"]                      "-- ------" ""
+    , Language "OpenCL"      ["opencl"]                   "// ------" ""
     ]
 
 defaultConfig :: Config
