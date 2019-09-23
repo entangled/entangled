@@ -1,0 +1,140 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.32.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 38cb4490696947401707aa80ae4c64ee06b365849415fb7911b0470cbfa5b7b8
+
+name:           entangled
+version:        0.2.0.0
+synopsis:       bi-directional tangle daemon for literate programming
+description:    Makes literate programming easier. EnTangleD allows you to write programs as code blocks in a markdown file. These code blocks are tangled into compilable source files whenever you write the markdown files. The other way around, if you change any of the generated source files, the markdown is updated to match the changes. This way, you can still use your editor, debugger or IDE on the generated code.
+category:       Development
+homepage:       https://jhidding.github.io/enTangleD
+bug-reports:    https://github.com/jhidding/enTangleD/issues
+author:         Johan Hidding
+maintainer:     j.hidding@esciencecenter.nl
+copyright:      2018-2019 Johan Hidding, Netherlands eScience Center
+license:        Apache-2
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+    scripts/tangle
+    scripts/weave
+    scripts/annotate-code-blocks.lua
+    scripts/list.lua
+    scripts/tangle.lua
+    scripts/header.html
+    scripts/style.css
+    scripts/eisvogel.tex
+
+source-repository head
+  type: git
+  location: https://github.com/jhidding/enTangleD
+
+library
+  exposed-modules:
+      Config
+      Console
+      Daemon
+      Document
+      Languages
+      Markdown
+      Model
+      Tangle
+      Untangle
+  other-modules:
+      Paths_entangled
+  hs-source-dirs:
+      src
+  build-depends:
+      array >=0.5 && <1
+    , base >=4.7 && <5
+    , containers >=0.5 && <0.7
+    , directory >=1.3 && <2
+    , either >=5 && <6
+    , extra >=1.6 && <2
+    , filepath >=1.4 && <2
+    , fsnotify >=0.3 && <0.4
+    , hspec >=2.5 && <3
+    , microlens-platform >=0.3 && <0.4
+    , mtl >=2.2 && <3
+    , optparse-applicative >=0.14 && <0.15
+    , parsec >=3 && <4
+    , prettyprinter >=1.2 && <2
+    , prettyprinter-ansi-terminal >=1.1 && <2
+    , random >=1.0 && <2
+    , regex-tdfa >=1.2 && <2
+    , terminal-size >=0.3 && <1
+    , text >=1.2 && <2
+    , time >=1.8 && <2
+    , uuid >=1.3 && <2
+  default-language: Haskell2010
+
+executable entangled
+  main-is: Main.hs
+  other-modules:
+      Paths_entangled
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      array >=0.5 && <1
+    , base >=4.7 && <5
+    , containers >=0.5 && <0.7
+    , directory >=1.3 && <2
+    , either >=5 && <6
+    , entangled
+    , extra >=1.6 && <2
+    , filepath >=1.4 && <2
+    , fsnotify >=0.3 && <0.4
+    , hspec >=2.5 && <3
+    , microlens-platform >=0.3 && <0.4
+    , mtl >=2.2 && <3
+    , optparse-applicative >=0.14 && <0.15
+    , parsec >=3 && <4
+    , prettyprinter >=1.2 && <2
+    , prettyprinter-ansi-terminal >=1.1 && <2
+    , random >=1.0 && <2
+    , regex-tdfa >=1.2 && <2
+    , terminal-size >=0.3 && <1
+    , text >=1.2 && <2
+    , time >=1.8 && <2
+    , uuid >=1.3 && <2
+  default-language: Haskell2010
+
+test-suite entangled-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_entangled
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      array >=0.5 && <1
+    , base >=4.7 && <5
+    , containers >=0.5 && <0.7
+    , directory >=1.3 && <2
+    , either >=5 && <6
+    , entangled
+    , extra >=1.6 && <2
+    , filepath >=1.4 && <2
+    , fsnotify >=0.3 && <0.4
+    , hspec >=2.5 && <3
+    , microlens-platform >=0.3 && <0.4
+    , mtl >=2.2 && <3
+    , optparse-applicative >=0.14 && <0.15
+    , parsec >=3 && <4
+    , prettyprinter >=1.2 && <2
+    , prettyprinter-ansi-terminal >=1.1 && <2
+    , random >=1.0 && <2
+    , regex-tdfa >=1.2 && <2
+    , terminal-size >=0.3 && <1
+    , text >=1.2 && <2
+    , time >=1.8 && <2
+    , uuid >=1.3 && <2
+  default-language: Haskell2010
