@@ -1,5 +1,4 @@
 .stack-work/
-entangled.cabal
 *.swp
 *~
 playground
@@ -13,6 +12,7 @@ examples/**/build
 examples/**/Makefile
 website
 dist-ghc
+dist-newstyle
 *-stamp
 
 docker/**/*.tar.gz
