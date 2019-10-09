@@ -1,5 +1,4 @@
 .stack-work/
-entangled.cabal
 *.swp
 *~
 playground
@@ -14,5 +13,6 @@ examples/**/Makefile
 website
 debian
 dist-ghc
+dist-newstyle
 *-stamp
 
