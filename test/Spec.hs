@@ -26,6 +26,9 @@ import Config
 import Daemon
 import Document
 
+import TokenParser
+import TokenParserSpec (tokenParserSpec)
+
 parseMarkdown'' :: T.Text -> IO (Either TangleError Document)
 parseMarkdown'' t = do
     randomGen <- getStdGen
@@ -111,3 +114,5 @@ main = do
     lib <- Map.fromList . zip testFiles 
         <$> mapM (\ f -> do { t <- T.IO.readFile f; d <- fromRight' <$> parseMarkdown'' t; return (t, d) }) testFiles
     hspec $ spec lib
+    hspec $ tokenParserSpec
+

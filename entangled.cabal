@@ -46,6 +46,7 @@ library
       Model
       Tangle
       Untangle
+      TokenParser
   other-modules:
       Paths_entangled
   hs-source-dirs:
@@ -111,6 +112,7 @@ test-suite entangled-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      TokenParserSpec
       Paths_entangled
   hs-source-dirs:
       test
@@ -126,6 +128,7 @@ test-suite entangled-test
     , filepath >=1.4 && <2
     , fsnotify >=0.3 && <0.4
     , hspec >=2.5 && <3
+    , QuickCheck >= 2.13 && <3
     , microlens-platform >=0.3 && <0.4
     , mtl >=2.2 && <3
     , optparse-applicative >=0.14 && <0.15

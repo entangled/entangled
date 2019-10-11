@@ -10,7 +10,7 @@ insert_final_newline = true
 charset = utf-8
 indent_style = space
 
-[*.hs]
+[*.{hs,md}]
 indent_size = 4
 
 # Tab indentation (no size specified)

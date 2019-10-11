@@ -34,3 +34,10 @@ import qualified Data.Text as T
 import Data.Text (Text)
 ```
 
+### MegaParsec
+
+All parsing will be done through megaparsec.
+
+``` {.haskell #import-megaparsec}
+import Text.MegaParsec (ParsecT)
+```
