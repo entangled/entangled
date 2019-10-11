@@ -25,25 +25,25 @@ unlines' = T.intercalate (T.pack "\n")
 A document is modelled as a series of text and code blocks. A code block is delimited by two lines starting with three backtics:
 
 ~~~
-Normal text.
+ Normal text.
 
-```
-print("this is a code block")
-```
+ ```
+ print("this is a code block")
+ ```
 ~~~
 
 Each code block that is of relevance to Entangled has a reference attached. This is either the `file` attribute,
 
 ~~~
-``` {.language file=filename}
-```
+ ``` {.language file=filename}
+ ```
 ~~~
 
 or an identifier.
 
 ~~~
-``` {.language #identifier}
-```
+ ``` {.language #identifier}
+ ```
 ~~~
 
 An identifier may be repeated, in which case the code block is concatenated to the previous instances. Each instance will have an associated integer marking the place in the sequence. 
@@ -108,9 +108,9 @@ listActiveReferences doc = mapMaybe getReference (documentContent doc)
 A code block can have all attributes that are normally associated in the context of CSS. The following markdown,
 
 ~~~
-``` {.class #id attribute=value}
-source
-```
+ ``` {.class #id attribute=value}
+ source
+ ```
 ~~~
 
 can be mapped to a list of `CodeProperty`.

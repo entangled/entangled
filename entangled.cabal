@@ -92,6 +92,7 @@ executable entangled
     , filepath >=1.4 && <2
     , fsnotify >=0.3 && <0.4
     , hspec >=2.5 && <3
+    , megaparsec >= 7.0 && <8
     , microlens-platform >=0.3 && <0.4
     , mtl >=2.2 && <3
     , optparse-applicative >=0.14 && <0.15
