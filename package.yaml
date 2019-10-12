@@ -55,12 +55,14 @@ dependencies:
 - optparse-applicative >= 0.14 && < 0.15
 - fsnotify >= 0.3 && < 0.4
 - parsec >= 3 && < 4
+- megaparsec >= 7.0 && < 8
+- parser-combinators >= 1.0 && < 2
 - regex-tdfa >= 1.2 && < 2
+- regex-tdfa-text
 - array >= 0.5 && < 1
 - terminal-size >= 0.3 && < 1
 - prettyprinter >= 1.2 && < 2
 - prettyprinter-ansi-terminal >= 1.1 && < 2
-- dhall >= 1 && < 2
 
 # dependencies I may want to get rid of
 - either >= 5 && < 6
@@ -92,3 +94,4 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - entangled
+    - QuickCheck >= 2.13 && < 3

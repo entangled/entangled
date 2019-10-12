@@ -2,6 +2,7 @@
 
 ``` {.haskell file=app/Tangle.hs}
 <<import-text>>
+import Text.Regex.TDFA
 <<import-megaparsec>>
 
 <<code-header-regex>>
@@ -49,7 +50,24 @@ data Markdown =
 Parsing the markdown using MegaParsec,
 
 ``` {.haskell #parse-markdown}
-parseMarkdown :: (MonadReader Config m) => Text -> [Markdown]
+type Parser = Parsec Void Text
+
+parseLine :: (MonadReader Config m) -> Text -> m Markdown
+parseLine = 
+
+parseCodeHeader :: (MonadReader Config m) -> Text -> m (Maybe Markdown)
+parseCodeHeader t = do
+    re <- asks codeHeaderRe
+    return $ do
+        (_, _, _, m) <- t =~~ re
+        return $ CodeHeader t (getCodeProperties m)
+
+parseCodeFooter :: (MonadReader Config m) -> Text -> m (Maybe Markdown)
+parseCodeFooter t = do
+    re <- asks codeFooterRe
+    return $ if t =~ re then Just (CodeFooter t) else Nothing
+
+parseMarkdown :: (MonadReader Config m) => Text -> m [Markdown]
 parseMarkdown t =
 ```
 
