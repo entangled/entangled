@@ -16,8 +16,14 @@ module Document
 We need a version of `unlines` that doesn't append a final newline.
 
 ``` {.haskell #document-utils}
-unlines' :: [T.Text] -> T.Text
-unlines' = T.intercalate (T.pack "\n")
+unlines' :: [Text] -> Text
+unlines' = T.intercalate "\n"
+```
+
+This way, `unlines'` has nicer properties. No single `Text` in Entangled ends in a newline, meaning
+
+``` {.haskell}
+unlines' [unlines' a, unlines' b] = unlines' (a <> b)
 ```
 
 ## Structure
@@ -69,6 +75,7 @@ data Content
     | Reference ReferenceId
     deriving (Show, Eq)
 
+type ReferencePair = (ReferenceId, CodeBlock)
 type ReferenceMap = Map ReferenceId CodeBlock
 
 data Document = Document
@@ -127,10 +134,19 @@ In our case the *class* represents the code language or an abbreviation thereof.
 
 ``` {.haskell #document-structure}
 data CodeBlock = CodeBlock
-    { codeLanguage   :: Text
+    { codeLanguage   :: ProgrammingLanguage
     , codeProperties :: [CodeProperty]
     , codeSource     :: Text
     } deriving (Show, Eq)
+```
+
+A `ProgrammingLanguage` is either a known language (for which we know how to generate comments) an unknown (or misspelled) class identifier, or empty.
+
+``` {.haskell #document-structure}
+data ProgrammingLanguage
+    = KnownLanguage Text
+    | UnknownClass Text
+    | NoLanguage
 ```
 
 ## Conversion

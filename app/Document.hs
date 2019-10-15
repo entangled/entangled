@@ -12,8 +12,8 @@ import Data.Map.Strict (Map)
 -- ------ end
 
 -- ------ begin <<document-utils>>[0]
-unlines' :: [T.Text] -> T.Text
-unlines' = T.intercalate (T.pack "\n")
+unlines' :: [Text] -> Text
+unlines' = T.intercalate "\n"
 -- ------ end
 -- ------ begin <<document-structure>>[0]
 data ReferenceId = FileReferenceId Text
@@ -26,6 +26,7 @@ data Content
     | Reference ReferenceId
     deriving (Show, Eq)
 
+type ReferencePair = (ReferenceId, CodeBlock)
 type ReferenceMap = Map ReferenceId CodeBlock
 
 data Document = Document
@@ -65,9 +66,15 @@ data CodeProperty
 -- ------ end
 -- ------ begin <<document-structure>>[4]
 data CodeBlock = CodeBlock
-    { codeLanguage   :: Text
+    { codeLanguage   :: ProgrammingLanguage
     , codeProperties :: [CodeProperty]
     , codeSource     :: Text
     } deriving (Show, Eq)
+-- ------ end
+-- ------ begin <<document-structure>>[5]
+data ProgrammingLanguage
+    = KnownLanguage Text
+    | UnknownClass Text
+    | NoLanguage
 -- ------ end
 -- ------ end

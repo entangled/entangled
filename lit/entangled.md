@@ -25,6 +25,13 @@ import qualified Data.Map.Strict as M
 import Data.Map.Strict (Map)
 ```
 
+### Set
+
+``` {.haskell #import-set}
+import qualified Data.Set as S
+import Data.Set (Set)
+```
+
 ### Text
 
 We will be using the `Text` module everywhere.

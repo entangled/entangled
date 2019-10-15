@@ -1,45 +1,17 @@
-# Configuration
-
-``` {.haskell file=app/Config.hs}
+-- ------ language="Haskell" file="app/Config.hs"
 module Config where
 
-<<import-text>>
-<<import-set>>
+-- ------ begin <<import-text>>[0]
+import qualified Data.Text as T
+import Data.Text (Text)
+-- ------ end
+-- ------ begin <<import-set>>[0]
+import qualified Data.Set as S
+import Data.Set (Set)
+-- ------ end
 import qualified Toml
 
-<<config-types>>
-<<config-tomland>>
-<<config-monoid>>
-<<config-defaults>>
-<<config-reading>>
-```
-
-Configuration can be stored in `${XDG_CONFIG_HOME}/entangled/config.toml`. Also the local directory or its parents may contain a `.entangled.toml` file. These override settings in the global configuration.
-
-There are currently no customisation options for entangled, but I keep my options open: namespaces for references, enabling future features like git support, you name it. The one component that we do need to configure is adding languages to the mix. Entangled has to know how to generate comments in every language.
-
-``` {.toml #example-config}
-[entangled]
-use-namespaces = true       # soon to be implemented
-enable-git = false
-
-[[languages]]
-name = "Bel"
-identifiers = ["bel"]       # case insensitive
-start-comment = "; -----"   # used to insert tangle tags
-                            # and also to parse them back!
-
-[[languages]]
-name = "HTML"
-identifiers = ["html"]
-start-comment = "<!--"
-close-comment = "-->"       # some languages (HTML, CSS) only
-                            # support block comments
-```
-
-The Haskell definition of the `Config` data type is
-
-``` {.haskell #config-types}
+-- ------ begin <<config-types>>[0]
 data Entangled = Entangled
     { useNamespaces :: Bool
     } deriving (Show)
@@ -58,11 +30,8 @@ data Config = Config
     { configEntangled :: Maybe Entangled
     , configLanguages :: Set Language
     } deriving (Show)
-```
-
-Serialisation to and from TOML:
-
-``` {.haskell #config-tomland}
+-- ------ end
+-- ------ begin <<config-tomland>>[0]
 entangledCodec :: TomlCodec Entangled
 entangledCodec = Entangled
     <$> Toml.bool "use-namespaces" .= useNamespaces
@@ -77,11 +46,8 @@ languageCodec = Language
 configCodec :: TomlCodec Config
     <$> Toml.dioptional (Toml.table entangledCodec "entangled") .= configEntangled
     <*> Toml.set languageCodec "languages" .= configLanguages
-```
-
-We need to be able to stack configurations, so we implement `Monoid` on `Config`. There is a generic way of doing this using `GHC.Generic`, `DeriveGeneric` language extension and `Generic.Data` module. For the moment this would be a bit overkill.
-
-``` {.haskell #config-monoid}
+-- ------ end
+-- ------ begin <<config-monoid>>[0]
 instance Semigroup Entangled where
     a <> b = a
 
@@ -91,23 +57,15 @@ instance Semigroup Config where
 
 instance Monoid Config where
     mempty = Config mempty mempty
-```
-
-You can see this will grow out of hand as the configuration becomes a bigger thing. Note that the stacking prioritises the left most element. The complete config is then:
-
-``` {.haskell #config-monoid}
+-- ------ end
+-- ------ begin <<config-monoid>>[1]
 configStack :: IO Config
 configStack = do
     localConfig <- readLocalConfig
     globalConfig <- readGlobalConfig
     return $ localConfig <> globalConfig <> defaultConfig
-```
-
-## Defaults
-
-A somewhat biased list of languages: I don't know half of you half as well as I should like; and I like less than half of you half as well as you deserve.
-
-``` {.haskell #config-defaults}
+-- ------ end
+-- ------ begin <<config-defaults>>[0]
 defaultLanguages :: Set Language
 defaultLanguages = Set.fromList
     [ Language "C++"         ["cpp", "c++"]               "// ------" Nothing
@@ -137,33 +95,6 @@ defaultConfig = Config
     Just $ Entangled { useNamespaces=False
                      }
     defaultLanguages
-```
+-- ------ end
 
-### Reading config files
-
-:::TODO
-NYI
-:::
-
-``` {.haskell #config-input}
-localConfig :: IO Config
-localConfig = return mempty
-
-globalConfig :: IO Config
-globalConfig = return mempty
-```
-
-## Processing
-
-``` {.haskell #config-reader}
-lookupLanguage :: Text -> Config -> Maybe Language
-lookupLanguage x cfg
-    = find (elem x . languageAbbreviations) 
-    $ configLanguages cfg
-
-languageFromName :: Text -> Config -> Maybe Language
-languageFromName x cfg
-    = find ((== x) . languageName)
-    $ configLanguages cfg
-```
-
+-- ------ end

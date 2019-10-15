@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1233bf4c723582f3c073b74a41ab783f8171fe8984adabd861a2415e52b32b07
+-- hash: 035251f5e4ddef833220b569d83f9d813199cfde7b4fd7d22ee8ebd923479818
 
 name:           entangled
 version:        0.2.0.0
@@ -75,12 +75,14 @@ library
     , terminal-size >=0.3 && <1
     , text >=1.2 && <2
     , time >=1.8 && <2
+    , tomland >=1.2 && <2
     , uuid >=1.3 && <2
   default-language: Haskell2010
 
 executable entangled
   main-is: Main.hs
   other-modules:
+      Config
       Document
       Tangle
       Paths_entangled
@@ -112,6 +114,7 @@ executable entangled
     , terminal-size >=0.3 && <1
     , text >=1.2 && <2
     , time >=1.8 && <2
+    , tomland >=1.2 && <2
     , uuid >=1.3 && <2
   default-language: Haskell2010
 
@@ -150,5 +153,6 @@ test-suite entangled-test
     , terminal-size >=0.3 && <1
     , text >=1.2 && <2
     , time >=1.8 && <2
+    , tomland >=1.2 && <2
     , uuid >=1.3 && <2
   default-language: Haskell2010
