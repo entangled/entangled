@@ -147,6 +147,7 @@ data ProgrammingLanguage
     = KnownLanguage Text
     | UnknownClass Text
     | NoLanguage
+    deriving (Show, Eq)
 ```
 
 ## Conversion

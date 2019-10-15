@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 035251f5e4ddef833220b569d83f9d813199cfde7b4fd7d22ee8ebd923479818
+-- hash: b88ae7dc46b573a89c5d0cffa6625b740e68bc11a9c69513d6e55103cb2ed333
 
 name:           entangled
 version:        0.2.0.0
@@ -37,16 +37,8 @@ source-repository head
 
 library
   exposed-modules:
-      Config
       Console
-      Daemon
-      Document
-      Languages
       ListStream
-      Markdown
-      Model
-      Tangle
-      Untangle
   other-modules:
       Paths_entangled
   hs-source-dirs:

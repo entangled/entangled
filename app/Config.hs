@@ -1,4 +1,6 @@
 -- ------ language="Haskell" file="app/Config.hs"
+{-# LANGUAGE OverloadedStrings #-}
+
 module Config where
 
 -- ------ begin <<import-text>>[0]
@@ -10,10 +12,13 @@ import qualified Data.Set as S
 import Data.Set (Set)
 -- ------ end
 import qualified Toml
+import Toml (TomlCodec, (.=))
+import Data.Function (on)
 
 -- ------ begin <<config-types>>[0]
 data Entangled = Entangled
-    { useNamespaces :: Bool
+    { watchList :: Maybe [Text]
+    , useNamespaces :: Maybe Bool
     } deriving (Show)
 
 data Language = Language
@@ -23,8 +28,11 @@ data Language = Language
     , languageCloseComment :: Maybe Text
     } deriving (Show)
 
+instance Eq Language where
+    (==) = (==) `on` languageName
+
 instance Ord Language where
-    compare = compare . languageName
+    compare = compare `on` languageName
 
 data Config = Config
     { configEntangled :: Maybe Entangled
@@ -34,7 +42,8 @@ data Config = Config
 -- ------ begin <<config-tomland>>[0]
 entangledCodec :: TomlCodec Entangled
 entangledCodec = Entangled
-    <$> Toml.bool "use-namespaces" .= useNamespaces
+    <$> Toml.dioptional (Toml.list Toml._Text "watch-list") .= watchList
+    <*> Toml.dioptional (Toml.bool "use-namespaces") .= useNamespaces
 
 languageCodec :: TomlCodec Language
 languageCodec = Language
@@ -44,16 +53,21 @@ languageCodec = Language
     <*> Toml.dioptional (Toml.text "close-comment") .= languageCloseComment
 
 configCodec :: TomlCodec Config
+configCodec = Config
     <$> Toml.dioptional (Toml.table entangledCodec "entangled") .= configEntangled
     <*> Toml.set languageCodec "languages" .= configLanguages
 -- ------ end
 -- ------ begin <<config-monoid>>[0]
+mappendBy :: (Semigroup a, Semigroup b) => (a -> b) -> a -> a -> b
+mappendBy f x y = f x <> f y
+
 instance Semigroup Entangled where
-    a <> b = a
+    a <> b = Entangled (mappendBy watchList a b)
+                       (mappendBy useNamespaces a b)
 
 instance Semigroup Config where
-    a <> b = Config (configEntangled a <> configEntangled b)
-                    (configLanguages a <> configLanguages b)
+    a <> b = Config (mappendBy configEntangled a b)
+                    (mappendBy configLanguages a b)
 
 instance Monoid Config where
     mempty = Config mempty mempty
@@ -67,7 +81,7 @@ configStack = do
 -- ------ end
 -- ------ begin <<config-defaults>>[0]
 defaultLanguages :: Set Language
-defaultLanguages = Set.fromList
+defaultLanguages = S.fromList
     [ Language "C++"         ["cpp", "c++"]               "// ------" Nothing
     , Language "C"           ["c"]                        "// ------" Nothing
     , Language "Rust"        ["rust"]                     "// ------" Nothing
@@ -92,9 +106,17 @@ defaultLanguages = Set.fromList
 
 defaultConfig :: Config
 defaultConfig = Config
-    Just $ Entangled { useNamespaces=False
-                     }
-    defaultLanguages
+    { configEntangled = Just $
+          Entangled { useNamespaces=False
+                    }
+    , configLanguages = defaultLanguages
+    }
 -- ------ end
+-- ------ begin <<config-input>>[0]
+readLocalConfig :: IO Config
+readLocalConfig = return mempty
 
+readGlobalConfig :: IO Config
+readGlobalConfig = return mempty
+-- ------ end
 -- ------ end

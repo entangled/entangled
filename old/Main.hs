@@ -1,12 +1,11 @@
--- ------ language="Haskell" file="app/Main.hs"
 module Main where
 
 import Options.Applicative
--- import Data.Semigroup ((<>))
+import Data.Semigroup ((<>))
 import GHC.IO.Encoding
 
 import Config
--- import Daemon
+import Daemon
 
 data Args = Args
     { versionFlag :: Bool
@@ -30,6 +29,6 @@ main = do
 
 run :: Args -> IO ()
 run args
-    | versionFlag args       = putStrLn "enTangleD 1.0.0"
+    | versionFlag args       = putStrLn "enTangleD 0.2.0"
+    | null (inputFiles args) = putStrLn "Need input files"
     | otherwise              = runSession defaultConfig (inputFiles args)
--- ------ end

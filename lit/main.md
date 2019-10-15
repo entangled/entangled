@@ -1,4 +1,6 @@
--- ------ language="Haskell" file="app/Main.hs"
+# Main program
+
+``` {.haskell file=app/Main.hs}
 module Main where
 
 import Options.Applicative
@@ -32,4 +34,4 @@ run :: Args -> IO ()
 run args
     | versionFlag args       = putStrLn "enTangleD 1.0.0"
     | otherwise              = runSession defaultConfig (inputFiles args)
--- ------ end
+```

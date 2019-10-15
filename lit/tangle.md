@@ -1,8 +1,12 @@
 # Tangling
 
 ``` {.haskell file=app/Tangle.hs}
+module Tangle where
+
 <<import-text>>
 <<import-megaparsec>>
+
+import ListStream (ListStream (..))
 
 <<parse-markdown>>
 ```

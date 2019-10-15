@@ -1,4 +1,6 @@
 -- ------ language="Haskell" file="app/Tangle.hs"
+module Tangle where
+
 -- ------ begin <<import-text>>[0]
 import qualified Data.Text as T
 import Data.Text (Text)
@@ -6,6 +8,8 @@ import Data.Text (Text)
 -- ------ begin <<import-megaparsec>>[0]
 import Text.MegaParsec (ParsecT)
 -- ------ end
+
+import ListStream (ListStream (..))
 
 -- ------ begin <<parse-markdown>>[0]
 data ParserT = ParsecT Void (ListStream Text)
