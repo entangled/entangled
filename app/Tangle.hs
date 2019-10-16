@@ -1,4 +1,6 @@
 -- ------ language="Haskell" file="app/Tangle.hs"
+{-# LANGUAGE OverloadedStrings,FlexibleContexts #-}
+
 module Tangle where
 
 -- ------ begin <<import-text>>[0]
@@ -6,17 +8,26 @@ import qualified Data.Text as T
 import Data.Text (Text)
 -- ------ end
 -- ------ begin <<import-megaparsec>>[0]
-import Text.MegaParsec (ParsecT)
+import Text.Megaparsec
+    ( MonadParsec, Parsec, parse
+    , noneOf, chunk, many, some, endBy, eof, token
+    , manyTill, anySingle, try, lookAhead
+    , (<|>), (<?>) )
+import Text.Megaparsec.Char
+    ( space )
+import Data.Void
 -- ------ end
 
+import Control.Monad.Reader (MonadReader)
+
 import ListStream (ListStream (..))
+import Document
+    ( CodeProperty (..), CodeBlock (..), Content (..), ReferenceId (..)
+    , ReferencePair, ProgrammingLanguage (..), unlines')
+import Config (Config, languageName)
 
 -- ------ begin <<parse-markdown>>[0]
-data ParserT = ParsecT Void (ListStream Text)
 
-parseDocument :: ( MonadState ReferenceMap m )
-              => ParserT m Document
-parseDocument = return empty
 -- ------ end
 -- ------ begin <<parse-markdown>>[1]
 codeHeader :: (MonadParsec e Text m)
@@ -35,22 +46,22 @@ codeFooter :: (MonadParsec e Text m)
 codeFooter = chunk "```" >> space >> eof
 -- ------ end
 -- ------ begin <<parse-markdown>>[2]
-data LineParser = Parsec Void Text
-data DocumentParserT m = ParsecT Void [Text] (StateT ReferenceMap m)
+type LineParser = Parsec Void Text
+-- data DocumentParserT m = ParsecT Void [Text] (StateT ReferenceMap m)
 
 parseLine :: LineParser a -> Text -> Maybe (a, Text)
 parseLine p t = either (const Nothing) (\x -> Just (x, t))
               $ parse p "" t
 
-parseLineNot :: LineParser a -> Text -> Maybe Text
+parseLineNot :: (Monoid a) => LineParser a -> Text -> Maybe Text
 parseLineNot p t = either (const $ Just t) (const Nothing)
                  $ parse p "" t
 
-tokenLine :: ( MonadParsec e [Text] m )
-          => LineParser -> m (a, Text)
-tokenLine f = token f empty
+tokenLine :: ( MonadParsec e (ListStream Text) m )
+          => (Text -> Maybe a) -> m a
+tokenLine f = token f mempty
 
-codeBlock :: ( MonadParsec e [Text] m,
+codeBlock :: ( MonadParsec e (ListStream Text) m,
                MonadReader Config m )
           => m ([Content], [ReferencePair])
 codeBlock = do
@@ -64,10 +75,10 @@ codeBlock = do
         Just ref -> ( [ PlainText begin, ref, PlainText end ]
                     , [ ( ref, CodeBlock language props code ) ] )
 
-normalText :: ( MonadParsec e [Text] m )
+normalText :: ( MonadParsec e (ListStream Text) m )
            => m ([Content], [ReferencePair])
 normalText = do
-    text <- unlines' <$> many1 (tokenLine (parseLineNot codeHeader))
+    text <- unlines' <$> some (tokenLine (parseLineNot codeHeader))
     return ( [ PlainText text ], [] )
 -- ------ end
 -- ------ begin <<parse-markdown>>[3]
@@ -79,28 +90,36 @@ getLanguage (CodeClass cls : _)
             (KnownLanguage . languageName)
             <$> reader (lookupLanguage cls)
 getLanguage (_ : xs) = getLanguage xs
+
+getReference :: [CodeProperty] -> Maybe ReferenceId
+getReference [] = Nothing
+getReference (CodeId x:_) = Just $ NameReferenceId x 0
+getReference (CodeAttribute k v:xs)
+    | k == "file" = Just $ FileReferenceId v
+    | otherwise   = getReference xs
+getReference (_:xs) = getReference xs
 -- ------ end
 -- ------ begin <<parse-markdown>>[4]
 codeClass :: (MonadParsec e Text m)
           => m CodeProperty
 codeClass = do
     chunk "."
-    CodeClass <$> many1 (noneOf " {}")
+    CodeClass <$> some (noneOf " {}")
 -- ------ end
 -- ------ begin <<parse-markdown>>[5]
 codeId :: (MonadParsec e Text m)
        => m CodeProperty
 codeId = do
     chunk "#"
-    CodeId <$> many1 (noneOf " {}")
+    CodeId <$> some (noneOf " {}")
 -- ------ end
 -- ------ begin <<parse-markdown>>[6]
 codeAttribute :: (MonadParsec e Text m)
-              => m CodeAttribute
+              => m CodeProperty
 codeAttribute = do
-    key <- many1 (noneOf " ={}")
+    key <- some (noneOf " ={}")
     chunk "="
-    value <- many1 (noneOf " {}")
+    value <- some (noneOf " {}")
     return $ CodeAttribute key value
 -- ------ end
 -- ------ end

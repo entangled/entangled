@@ -1,6 +1,7 @@
 -- ------ language="Haskell" file="app/Document.hs"
-module Document
-    () where
+{-# LANGUAGE OverloadedStrings #-}
+
+module Document where
 
 -- ------ begin <<import-text>>[0]
 import qualified Data.Text as T
@@ -10,6 +11,7 @@ import Data.Text (Text)
 import qualified Data.Map.Strict as M
 import Data.Map.Strict (Map)
 -- ------ end
+import Data.Maybe (mapMaybe)
 
 -- ------ begin <<document-utils>>[0]
 unlines' :: [Text] -> Text
@@ -37,7 +39,7 @@ data Document = Document
 -- ------ begin <<document-structure>>[2]
 referenceName :: ReferenceId -> Maybe Text
 referenceName (FileReferenceId _) = Nothing
-referenceName (NameReferenceId n _) = n
+referenceName (NameReferenceId n _) = Just n
 
 allNameReferences :: Text -> ReferenceMap -> [ReferenceId]
 allNameReferences name = filter ((== Just name) . referenceName) . M.keys

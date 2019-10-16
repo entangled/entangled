@@ -14,6 +14,7 @@ import Data.Set (Set)
 import qualified Toml
 import Toml (TomlCodec, (.=))
 import Data.Function (on)
+import Control.Applicative ((<|>))
 
 -- ------ begin <<config-types>>[0]
 data Entangled = Entangled
@@ -42,7 +43,7 @@ data Config = Config
 -- ------ begin <<config-tomland>>[0]
 entangledCodec :: TomlCodec Entangled
 entangledCodec = Entangled
-    <$> Toml.dioptional (Toml.list Toml._Text "watch-list") .= watchList
+    <$> Toml.dioptional (Toml.arrayOf Toml._Text "watch-list") .= watchList
     <*> Toml.dioptional (Toml.bool "use-namespaces") .= useNamespaces
 
 languageCodec :: TomlCodec Language
@@ -58,16 +59,13 @@ configCodec = Config
     <*> Toml.set languageCodec "languages" .= configLanguages
 -- ------ end
 -- ------ begin <<config-monoid>>[0]
-mappendBy :: (Semigroup a, Semigroup b) => (a -> b) -> a -> a -> b
-mappendBy f x y = f x <> f y
-
 instance Semigroup Entangled where
-    a <> b = Entangled (mappendBy watchList a b)
-                       (mappendBy useNamespaces a b)
+    a <> b = Entangled (watchList a <> watchList b)
+                       (useNamespaces a <|> useNamespaces b)
 
 instance Semigroup Config where
-    a <> b = Config (mappendBy configEntangled a b)
-                    (mappendBy configLanguages a b)
+    a <> b = Config (configEntangled a <> configEntangled b)
+                    (configLanguages a <> configLanguages b)
 
 instance Monoid Config where
     mempty = Config mempty mempty
@@ -107,7 +105,8 @@ defaultLanguages = S.fromList
 defaultConfig :: Config
 defaultConfig = Config
     { configEntangled = Just $
-          Entangled { useNamespaces=False
+          Entangled { useNamespaces=Just False
+                    , watchList=Nothing
                     }
     , configLanguages = defaultLanguages
     }

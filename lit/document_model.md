@@ -1,11 +1,13 @@
 # Document structure
 
 ``` {.haskell file=app/Document.hs}
-module Document
-    () where
+{-# LANGUAGE OverloadedStrings #-}
+
+module Document where
 
 <<import-text>>
 <<import-map>>
+import Data.Maybe (mapMaybe)
 
 <<document-utils>>
 <<document-structure>>
@@ -89,7 +91,7 @@ data Document = Document
 ``` {.haskell #document-structure}
 referenceName :: ReferenceId -> Maybe Text
 referenceName (FileReferenceId _) = Nothing
-referenceName (NameReferenceId n _) = n
+referenceName (NameReferenceId n _) = Just n
 
 allNameReferences :: Text -> ReferenceMap -> [ReferenceId]
 allNameReferences name = filter ((== Just name) . referenceName) . M.keys

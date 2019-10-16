@@ -10,6 +10,7 @@ module Config where
 import qualified Toml
 import Toml (TomlCodec, (.=))
 import Data.Function (on)
+import Control.Applicative ((<|>))
 
 <<config-types>>
 <<config-tomland>>
@@ -74,7 +75,7 @@ Serialisation to and from TOML:
 ``` {.haskell #config-tomland}
 entangledCodec :: TomlCodec Entangled
 entangledCodec = Entangled
-    <$> Toml.dioptional (Toml.list Toml._Text "watch-list") .= watchList
+    <$> Toml.dioptional (Toml.arrayOf Toml._Text "watch-list") .= watchList
     <*> Toml.dioptional (Toml.bool "use-namespaces") .= useNamespaces
 
 languageCodec :: TomlCodec Language
@@ -93,16 +94,13 @@ configCodec = Config
 We need to be able to stack configurations, so we implement `Monoid` on `Config`. There is a generic way of doing this using `GHC.Generic`, `DeriveGeneric` language extension and `Generic.Data` module. For the moment this would be a bit overkill.
 
 ``` {.haskell #config-monoid}
-mappendBy :: (Semigroup a, Semigroup b) => (a -> b) -> a -> a -> b
-mappendBy f x y = f x <> f y
-
 instance Semigroup Entangled where
-    a <> b = Entangled (mappendBy watchList a b)
-                       (mappendBy useNamespaces a b)
+    a <> b = Entangled (watchList a <> watchList b)
+                       (useNamespaces a <|> useNamespaces b)
 
 instance Semigroup Config where
-    a <> b = Config (mappendBy configEntangled a b)
-                    (mappendBy configLanguages a b)
+    a <> b = Config (configEntangled a <> configEntangled b)
+                    (configLanguages a <> configLanguages b)
 
 instance Monoid Config where
     mempty = Config mempty mempty
@@ -150,7 +148,8 @@ defaultLanguages = S.fromList
 defaultConfig :: Config
 defaultConfig = Config
     { configEntangled = Just $
-          Entangled { useNamespaces=False
+          Entangled { useNamespaces=Just False
+                    , watchList=Nothing
                     }
     , configLanguages = defaultLanguages
     }

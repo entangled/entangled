@@ -33,5 +33,8 @@ main = do
 run :: Args -> IO ()
 run args
     | versionFlag args       = putStrLn "enTangleD 1.0.0"
-    | otherwise              = runSession defaultConfig (inputFiles args)
+    | otherwise              = do
+        config <- configStack
+        runSession config (inputFiles args)
+    where runSession config files = putStrLn $ show config
 ```

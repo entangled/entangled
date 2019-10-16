@@ -46,5 +46,12 @@ import Data.Text (Text)
 All parsing will be done through megaparsec.
 
 ``` {.haskell #import-megaparsec}
-import Text.MegaParsec (ParsecT)
+import Text.Megaparsec
+    ( MonadParsec, Parsec, parse
+    , noneOf, chunk, many, some, endBy, eof, token
+    , manyTill, anySingle, try, lookAhead
+    , (<|>), (<?>) )
+import Text.Megaparsec.Char
+    ( space )
+import Data.Void
 ```

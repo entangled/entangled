@@ -1,12 +1,20 @@
 # Tangling
 
 ``` {.haskell file=app/Tangle.hs}
+{-# LANGUAGE OverloadedStrings,FlexibleContexts #-}
+
 module Tangle where
 
 <<import-text>>
 <<import-megaparsec>>
 
+import Control.Monad.Reader (MonadReader)
+
 import ListStream (ListStream (..))
+import Document
+    ( CodeProperty (..), CodeBlock (..), Content (..), ReferenceId (..)
+    , ReferencePair, ProgrammingLanguage (..), unlines')
+import Config (Config, languageName)
 
 <<parse-markdown>>
 ```
@@ -29,11 +37,6 @@ We will be adding unit tests to check exactly this property.
 Parsing the markdown using MegaParsec,
 
 ``` {.haskell #parse-markdown}
-data ParserT = ParsecT Void (ListStream Text)
-
-parseDocument :: ( MonadState ReferenceMap m )
-              => ParserT m Document
-parseDocument = return empty
 ```
 
 ### Parsing code blocks
@@ -93,22 +96,22 @@ codeFooter = chunk "```" >> space >> eof
 Using these two parsers, we can create a larger parser that works on a line-by-line basis.
 
 ``` {.haskell #parse-markdown}
-data LineParser = Parsec Void Text
-data DocumentParserT m = ParsecT Void [Text] (StateT ReferenceMap m)
+type LineParser = Parsec Void Text
+-- data DocumentParserT m = ParsecT Void [Text] (StateT ReferenceMap m)
 
 parseLine :: LineParser a -> Text -> Maybe (a, Text)
 parseLine p t = either (const Nothing) (\x -> Just (x, t))
               $ parse p "" t
 
-parseLineNot :: LineParser a -> Text -> Maybe Text
+parseLineNot :: (Monoid a) => LineParser a -> Text -> Maybe Text
 parseLineNot p t = either (const $ Just t) (const Nothing)
                  $ parse p "" t
 
-tokenLine :: ( MonadParsec e [Text] m )
-          => LineParser -> m (a, Text)
-tokenLine f = token f empty
+tokenLine :: ( MonadParsec e (ListStream Text) m )
+          => (Text -> Maybe a) -> m a
+tokenLine f = token f mempty
 
-codeBlock :: ( MonadParsec e [Text] m,
+codeBlock :: ( MonadParsec e (ListStream Text) m,
                MonadReader Config m )
           => m ([Content], [ReferencePair])
 codeBlock = do
@@ -122,10 +125,10 @@ codeBlock = do
         Just ref -> ( [ PlainText begin, ref, PlainText end ]
                     , [ ( ref, CodeBlock language props code ) ] )
 
-normalText :: ( MonadParsec e [Text] m )
+normalText :: ( MonadParsec e (ListStream Text) m )
            => m ([Content], [ReferencePair])
 normalText = do
-    text <- unlines' <$> many1 (tokenLine (parseLineNot codeHeader))
+    text <- unlines' <$> some (tokenLine (parseLineNot codeHeader))
     return ( [ PlainText text ], [] )
 ```
 
@@ -140,6 +143,14 @@ getLanguage (CodeClass cls : _)
             (KnownLanguage . languageName)
             <$> reader (lookupLanguage cls)
 getLanguage (_ : xs) = getLanguage xs
+
+getReference :: [CodeProperty] -> Maybe ReferenceId
+getReference [] = Nothing
+getReference (CodeId x:_) = Just $ NameReferenceId x 0
+getReference (CodeAttribute k v:xs)
+    | k == "file" = Just $ FileReferenceId v
+    | otherwise   = getReference xs
+getReference (_:xs) = getReference xs
 ```
 
 #### class
@@ -150,7 +161,7 @@ codeClass :: (MonadParsec e Text m)
           => m CodeProperty
 codeClass = do
     chunk "."
-    CodeClass <$> many1 (noneOf " {}")
+    CodeClass <$> some (noneOf " {}")
 ```
 
 #### id
@@ -161,7 +172,7 @@ codeId :: (MonadParsec e Text m)
        => m CodeProperty
 codeId = do
     chunk "#"
-    CodeId <$> many1 (noneOf " {}")
+    CodeId <$> some (noneOf " {}")
 ```
 
 #### attribute
@@ -169,11 +180,11 @@ An generic attribute is written as key-value-pair, separated by an equals sign (
 
 ``` {.haskell #parse-markdown}
 codeAttribute :: (MonadParsec e Text m)
-              => m CodeAttribute
+              => m CodeProperty
 codeAttribute = do
-    key <- many1 (noneOf " ={}")
+    key <- some (noneOf " ={}")
     chunk "="
-    value <- many1 (noneOf " {}")
+    value <- some (noneOf " {}")
     return $ CodeAttribute key value
 ```
 
