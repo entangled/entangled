@@ -1,6 +1,4 @@
--- ------ language="Haskell" file="app/Tangle.hs"
-{-# LANGUAGE OverloadedStrings,FlexibleContexts #-}
-
+-- ------ language="Haskell" file="src/Tangle.hs"
 module Tangle where
 
 -- ------ begin <<import-text>>[0]
@@ -11,20 +9,20 @@ import Data.Text (Text)
 import Text.Megaparsec
     ( MonadParsec, Parsec, parse
     , noneOf, chunk, many, some, endBy, eof, token
-    , manyTill, anySingle, try, lookAhead
+    , manyTill, anySingle, try, lookAhead, takeWhile1P, takeWhileP
     , (<|>), (<?>) )
 import Text.Megaparsec.Char
     ( space )
 import Data.Void
 -- ------ end
 
-import Control.Monad.Reader (MonadReader)
+import Control.Monad.Reader (MonadReader, reader)
 
 import ListStream (ListStream (..))
 import Document
     ( CodeProperty (..), CodeBlock (..), Content (..), ReferenceId (..)
     , ReferencePair, ProgrammingLanguage (..), unlines')
-import Config (Config, languageName)
+import Config (Config, languageName, lookupLanguage)
 
 -- ------ begin <<parse-markdown>>[0]
 
@@ -65,14 +63,15 @@ codeBlock :: ( MonadParsec e (ListStream Text) m,
                MonadReader Config m )
           => m ([Content], [ReferencePair])
 codeBlock = do
-    (begin, props) <- tokenLine (parseLine codeHeader)
-    code           <- unlines' <$> manyTill (anySingle <?> "code line")
-                                            (try $ lookAhead $ tokenLine (parseLine codeFooter))
-    (end, _)       <- tokenLine (parseLine codeFooter)
+    (props, begin) <- tokenLine (parseLine codeHeader)
+    code           <- unlines' 
+                   <$> manyTill (anySingle <?> "code line")
+                                (try $ lookAhead $ tokenLine (parseLine codeFooter))
+    (_, end)       <- tokenLine (parseLine codeFooter)
     language       <- getLanguage props
     return $ case getReference props of
         Nothing  -> ( [ PlainText $ unlines' [begin, code, end] ], [] )
-        Just ref -> ( [ PlainText begin, ref, PlainText end ]
+        Just ref -> ( [ PlainText begin, Reference ref, PlainText end ]
                     , [ ( ref, CodeBlock language props code ) ] )
 
 normalText :: ( MonadParsec e (ListStream Text) m )
@@ -86,7 +85,7 @@ getLanguage :: ( MonadReader Config m )
             => [CodeProperty] -> m ProgrammingLanguage
 getLanguage [] = return NoLanguage
 getLanguage (CodeClass cls : _)
-    = maybe (UnknownLanguage cls) 
+    = maybe (UnknownClass cls) 
             (KnownLanguage . languageName)
             <$> reader (lookupLanguage cls)
 getLanguage (_ : xs) = getLanguage xs
@@ -100,26 +99,36 @@ getReference (CodeAttribute k v:xs)
 getReference (_:xs) = getReference xs
 -- ------ end
 -- ------ begin <<parse-markdown>>[4]
+cssIdentifier :: (MonadParsec e Text m)
+              => m Text
+cssIdentifier = takeWhile1P (Just "identifier")
+                            (\c -> notElem c (" {}=" :: String))
+
+cssValue :: (MonadParsec e Text m)
+         => m Text
+cssValue = takeWhileP (Just "value")
+                      (\c -> notElem c (" {}=" :: String))
+
 codeClass :: (MonadParsec e Text m)
           => m CodeProperty
 codeClass = do
     chunk "."
-    CodeClass <$> some (noneOf " {}")
+    CodeClass <$> cssIdentifier
 -- ------ end
 -- ------ begin <<parse-markdown>>[5]
 codeId :: (MonadParsec e Text m)
        => m CodeProperty
 codeId = do
     chunk "#"
-    CodeId <$> some (noneOf " {}")
+    CodeId <$> cssIdentifier
 -- ------ end
 -- ------ begin <<parse-markdown>>[6]
 codeAttribute :: (MonadParsec e Text m)
               => m CodeProperty
 codeAttribute = do
-    key <- some (noneOf " ={}")
+    key <- cssIdentifier
     chunk "="
-    value <- some (noneOf " {}")
+    value <- cssValue
     return $ CodeAttribute key value
 -- ------ end
 -- ------ end

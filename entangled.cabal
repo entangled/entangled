@@ -1,15 +1,9 @@
-cabal-version: 1.12
-
--- This file has been generated from package.yaml by hpack version 0.32.0.
---
--- see: https://github.com/sol/hpack
---
--- hash: b88ae7dc46b573a89c5d0cffa6625b740e68bc11a9c69513d6e55103cb2ed333
+cabal-version: 2.2
 
 name:           entangled
-version:        0.2.0.0
+version:        1.0.0.0
 synopsis:       bi-directional tangle daemon for literate programming
-description:    Makes literate programming easier. EnTangleD allows you to write programs as code blocks in a markdown file. These code blocks are tangled into compilable source files whenever you write the markdown files. The other way around, if you change any of the generated source files, the markdown is updated to match the changes. This way, you can still use your editor, debugger or IDE on the generated code.
+description:    Please see the README on GitHub at <https://github.com/jhidding/entangled#readme>
 category:       Development
 homepage:       https://jhidding.github.io/enTangleD
 bug-reports:    https://github.com/jhidding/enTangleD/issues
@@ -35,116 +29,78 @@ source-repository head
   type: git
   location: https://github.com/jhidding/enTangleD
 
+common deps
+  build-depends:
+      array >=0.5 && <1
+    , base >=4.7 && <5
+    , containers >=0.5.9 && <0.7
+    , directory >=1.3 && <2
+    , either >=5 && <6
+    , extra >=1.6 && <2
+    , filepath >=1.4 && <2
+    , fsnotify >=0.3 && <0.4
+    , megaparsec >=7.0 && <8
+    , microlens-platform >=0.3 && <0.4
+    , mtl >=2.2 && <3
+    , prettyprinter >=1.2 && <2
+    , prettyprinter-ansi-terminal >=1.1 && <2
+    , random >=1.0 && <2
+    , regex-tdfa >=1.2 && <2
+    , regex-tdfa-text
+    , terminal-size >=0.3 && <1
+    , text >=1.2 && <2
+    , time >=1.8 && <2
+    , tomland >=1.2 && <2
+    , uuid >=1.3 && <2
+  default-extensions: OverloadedStrings FlexibleContexts FlexibleInstances RecordWildCards TypeFamilies GeneralizedNewtypeDeriving
+
 library
+  import: deps
   exposed-modules:
+      Config
+      Document
+      Tangle
       Console
       ListStream
   other-modules:
       Paths_entangled
+  autogen-modules:
+      Paths_entangled
   hs-source-dirs:
       src
-  build-depends:
-      array >=0.5 && <1
-    , base >=4.7 && <5
-    , containers >=0.5.9 && <0.7
-    , directory >=1.3 && <2
-    , either >=5 && <6
-    , extra >=1.6 && <2
-    , filepath >=1.4 && <2
-    , fsnotify >=0.3 && <0.4
-    , hspec >=2.5 && <3
-    , megaparsec >=7.0 && <8
-    , microlens-platform >=0.3 && <0.4
-    , mtl >=2.2 && <3
-    , optparse-applicative >=0.14 && <0.15
-    , parsec >=3 && <4
-    , parser-combinators >=1.0 && <2
-    , prettyprinter >=1.2 && <2
-    , prettyprinter-ansi-terminal >=1.1 && <2
-    , random >=1.0 && <2
-    , regex-tdfa >=1.2 && <2
-    , regex-tdfa-text
-    , terminal-size >=0.3 && <1
-    , text >=1.2 && <2
-    , time >=1.8 && <2
-    , tomland >=1.2 && <2
-    , uuid >=1.3 && <2
+  default-extensions: OverloadedStrings FlexibleContexts FlexibleInstances RecordWildCards TypeFamilies GeneralizedNewtypeDeriving
   default-language: Haskell2010
 
 executable entangled
+  import: deps
   main-is: Main.hs
   other-modules:
-      Config
-      Document
-      Tangle
+      Paths_entangled
+  autogen-modules:
       Paths_entangled
   hs-source-dirs:
       app
+  default-extensions: OverloadedStrings FlexibleContexts FlexibleInstances RecordWildCards TypeFamilies GeneralizedNewtypeDeriving
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      array >=0.5 && <1
-    , base >=4.7 && <5
-    , containers >=0.5.9 && <0.7
-    , directory >=1.3 && <2
-    , either >=5 && <6
-    , entangled
-    , extra >=1.6 && <2
-    , filepath >=1.4 && <2
-    , fsnotify >=0.3 && <0.4
-    , hspec >=2.5 && <3
-    , megaparsec >=7.0 && <8
-    , microlens-platform >=0.3 && <0.4
-    , mtl >=2.2 && <3
-    , optparse-applicative >=0.14 && <0.15
-    , parsec >=3 && <4
-    , parser-combinators >=1.0 && <2
-    , prettyprinter >=1.2 && <2
-    , prettyprinter-ansi-terminal >=1.1 && <2
-    , random >=1.0 && <2
-    , regex-tdfa >=1.2 && <2
-    , regex-tdfa-text
-    , terminal-size >=0.3 && <1
-    , text >=1.2 && <2
-    , time >=1.8 && <2
-    , tomland >=1.2 && <2
-    , uuid >=1.3 && <2
+      entangled
+    , optparse-applicative >=0.15 && <0.16
   default-language: Haskell2010
 
 test-suite entangled-test
+  import: deps
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
       ListStreamSpec
+      TangleSpec
       Paths_entangled
   hs-source-dirs:
       test
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O0
   build-depends:
-      QuickCheck >=2.13 && <3
-    , array >=0.5 && <1
-    , base >=4.7 && <5
-    , containers >=0.5.9 && <0.7
-    , directory >=1.3 && <2
-    , either >=5 && <6
     , entangled
-    , extra >=1.6 && <2
-    , filepath >=1.4 && <2
-    , fsnotify >=0.3 && <0.4
+    , QuickCheck >=2.13 && <3
     , hspec >=2.5 && <3
-    , megaparsec >=7.0 && <8
-    , microlens-platform >=0.3 && <0.4
-    , mtl >=2.2 && <3
-    , optparse-applicative >=0.14 && <0.15
-    , parsec >=3 && <4
-    , parser-combinators >=1.0 && <2
-    , prettyprinter >=1.2 && <2
-    , prettyprinter-ansi-terminal >=1.1 && <2
-    , random >=1.0 && <2
-    , regex-tdfa >=1.2 && <2
-    , regex-tdfa-text
-    , terminal-size >=0.3 && <1
-    , text >=1.2 && <2
-    , time >=1.8 && <2
-    , tomland >=1.2 && <2
-    , uuid >=1.3 && <2
+    , hspec-megaparsec >=2.0 && <3
   default-language: Haskell2010

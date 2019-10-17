@@ -1,6 +1,4 @@
 -- ------ language="Haskell" file="src/ListStream.hs"
-{-# LANGUAGE RecordWildCards, TypeFamilies, GeneralizedNewtypeDeriving #-}
-
 module ListStream where
 
 import Text.Megaparsec (Stream (..), PosState (..), SourcePos (..), mkPos, unPos)

@@ -1,6 +1,4 @@
--- ------ language="Haskell" file="app/Document.hs"
-{-# LANGUAGE OverloadedStrings #-}
-
+-- ------ language="Haskell" file="src/Document.hs"
 module Document where
 
 -- ------ begin <<import-text>>[0]

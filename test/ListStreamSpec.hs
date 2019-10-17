@@ -9,9 +9,6 @@ import Data.Void
 
 import ListStream
 
---  testParser :: (Eq a, Show s) => Parsec e s a -> s -> a -> Expectation
--- testParser p input expected = (parse p "" input) `shouldBe` Right expected
-
 -- ------ begin <<list-stream-props>>[0]
 prop_parser :: (Eq a) => Parsec e s a -> s -> a -> Bool
 prop_parser p input expected = success (parse p "" input)

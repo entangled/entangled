@@ -3,8 +3,6 @@
 Megaparsec is considered to be preferable over older Parsec. It is a bit more work to parse different things than strings though. We will be parsing lists of items.
 
 ``` {.haskell file=src/ListStream.hs}
-{-# LANGUAGE RecordWildCards, TypeFamilies, GeneralizedNewtypeDeriving #-}
-
 module ListStream where
 
 import Text.Megaparsec (Stream (..), PosState (..), SourcePos (..), mkPos, unPos)
@@ -94,9 +92,6 @@ import Text.Megaparsec
 import Data.Void
 
 import ListStream
-
---  testParser :: (Eq a, Show s) => Parsec e s a -> s -> a -> Expectation
--- testParser p input expected = (parse p "" input) `shouldBe` Right expected
 
 <<list-stream-props>>
 

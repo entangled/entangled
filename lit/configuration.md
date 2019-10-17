@@ -1,8 +1,6 @@
 # Configuration
 
-``` {.haskell file=app/Config.hs}
-{-# LANGUAGE OverloadedStrings #-}
-
+``` {.haskell file=src/Config.hs}
 module Config where
 
 <<import-text>>
@@ -10,6 +8,7 @@ module Config where
 import qualified Toml
 import Toml (TomlCodec, (.=))
 import Data.Function (on)
+import Data.List (find)
 import Control.Applicative ((<|>))
 
 <<config-types>>
@@ -17,6 +16,7 @@ import Control.Applicative ((<|>))
 <<config-monoid>>
 <<config-defaults>>
 <<config-input>>
+<<config-reader>>
 ```
 
 Configuration can be stored in `${XDG_CONFIG_HOME}/entangled/config.toml`. Also the local directory or its parents may contain a `.entangled.toml` file. These override settings in the global configuration.
@@ -92,6 +92,8 @@ configCodec = Config
 ```
 
 We need to be able to stack configurations, so we implement `Monoid` on `Config`. There is a generic way of doing this using `GHC.Generic`, `DeriveGeneric` language extension and `Generic.Data` module. For the moment this would be a bit overkill.
+
+> Tip from Merijn: put the maybes in a `First`/`Last`/`Alt` instance. This will enforce `<|>` behaviour on the monoid being used.
 
 ``` {.haskell #config-monoid}
 instance Semigroup Entangled where
@@ -174,7 +176,7 @@ readGlobalConfig = return mempty
 ``` {.haskell #config-reader}
 lookupLanguage :: Text -> Config -> Maybe Language
 lookupLanguage x cfg
-    = find (elem x . languageAbbreviations) 
+    = find (elem x . languageIdentifiers) 
     $ configLanguages cfg
 
 languageFromName :: Text -> Config -> Maybe Language

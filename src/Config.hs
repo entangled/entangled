@@ -1,6 +1,4 @@
--- ------ language="Haskell" file="app/Config.hs"
-{-# LANGUAGE OverloadedStrings #-}
-
+-- ------ language="Haskell" file="src/Config.hs"
 module Config where
 
 -- ------ begin <<import-text>>[0]
@@ -14,6 +12,7 @@ import Data.Set (Set)
 import qualified Toml
 import Toml (TomlCodec, (.=))
 import Data.Function (on)
+import Data.List (find)
 import Control.Applicative ((<|>))
 
 -- ------ begin <<config-types>>[0]
@@ -117,5 +116,16 @@ readLocalConfig = return mempty
 
 readGlobalConfig :: IO Config
 readGlobalConfig = return mempty
+-- ------ end
+-- ------ begin <<config-reader>>[0]
+lookupLanguage :: Text -> Config -> Maybe Language
+lookupLanguage x cfg
+    = find (elem x . languageIdentifiers) 
+    $ configLanguages cfg
+
+languageFromName :: Text -> Config -> Maybe Language
+languageFromName x cfg
+    = find ((== x) . languageName)
+    $ configLanguages cfg
 -- ------ end
 -- ------ end

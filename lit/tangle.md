@@ -1,20 +1,18 @@
 # Tangling
 
-``` {.haskell file=app/Tangle.hs}
-{-# LANGUAGE OverloadedStrings,FlexibleContexts #-}
-
+``` {.haskell file=src/Tangle.hs}
 module Tangle where
 
 <<import-text>>
 <<import-megaparsec>>
 
-import Control.Monad.Reader (MonadReader)
+import Control.Monad.Reader (MonadReader, reader)
 
 import ListStream (ListStream (..))
 import Document
     ( CodeProperty (..), CodeBlock (..), Content (..), ReferenceId (..)
     , ReferencePair, ProgrammingLanguage (..), unlines')
-import Config (Config, languageName)
+import Config (Config, languageName, lookupLanguage)
 
 <<parse-markdown>>
 ```
@@ -115,14 +113,15 @@ codeBlock :: ( MonadParsec e (ListStream Text) m,
                MonadReader Config m )
           => m ([Content], [ReferencePair])
 codeBlock = do
-    (begin, props) <- tokenLine (parseLine codeHeader)
-    code           <- unlines' <$> manyTill (anySingle <?> "code line")
-                                            (try $ lookAhead $ tokenLine (parseLine codeFooter))
-    (end, _)       <- tokenLine (parseLine codeFooter)
+    (props, begin) <- tokenLine (parseLine codeHeader)
+    code           <- unlines' 
+                   <$> manyTill (anySingle <?> "code line")
+                                (try $ lookAhead $ tokenLine (parseLine codeFooter))
+    (_, end)       <- tokenLine (parseLine codeFooter)
     language       <- getLanguage props
     return $ case getReference props of
         Nothing  -> ( [ PlainText $ unlines' [begin, code, end] ], [] )
-        Just ref -> ( [ PlainText begin, ref, PlainText end ]
+        Just ref -> ( [ PlainText begin, Reference ref, PlainText end ]
                     , [ ( ref, CodeBlock language props code ) ] )
 
 normalText :: ( MonadParsec e (ListStream Text) m )
@@ -139,7 +138,7 @@ getLanguage :: ( MonadReader Config m )
             => [CodeProperty] -> m ProgrammingLanguage
 getLanguage [] = return NoLanguage
 getLanguage (CodeClass cls : _)
-    = maybe (UnknownLanguage cls) 
+    = maybe (UnknownClass cls) 
             (KnownLanguage . languageName)
             <$> reader (lookupLanguage cls)
 getLanguage (_ : xs) = getLanguage xs
@@ -157,11 +156,21 @@ getReference (_:xs) = getReference xs
 A class starts with a period (`.`), and cannot contain spaces or curly braces.
 
 ``` {.haskell #parse-markdown}
+cssIdentifier :: (MonadParsec e Text m)
+              => m Text
+cssIdentifier = takeWhile1P (Just "identifier")
+                            (\c -> notElem c (" {}=" :: String))
+
+cssValue :: (MonadParsec e Text m)
+         => m Text
+cssValue = takeWhileP (Just "value")
+                      (\c -> notElem c (" {}=" :: String))
+
 codeClass :: (MonadParsec e Text m)
           => m CodeProperty
 codeClass = do
     chunk "."
-    CodeClass <$> some (noneOf " {}")
+    CodeClass <$> cssIdentifier
 ```
 
 #### id
@@ -172,7 +181,7 @@ codeId :: (MonadParsec e Text m)
        => m CodeProperty
 codeId = do
     chunk "#"
-    CodeId <$> some (noneOf " {}")
+    CodeId <$> cssIdentifier
 ```
 
 #### attribute
@@ -182,9 +191,88 @@ An generic attribute is written as key-value-pair, separated by an equals sign (
 codeAttribute :: (MonadParsec e Text m)
               => m CodeProperty
 codeAttribute = do
-    key <- some (noneOf " ={}")
+    key <- cssIdentifier
     chunk "="
-    value <- some (noneOf " {}")
+    value <- cssValue
     return $ CodeAttribute key value
+```
+
+
+## Testing
+
+``` {.haskell file=test/TangleSpec.hs}
+module TangleSpec where
+
+import Test.Hspec
+import Test.Hspec.Megaparsec
+
+<<import-text>>
+
+import Tangle
+import Document
+    ( CodeProperty(..)
+    , Content(..)
+    , ReferenceId(..)
+    , ProgrammingLanguage(..)
+    , CodeBlock(..) )
+import Config (Config, defaultConfig)
+import ListStream
+
+import Text.Megaparsec (parse, Parsec)
+import Text.Megaparsec.Error (ParseErrorBundle)
+import Data.Void (Void)
+import Control.Monad.Reader (ReaderT, runReaderT)
+
+type Parser = Parsec Void Text
+
+p :: Parser a -> Text -> Either (ParseErrorBundle Text Void) a
+p x t = parse x "" t
+
+type ParserC = ReaderT Config (Parsec Void (ListStream Text))
+
+pc :: ParserC a -> ListStream Text -> Either (ParseErrorBundle (ListStream Text) Void) a
+pc x t = parse (runReaderT x defaultConfig) "" t
+
+tangleSpec :: Spec
+tangleSpec = do
+    describe "Parsing fenced code attributes" $ do
+        it "parses a class" $ do
+            p codeClass ".hello" `shouldParse` CodeClass "hello"
+            p codeClass `shouldFailOn` "nodot"
+            p codeClass `shouldFailOn` ".===="
+        it "parses an id" $ do
+            p codeId "#world" `shouldParse` CodeId "world"
+            p codeId `shouldFailOn` "nosharp"
+            p codeId `shouldFailOn` "#{}{}{"
+        it "parses an attribute" $ do
+            p codeAttribute "file=hello.c" `shouldParse` CodeAttribute "file" "hello.c"
+            p codeAttribute "empty= value" `shouldParse` CodeAttribute "empty" ""
+            p codeAttribute `shouldFailOn` "{}="
+        it "parses a header" $ do
+            p codeHeader "``` {.class #id key=value}" `shouldParse`
+                [CodeClass "class", CodeId "id", CodeAttribute "key" "value"]
+            p codeHeader `shouldFailOn` "``` {key==blah}"
+            p codeHeader `shouldFailOn` "``` {key}"
+        it "respects and disrespects whitespace where needed" $ do
+            p codeHeader "```{}" `shouldParse` []
+            p codeHeader "```   {}  " `shouldParse` []
+            p codeHeader `shouldFailOn` "   ```{}"
+
+    describe "Parsing a code block" $ do
+        let test1 = ListStream
+                    [ "``` {.python #hello-world}"
+                    , "print(\"Hello, World!\")"
+                    , "```" ]
+        it "parses a code block" $ do
+            pc codeBlock test1 `shouldParse`
+                ( [ PlainText "``` {.python #hello-world}"
+                  , Reference (NameReferenceId "hello-world" 0)
+                  , PlainText "```" ]
+                , [ ( NameReferenceId "hello-world" 0
+                    , CodeBlock (KnownLanguage "Python")
+                                [CodeClass "python", CodeId "hello-world"]
+                                "print(\"Hello, World!\")"
+                    ) ]
+                )
 ```
 

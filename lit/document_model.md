@@ -1,8 +1,6 @@
 # Document structure
 
-``` {.haskell file=app/Document.hs}
-{-# LANGUAGE OverloadedStrings #-}
-
+``` {.haskell file=src/Document.hs}
 module Document where
 
 <<import-text>>

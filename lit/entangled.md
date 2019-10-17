@@ -49,7 +49,7 @@ All parsing will be done through megaparsec.
 import Text.Megaparsec
     ( MonadParsec, Parsec, parse
     , noneOf, chunk, many, some, endBy, eof, token
-    , manyTill, anySingle, try, lookAhead
+    , manyTill, anySingle, try, lookAhead, takeWhile1P, takeWhileP
     , (<|>), (<?>) )
 import Text.Megaparsec.Char
     ( space )
