@@ -22,6 +22,7 @@ import Document
 import Config (Config, languageName, lookupLanguage)
 
 <<parse-markdown>>
+<<generate-code>>
 ```
 
 The task of tangling means:
@@ -75,7 +76,7 @@ Any code block is one of the following:
 
 * An **ignored** block: anything not matching the previous two.
 
-## Parsing single lines
+### Parsing single lines
 
 Written using parser combinators.
 
@@ -96,7 +97,7 @@ codeFooter :: (MonadParsec e Text m)
 codeFooter = chunk "```" >> space >> eof
 ```
 
-### class
+#### class
 A class starts with a period (`.`), and cannot contain spaces or curly braces.
 
 ``` {.haskell #parse-markdown}
@@ -117,7 +118,7 @@ codeClass = do
     CodeClass <$> cssIdentifier
 ```
 
-### id
+#### id
 An id starts with a hash (`#`), and cannot contain spaces or curly braces.
 
 ``` {.haskell #parse-markdown}
@@ -128,7 +129,7 @@ codeId = do
     CodeId <$> cssIdentifier
 ```
 
-### attribute
+#### attribute
 An generic attribute is written as key-value-pair, separated by an equals sign (`=`). Again no spaces or curly braces are allowed inside.
 
 ``` {.haskell #parse-markdown}
@@ -141,7 +142,7 @@ codeAttribute = do
     return $ CodeAttribute key value
 ```
 
-## Extracting data from a list of `CodeProperty`
+### Extracting data from a list of `CodeProperty`
 
 In case the language is not given, or is misspelled, the system should be aware of that, so we can give an error message or warning.
 
@@ -189,9 +190,9 @@ getFileMap = M.fromList . catMaybes . map filePair
               return (path, referenceName ref)
 ```
 
-## References
+### References
 
-To build up the `ReferenceMap` we define `SemiReference` and `SemiReferencePair`.
+To build up the `ReferenceMap` we define `ReferenceCount`.
 
 ``` {.haskell #parse-markdown}
 type ReferencePair = (ReferenceId, CodeBlock)
@@ -210,7 +211,7 @@ newReference :: ( MonadState ReferenceCount m )
 newReference n = ReferenceId n <$> countReference n
 ```
 
-## Parsing the document
+### Parsing the document
 
 Using these two parsers, we can create a larger parser that works on a line-by-line basis. We define several helpers to create a parser for `ListStream Text` using single line parsers for `Text`.
 
@@ -273,8 +274,151 @@ parseMarkdown f t = do
                      (getFileMap refs)
 ```
 
-### Parsing a code header
+## Generating output files
 
+
+### Indentation
+Tangling is indentation sensitive. Given two code blocks
+
+~~~markdown
+ ``` {.python #multiply}
+ x *= i
+ ```
+
+ ``` {.python #factorial}
+ x = 1
+ for i in range(n):
+    <<multiply>>
+ ```
+~~~
+
+We should get the code
+
+``` {.python}
+x = 1
+for i in range(n):
+    x *= i
+```
+
+Indentation is done by `lines` $\to$ `map (append indent)` $\to$ `unlines`, with the distinction that empty lines are not indented, and that the inverse of `lines` is `unlines'`, which doesn't append a final newline.
+
+``` {.haskell #generate-code}
+indent :: Text -> Text -> Text
+indent pre text
+    = unlines' 
+    $ map indentLine
+    $ T.lines text
+    where indentLine line
+        | line == "" = line
+        | otherwise  = T.append (T.pack indent) line
+```
+
+### Preventing loops
+We don't want code blocks refering to themselves.
+
+``` {.haskell #generate-code}
+data Source = SourceText Text
+            | NowebReference ReferenceName Text
+            deriving (Eq, Show)
+
+type CodeParser = Parsec Void Text
+
+type History = [ReferenceId]
+type Expander = History -> ReferenceId -> Either EntangledError Text
+```
+
+We try to parse every line in a code block as a *noweb* reference. If that fails, the line is accepted as normal source text. A *noweb* reference should stand alone on a line, maybe indented with white space. Space at the end of the line is ignored.
+
+    +--- indentation ---+--- reference  ----+--- possible space ---+
+                        <<no-spaces-alowed>>
+
+``` {.haskell #generate-code}
+nowebReference :: CodeParser Source
+nowebReference = do
+    indent <- space
+    string "<<"
+    id <- takeWhile1P Nothing (`notElem` " \t<>")
+    string ">>"
+    space >> eof
+    return $ NowebReference (ReferenceName id) indent
+
+parseCode :: Text -> [Source]
+parseCode = map parseLine . T.lines
+    where parseLine l = either (const $ SourceText l) id
+                      $ parse nowebReference "" l
+```
+
+``` {.haskell #generate-code}
+codeLineToString :: ReferenceMap 
+                 -> Expander 
+                 -> History
+                 -> Source
+                 -> Either EntangledError Text
+codeLineToString _ _ _ (SourceText x) = Right $ T.pack x
+codeLineToString refs e h (NowebReference r i) = 
+    addIndent i . T.concat <$> mapM (e h) (allNameReferences r refs)
+
+codeListToString :: ReferenceMap -> Expander -> History -> [Source] -> Either TangleError T.Text
+codeListToString refs e h srcs = T.unlines <$> mapM (codeLineToString refs e h) srcs
+
+expandGeneric :: Expander -> (CodeBlock -> Either TangleError T.Text) -> ReferenceMap -> History -> ReferenceId -> Either TangleError T.Text
+expandGeneric e codeToText refs h id = do
+    when (id `elem` h) $ Left $ CyclicReference $ show id ++ " in " ++ show h
+    codeBlock <- maybeToEither 
+        (TangleError $ "Reference " ++ show id ++ " not found.")
+        (refs Map.!? id)
+    text <- codeToText codeBlock
+    parsedCode <- parseCode id $ T.unpack text ++ "\n"
+    codeListToString refs e (id : h) parsedCode
+
+expandNaked :: ReferenceMap -> History -> ReferenceId -> Either TangleError T.Text
+expandNaked refs = expandGeneric (expandNaked refs) (Right . codeSource) refs
+
+tangleNaked :: Document -> FileMap
+tangleNaked (Document refs _) = Map.fromList $ zip fileNames sources
+    where fileRefs  = filter isFileReference (Map.keys refs)
+          sources   = map (expandNaked refs []) fileRefs
+          fileNames = map referenceName fileRefs
+
+{- Annotated tangle -}
+topAnnotation :: ReferenceId -> String -> String -> String -> String
+topAnnotation (NameReferenceId n i) comment close lang =
+    comment ++ " begin <<" ++ n ++ ">>[" ++ show i ++ "]" ++ close
+topAnnotation (FileReferenceId n) comment close lang =
+    comment ++ " language=\"" ++ lang ++ "\" file=\"" ++ n ++ "\"" ++ close
+
+lookupLanguage' :: (MonadReader Config m)
+        => String -> m (Either TangleError Language)
+lookupLanguage' name = do
+    lang <- reader $ languageFromName name
+    case lang of
+        Nothing -> return $ Left $ TangleError $ "unknown language: " ++ name
+        Just l  -> return $ Right l
+
+annotate :: (MonadReader Config m)
+        => ReferenceId -> CodeBlock -> m (Either TangleError T.Text)
+annotate id (CodeBlock lang _ text) = do
+    l <- lookupLanguage' lang
+    return $ do 
+        (Language _ _ comment close) <- l
+        let top      = T.pack $ topAnnotation id comment close lang
+            bottom   = T.pack $ comment ++ " end" ++ close
+        return $ top <> T.pack "\n" <> text <> T.pack "\n" <> bottom
+
+expandAnnotated :: (MonadReader Config m)
+        => ReferenceMap -> History -> ReferenceId -> m (Either TangleError T.Text)
+expandAnnotated refs h id = do
+    cfg <- ask
+    return $ expandGeneric (\h' id' -> runReader (expandAnnotated refs h' id') cfg)
+                           (\cb -> runReader (annotate id cb) cfg) refs h id
+
+tangleAnnotated :: (MonadReader Config m) => ReferenceMap -> m FileMap
+tangleAnnotated refs = do
+    let fileRefs  = filter isFileReference (Map.keys refs)
+        fileNames = map referenceName fileRefs
+    sources <- mapM (expandAnnotated refs []) fileRefs
+    return $ Map.fromList $ zip fileNames sources
+```
 
 ## Testing
 
