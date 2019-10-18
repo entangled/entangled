@@ -19,7 +19,7 @@ Because our instance will overlap with that of `[Char] = String` we'll have to w
 
 ``` {.haskell #instance-list-stream}
 newtype ListStream a = ListStream { unListStream :: [a] }
-    deriving (Foldable, Semigroup, Monoid, Functor, Applicative, Monad)
+    deriving (Show, Foldable, Semigroup, Monoid, Functor, Applicative, Monad)
 
 instance (Eq a, Ord a, Show a) => Stream (ListStream a) where
     <<list-stream-associated-types>>

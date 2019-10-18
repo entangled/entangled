@@ -6,7 +6,7 @@ import Data.Proxy (Proxy (..))
 
 -- ------ begin <<instance-list-stream>>[0]
 newtype ListStream a = ListStream { unListStream :: [a] }
-    deriving (Foldable, Semigroup, Monoid, Functor, Applicative, Monad)
+    deriving (Show, Foldable, Semigroup, Monoid, Functor, Applicative, Monad)
 
 instance (Eq a, Ord a, Show a) => Stream (ListStream a) where
     -- ------ begin <<list-stream-associated-types>>[0]

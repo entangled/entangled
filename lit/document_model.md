@@ -7,6 +7,7 @@ module Document where
 <<import-map>>
 import Data.Maybe (mapMaybe)
 
+<<entangled-error>>
 <<document-utils>>
 <<document-structure>>
 ```
@@ -38,29 +39,34 @@ A document is modelled as a series of text and code blocks. A code block is deli
  ```
 ~~~
 
-Each code block that is of relevance to Entangled has a reference attached. This is either the `file` attribute,
+Each code block that is of relevance to Entangled has a reference attached.
 
 ~~~
- ``` {.language file=filename}
+ ``` {.language #<reference>}
  ```
 ~~~
 
-or an identifier.
+and possibly, a filename.
 
 ~~~
- ``` {.language #identifier}
+ ``` {.language #<reference> file=<path>}
  ```
 ~~~
 
-An identifier may be repeated, in which case the code block is concatenated to the previous instances. Each instance will have an associated integer marking the place in the sequence. 
+An identifier may be repeated, in which case the code block is concatenated to the previous instances. Each instance will have an associated integer marking the place in the sequence.
 
 ### Reference Id
 We define the type `ReferenceId`.
 
 ``` {.haskell #document-structure}
-data ReferenceId = FileReferenceId Text
-                 | NameReferenceId Text Int
-                 deriving (Show, Eq, Ord)
+newtype ReferenceName = ReferenceName
+    { unReferenceName :: Text
+    } deriving (Show, Eq, Ord)
+
+data ReferenceId = ReferenceId
+    { referenceName :: ReferenceName
+    , referenceCount :: Int
+    } deriving (Show, Eq, Ord)
 ```
 
 The type is deriving `Ord`, so that we can use it as an index for a `Map`.
@@ -75,39 +81,19 @@ data Content
     | Reference ReferenceId
     deriving (Show, Eq)
 
-type ReferencePair = (ReferenceId, CodeBlock)
 type ReferenceMap = Map ReferenceId CodeBlock
+type FileMap = Map FilePath ReferenceName
 
 data Document = Document
     { references      :: ReferenceMap
     , documentContent :: [Content]
+    , files           :: FileMap
     } deriving (Show)
 ```
 
 ### Accessors
 
 ``` {.haskell #document-structure}
-referenceName :: ReferenceId -> Maybe Text
-referenceName (FileReferenceId _) = Nothing
-referenceName (NameReferenceId n _) = Just n
-
-allNameReferences :: Text -> ReferenceMap -> [ReferenceId]
-allNameReferences name = filter ((== Just name) . referenceName) . M.keys
-
-countReferences :: Text -> ReferenceMap -> Int
-countReferences name refs = length $ allNameReferences name refs
-
-isFileReference :: ReferenceId -> Bool
-isFileReference (FileReferenceId _) = True
-isFileReference _ = False
-
-listFiles :: Document -> [ReferenceId]
-listFiles (Document refs _) = filter isFileReference $ M.keys refs
-
-listActiveReferences :: Document -> [ReferenceId]
-listActiveReferences doc = mapMaybe getReference (documentContent doc)
-    where getReference (PlainText _) = Nothing
-          getReference (Reference r) = Just r
 ```
 
 ### Code blocks

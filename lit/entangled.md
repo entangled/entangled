@@ -55,3 +55,12 @@ import Text.Megaparsec.Char
     ( space )
 import Data.Void
 ```
+
+## Errors
+
+``` {.haskell #entangled-error}
+data EntangledError
+    = TangleError Text
+    | UnknownError
+    deriving (Show)
+```

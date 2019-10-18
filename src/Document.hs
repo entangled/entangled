@@ -11,14 +11,25 @@ import Data.Map.Strict (Map)
 -- ------ end
 import Data.Maybe (mapMaybe)
 
+-- ------ begin <<entangled-error>>[0]
+data EntangledError
+    = TangleError Text
+    | UnknownError
+    deriving (Show)
+-- ------ end
 -- ------ begin <<document-utils>>[0]
 unlines' :: [Text] -> Text
 unlines' = T.intercalate "\n"
 -- ------ end
 -- ------ begin <<document-structure>>[0]
-data ReferenceId = FileReferenceId Text
-                 | NameReferenceId Text Int
-                 deriving (Show, Eq, Ord)
+newtype ReferenceName = ReferenceName
+    { unReferenceName :: Text
+    } deriving (Show, Eq, Ord)
+
+data ReferenceId = ReferenceId
+    { referenceName :: ReferenceName
+    , referenceCount :: Int
+    } deriving (Show, Eq, Ord)
 -- ------ end
 -- ------ begin <<document-structure>>[1]
 data Content
@@ -26,36 +37,17 @@ data Content
     | Reference ReferenceId
     deriving (Show, Eq)
 
-type ReferencePair = (ReferenceId, CodeBlock)
 type ReferenceMap = Map ReferenceId CodeBlock
+type FileMap = Map FilePath ReferenceName
 
 data Document = Document
     { references      :: ReferenceMap
     , documentContent :: [Content]
+    , files           :: FileMap
     } deriving (Show)
 -- ------ end
 -- ------ begin <<document-structure>>[2]
-referenceName :: ReferenceId -> Maybe Text
-referenceName (FileReferenceId _) = Nothing
-referenceName (NameReferenceId n _) = Just n
 
-allNameReferences :: Text -> ReferenceMap -> [ReferenceId]
-allNameReferences name = filter ((== Just name) . referenceName) . M.keys
-
-countReferences :: Text -> ReferenceMap -> Int
-countReferences name refs = length $ allNameReferences name refs
-
-isFileReference :: ReferenceId -> Bool
-isFileReference (FileReferenceId _) = True
-isFileReference _ = False
-
-listFiles :: Document -> [ReferenceId]
-listFiles (Document refs _) = filter isFileReference $ M.keys refs
-
-listActiveReferences :: Document -> [ReferenceId]
-listActiveReferences doc = mapMaybe getReference (documentContent doc)
-    where getReference (PlainText _) = Nothing
-          getReference (Reference r) = Just r
 -- ------ end
 -- ------ begin <<document-structure>>[3]
 data CodeProperty

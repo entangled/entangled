@@ -14,6 +14,7 @@ import Document
     ( CodeProperty(..)
     , Content(..)
     , ReferenceId(..)
+    , ReferenceName(..)
     , ProgrammingLanguage(..)
     , CodeBlock(..) )
 import Config (Config, defaultConfig)
@@ -23,16 +24,17 @@ import Text.Megaparsec (parse, Parsec)
 import Text.Megaparsec.Error (ParseErrorBundle)
 import Data.Void (Void)
 import Control.Monad.Reader (ReaderT, runReaderT)
+import Control.Monad.State (StateT, evalStateT)
 
 type Parser = Parsec Void Text
 
 p :: Parser a -> Text -> Either (ParseErrorBundle Text Void) a
 p x t = parse x "" t
 
-type ParserC = ReaderT Config (Parsec Void (ListStream Text))
+type ParserC = StateT ReferenceCount (ReaderT Config (Parsec Void (ListStream Text)))
 
 pc :: ParserC a -> ListStream Text -> Either (ParseErrorBundle (ListStream Text) Void) a
-pc x t = parse (runReaderT x defaultConfig) "" t
+pc x t = parse (runReaderT (evalStateT x mempty) defaultConfig) "" t
 
 tangleSpec :: Spec
 tangleSpec = do
@@ -67,9 +69,9 @@ tangleSpec = do
         it "parses a code block" $ do
             pc codeBlock test1 `shouldParse`
                 ( [ PlainText "``` {.python #hello-world}"
-                  , Reference (NameReferenceId "hello-world" 0)
+                  , Reference $ ReferenceId (ReferenceName "hello-world") 0
                   , PlainText "```" ]
-                , [ ( NameReferenceId "hello-world" 0
+                , [ ( ReferenceId (ReferenceName "hello-world") 0
                     , CodeBlock (KnownLanguage "Python")
                                 [CodeClass "python", CodeId "hello-world"]
                                 "print(\"Hello, World!\")"
