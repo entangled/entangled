@@ -5,6 +5,7 @@ module Tangle where
 
 <<import-text>>
 <<import-map>>
+<<import-lazy-map>>
 
 <<import-megaparsec>>
 
@@ -152,7 +153,7 @@ getLanguage :: ( MonadReader Config m )
 getLanguage [] = return NoLanguage
 getLanguage (CodeClass cls : _)
     = maybe (UnknownClass cls) 
-            (KnownLanguage . languageName)
+            KnownLanguage
             <$> reader (lookupLanguage cls)
 getLanguage (_ : xs) = getLanguage xs
 ```
@@ -313,18 +314,12 @@ indent pre text
         | otherwise  = T.append (T.pack indent) line
 ```
 
-### Preventing loops
-We don't want code blocks refering to themselves.
-
 ``` {.haskell #generate-code}
-data Source = SourceText Text
-            | NowebReference ReferenceName Text
-            deriving (Eq, Show)
+data CodeLine = PlainCode Text
+              | NowebReference ReferenceName Text
+              deriving (Eq, Show)
 
 type CodeParser = Parsec Void Text
-
-type History = [ReferenceId]
-type Expander = History -> ReferenceId -> Either EntangledError Text
 ```
 
 We try to parse every line in a code block as a *noweb* reference. If that fails, the line is accepted as normal source text. A *noweb* reference should stand alone on a line, maybe indented with white space. Space at the end of the line is ignored.
@@ -332,8 +327,10 @@ We try to parse every line in a code block as a *noweb* reference. If that fails
     +--- indentation ---+--- reference  ----+--- possible space ---+
                         <<no-spaces-alowed>>
 
+The function `parseCode` takes the `Text` from a code block and generates a list of `CodeLine`, being either `PlainCode` or `NowebReference`.
+
 ``` {.haskell #generate-code}
-nowebReference :: CodeParser Source
+nowebReference :: CodeParser CodeLine
 nowebReference = do
     indent <- space
     string "<<"
@@ -342,82 +339,80 @@ nowebReference = do
     space >> eof
     return $ NowebReference (ReferenceName id) indent
 
-parseCode :: Text -> [Source]
-parseCode = map parseLine . T.lines
-    where parseLine l = either (const $ SourceText l) id
-                      $ parse nowebReference "" l
+parseCode :: ReferenceName -> Text -> [CodeLine]
+parseCode name = map parseLine . T.lines
+    where parseLine l = either (const $ PlainCode l) id
+                      $ parse nowebReference
+                              (T.unpack $ unReferenceName name)
+                              l
+```
+
+## Code expansion
+
+We don't want code blocks refering to themselves. I used to keep a history of visited `ReferenceId`s to prevent circular dependencies. This part will be moved to a validation stage.
+I now use a lazy map to provide the recursion, which becomes cumbersome if we also have to detect cycles in the dependency graph.
+
+``` {.haskell #generate-code}
+type Dependencies = [ReferenceName]
+type ExpandedCode = LM.Map ReferenceName Text
+type Annotator = Document -> ReferenceId -> Text
+```
+
+We have two types of annotators:
+
+* Naked annotator: creates the output code without annotation. From such an expansion it is not possible to untangle.
+
+* Commenting annotator: adds annotations in comments, from which we can locate the original code block.
+
+``` {.haskell #generate-code}
+expandedCode :: Annotator -> Document -> ExpandedCode
+expandedCode annotate doc = result
+    where result = LM.fromSet (referenceNames doc) expand
+          expand name = unlines'
+                        $ map (expandCodeSource result name)
+                        $ map (annotate doc)
+                        $ referencesByName doc name
+
+expandCodeSource :: ExpandedCode -> ReferenceName -> Text -> Text
+expandCodeSource result name t = codeLinesToText result $ parseCode name t
 ```
 
 ``` {.haskell #generate-code}
-codeLineToString :: ReferenceMap 
-                 -> Expander 
-                 -> History
-                 -> Source
-                 -> Either EntangledError Text
-codeLineToString _ _ _ (SourceText x) = Right $ T.pack x
-codeLineToString refs e h (NowebReference r i) = 
-    addIndent i . T.concat <$> mapM (e h) (allNameReferences r refs)
+codeLineToText :: ExpandedCode -> CodeLine -> Text
+codeLineToText _      (PlainCode x) = Right x
+codeLineToText result (NowebReference name i) = indent i <$> result LM.! name
+```
 
-codeListToString :: ReferenceMap -> Expander -> History -> [Source] -> Either TangleError T.Text
-codeListToString refs e h srcs = T.unlines <$> mapM (codeLineToString refs e h) srcs
+Then multiple lines is just concatenating that.
 
-expandGeneric :: Expander -> (CodeBlock -> Either TangleError T.Text) -> ReferenceMap -> History -> ReferenceId -> Either TangleError T.Text
-expandGeneric e codeToText refs h id = do
-    when (id `elem` h) $ Left $ CyclicReference $ show id ++ " in " ++ show h
-    codeBlock <- maybeToEither 
-        (TangleError $ "Reference " ++ show id ++ " not found.")
-        (refs Map.!? id)
-    text <- codeToText codeBlock
-    parsedCode <- parseCode id $ T.unpack text ++ "\n"
-    codeListToString refs e (id : h) parsedCode
+``` {.haskell #generate-code}
+codeLinesToText :: ExpandedCode -> [CodeLine] -> Text
+codeLinesToText result code = unlines' $ map (codeLineToText result) code
+```
 
-expandNaked :: ReferenceMap -> History -> ReferenceId -> Either TangleError T.Text
-expandNaked refs = expandGeneric (expandNaked refs) (Right . codeSource) refs
+``` {.haskell #generate-code}
+annotateNaked :: Document -> ReferenceId -> Either EntangledError Text
+annotateNaked doc ref = Right $ codeSource $ references doc M.! ref
+```
 
-tangleNaked :: Document -> FileMap
-tangleNaked (Document refs _) = Map.fromList $ zip fileNames sources
-    where fileRefs  = filter isFileReference (Map.keys refs)
-          sources   = map (expandNaked refs []) fileRefs
-          fileNames = map referenceName fileRefs
+``` {.haskell #generate-code}
+comment :: ProgrammingLanguage
+        -> Text
+        -> m (Either EntangledError Text)
+comment (UnknownClass cls) _ = Left $ UnknownLanguageClass cls
+comment NoLanguage         _ = Left $ MissingLanguageClass
+comment (KnownLanguage lang) text = Right $ pre <> text <> post
+    where pre  = languageStartComment lang <> "###"
+          post = "###" <> languageCloseComment lang
 
-{- Annotated tangle -}
-topAnnotation :: ReferenceId -> String -> String -> String -> String
-topAnnotation (NameReferenceId n i) comment close lang =
-    comment ++ " begin <<" ++ n ++ ">>[" ++ show i ++ "]" ++ close
-topAnnotation (FileReferenceId n) comment close lang =
-    comment ++ " language=\"" ++ lang ++ "\" file=\"" ++ n ++ "\"" ++ close
-
-lookupLanguage' :: (MonadReader Config m)
-        => String -> m (Either TangleError Language)
-lookupLanguage' name = do
-    lang <- reader $ languageFromName name
-    case lang of
-        Nothing -> return $ Left $ TangleError $ "unknown language: " ++ name
-        Just l  -> return $ Right l
-
-annotate :: (MonadReader Config m)
-        => ReferenceId -> CodeBlock -> m (Either TangleError T.Text)
-annotate id (CodeBlock lang _ text) = do
-    l <- lookupLanguage' lang
-    return $ do 
-        (Language _ _ comment close) <- l
-        let top      = T.pack $ topAnnotation id comment close lang
-            bottom   = T.pack $ comment ++ " end" ++ close
-        return $ top <> T.pack "\n" <> text <> T.pack "\n" <> bottom
-
-expandAnnotated :: (MonadReader Config m)
-        => ReferenceMap -> History -> ReferenceId -> m (Either TangleError T.Text)
-expandAnnotated refs h id = do
-    cfg <- ask
-    return $ expandGeneric (\h' id' -> runReader (expandAnnotated refs h' id') cfg)
-                           (\cb -> runReader (annotate id cb) cfg) refs h id
-
-tangleAnnotated :: (MonadReader Config m) => ReferenceMap -> m FileMap
-tangleAnnotated refs = do
-    let fileRefs  = filter isFileReference (Map.keys refs)
-        fileNames = map referenceName fileRefs
-    sources <- mapM (expandAnnotated refs []) fileRefs
-    return $ Map.fromList $ zip fileNames sources
+annotateComment :: Document -> ReferenceId -> Either EntangledError Text
+annotateComment doc ref = do
+    let code = references doc M.! ref
+    pre <- comment (codeLanguage code)
+           $ " begin <<" <> (referenceName ref) <> ">>["
+           <> T.pack (show $ referenceCount ref) <> "] "
+    post <- comment (codeLanguage code) " end "
+    return $ unlines' [pre, (codeSource code), post]
 ```
 
 ## Testing

@@ -14,6 +14,9 @@ import Data.Maybe (mapMaybe)
 -- ------ begin <<entangled-error>>[0]
 data EntangledError
     = TangleError Text
+    | CyclicReference Text
+    | UnkownLanguageClass Text
+    | MissingLanguageClass
     | UnknownError
     deriving (Show)
 -- ------ end
@@ -47,7 +50,15 @@ data Document = Document
     } deriving (Show)
 -- ------ end
 -- ------ begin <<document-structure>>[2]
+referenceNames :: Document -> Set ReferenceName
+referenceNames = S.fromList . map referenceName . M.keys . references
 
+referencesByName :: Document -> ReferenceName -> [ReferenceId]
+referencesByName doc name
+    = (sort . filter ((== name) . referenceName) . M.keys . references) doc
+
+codeBlocksByName :: Document -> ReferenceName -> [CodeBlock]
+codeBlocksByName doc name = map (references doc M.!) $ referencesByName doc name
 -- ------ end
 -- ------ begin <<document-structure>>[3]
 data CodeProperty
@@ -65,7 +76,7 @@ data CodeBlock = CodeBlock
 -- ------ end
 -- ------ begin <<document-structure>>[5]
 data ProgrammingLanguage
-    = KnownLanguage Text
+    = KnownLanguage Language
     | UnknownClass Text
     | NoLanguage
     deriving (Show, Eq)

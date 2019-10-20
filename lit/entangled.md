@@ -18,11 +18,15 @@ Several modules have standard stature but have to be imported qualified due to c
 
 ### Map
 
-We use strict maps only.
+We use strict maps by default.
 
 ``` {.haskell #import-map}
 import qualified Data.Map.Strict as M
 import Data.Map.Strict (Map)
+```
+
+``` {.haskell #import-lazy-map}
+import qualified Data.Map.Lazy as LM
 ```
 
 ### Set
@@ -61,6 +65,9 @@ import Data.Void
 ``` {.haskell #entangled-error}
 data EntangledError
     = TangleError Text
+    | CyclicReference Text
+    | UnkownLanguageClass Text
+    | MissingLanguageClass
     | UnknownError
     deriving (Show)
 ```

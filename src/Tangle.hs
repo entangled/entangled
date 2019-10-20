@@ -9,6 +9,9 @@ import Data.Text (Text)
 import qualified Data.Map.Strict as M
 import Data.Map.Strict (Map)
 -- ------ end
+-- ------ begin <<import-lazy-map>>[0]
+import qualified Data.Map.Lazy as LM
+-- ------ end
 
 -- ------ begin <<import-megaparsec>>[0]
 import Text.Megaparsec
@@ -92,7 +95,7 @@ getLanguage :: ( MonadReader Config m )
 getLanguage [] = return NoLanguage
 getLanguage (CodeClass cls : _)
     = maybe (UnknownClass cls) 
-            (KnownLanguage . languageName)
+            KnownLanguage
             <$> reader (lookupLanguage cls)
 getLanguage (_ : xs) = getLanguage xs
 -- ------ end
@@ -205,17 +208,14 @@ indent pre text
         | otherwise  = T.append (T.pack indent) line
 -- ------ end
 -- ------ begin <<generate-code>>[1]
-data Source = SourceText Text
-            | NowebReference ReferenceName Text
-            deriving (Eq, Show)
+data CodeLine = PlainCode Text
+              | NowebReference ReferenceName Text
+              deriving (Eq, Show)
 
 type CodeParser = Parsec Void Text
-
-type History = [ReferenceId]
-type Expander = History -> ReferenceId -> Either EntangledError Text
 -- ------ end
 -- ------ begin <<generate-code>>[2]
-nowebReference :: CodeParser Source
+nowebReference :: CodeParser CodeLine
 nowebReference = do
     indent <- space
     string "<<"
@@ -224,80 +224,60 @@ nowebReference = do
     space >> eof
     return $ NowebReference (ReferenceName id) indent
 
-parseCode :: Text -> [Source]
-parseCode = map parseLine . T.lines
-    where parseLine l = either (const $ SourceText l) id
-                      $ parse nowebReference "" l
+parseCode :: ReferenceName -> Text -> [CodeLine]
+parseCode name = map parseLine . T.lines
+    where parseLine l = either (const $ PlainCode l) id
+                      $ parse nowebReference
+                              (T.unpack $ unReferenceName name)
+                              l
 -- ------ end
 -- ------ begin <<generate-code>>[3]
-codeLineToString :: ReferenceMap 
-                 -> Expander 
-                 -> History
-                 -> Source
-                 -> Either EntangledError Text
-codeLineToString _ _ _ (SourceText x) = Right $ T.pack x
-codeLineToString refs e h (NowebReference r i) = 
-    addIndent i . T.concat <$> mapM (e h) (allNameReferences r refs)
+type Dependencies = [ReferenceName]
+type ExpandedCode = LM.Map ReferenceName Text
+type Annotator = Document -> ReferenceId -> Text
+-- ------ end
+-- ------ begin <<generate-code>>[4]
+expandedCode :: Annotator -> Document -> ExpandedCode
+expandedCode annotate doc = result
+    where result = LM.fromSet (referenceNames doc) expand
+          expand name = unlines'
+                        $ map (expandCodeSource result name)
+                        $ map (annotate doc)
+                        $ referencesByName doc name
 
-codeListToString :: ReferenceMap -> Expander -> History -> [Source] -> Either TangleError T.Text
-codeListToString refs e h srcs = T.unlines <$> mapM (codeLineToString refs e h) srcs
+expandCodeSource :: ExpandedCode -> ReferenceName -> Text -> Text
+expandCodeSource result name t = codeLinesToText result $ parseCode name t
+-- ------ end
+-- ------ begin <<generate-code>>[5]
+codeLineToText :: ExpandedCode -> CodeLine -> Text
+codeLineToText _      (PlainCode x) = Right x
+codeLineToText result (NowebReference name i) = indent i <$> result LM.! name
+-- ------ end
+-- ------ begin <<generate-code>>[6]
+codeLinesToText :: ExpandedCode -> [CodeLine] -> Text
+codeLinesToText result code = unlines' $ map (codeLineToText result) code
+-- ------ end
+-- ------ begin <<generate-code>>[7]
+annotateNaked :: Document -> ReferenceId -> Either EntangledError Text
+annotateNaked doc ref = Right $ codeSource $ references doc M.! ref
+-- ------ end
+-- ------ begin <<generate-code>>[8]
+comment :: ProgrammingLanguage
+        -> Text
+        -> m (Either EntangledError Text)
+comment (UnknownClass cls) _ = Left $ UnknownLanguageClass cls
+comment NoLanguage         _ = Left $ MissingLanguageClass
+comment (KnownLanguage lang) text = Right $ pre <> text <> post
+    where pre  = languageStartComment lang <> "###"
+          post = "###" <> languageCloseComment lang
 
-expandGeneric :: Expander -> (CodeBlock -> Either TangleError T.Text) -> ReferenceMap -> History -> ReferenceId -> Either TangleError T.Text
-expandGeneric e codeToText refs h id = do
-    when (id `elem` h) $ Left $ CyclicReference $ show id ++ " in " ++ show h
-    codeBlock <- maybeToEither 
-        (TangleError $ "Reference " ++ show id ++ " not found.")
-        (refs Map.!? id)
-    text <- codeToText codeBlock
-    parsedCode <- parseCode id $ T.unpack text ++ "\n"
-    codeListToString refs e (id : h) parsedCode
-
-expandNaked :: ReferenceMap -> History -> ReferenceId -> Either TangleError T.Text
-expandNaked refs = expandGeneric (expandNaked refs) (Right . codeSource) refs
-
-tangleNaked :: Document -> FileMap
-tangleNaked (Document refs _) = Map.fromList $ zip fileNames sources
-    where fileRefs  = filter isFileReference (Map.keys refs)
-          sources   = map (expandNaked refs []) fileRefs
-          fileNames = map referenceName fileRefs
-
-{- Annotated tangle -}
-topAnnotation :: ReferenceId -> String -> String -> String -> String
-topAnnotation (NameReferenceId n i) comment close lang =
-    comment ++ " begin <<" ++ n ++ ">>[" ++ show i ++ "]" ++ close
-topAnnotation (FileReferenceId n) comment close lang =
-    comment ++ " language=\"" ++ lang ++ "\" file=\"" ++ n ++ "\"" ++ close
-
-lookupLanguage' :: (MonadReader Config m)
-        => String -> m (Either TangleError Language)
-lookupLanguage' name = do
-    lang <- reader $ languageFromName name
-    case lang of
-        Nothing -> return $ Left $ TangleError $ "unknown language: " ++ name
-        Just l  -> return $ Right l
-
-annotate :: (MonadReader Config m)
-        => ReferenceId -> CodeBlock -> m (Either TangleError T.Text)
-annotate id (CodeBlock lang _ text) = do
-    l <- lookupLanguage' lang
-    return $ do 
-        (Language _ _ comment close) <- l
-        let top      = T.pack $ topAnnotation id comment close lang
-            bottom   = T.pack $ comment ++ " end" ++ close
-        return $ top <> T.pack "\n" <> text <> T.pack "\n" <> bottom
-
-expandAnnotated :: (MonadReader Config m)
-        => ReferenceMap -> History -> ReferenceId -> m (Either TangleError T.Text)
-expandAnnotated refs h id = do
-    cfg <- ask
-    return $ expandGeneric (\h' id' -> runReader (expandAnnotated refs h' id') cfg)
-                           (\cb -> runReader (annotate id cb) cfg) refs h id
-
-tangleAnnotated :: (MonadReader Config m) => ReferenceMap -> m FileMap
-tangleAnnotated refs = do
-    let fileRefs  = filter isFileReference (Map.keys refs)
-        fileNames = map referenceName fileRefs
-    sources <- mapM (expandAnnotated refs []) fileRefs
-    return $ Map.fromList $ zip fileNames sources
+annotateComment :: Document -> ReferenceId -> Either EntangledError Text
+annotateComment doc ref = do
+    let code = references doc M.! ref
+    pre <- comment (codeLanguage code)
+           $ " begin <<" <> (referenceName ref) <> ">>["
+           <> T.pack (show $ referenceCount ref) <> "] "
+    post <- comment (codeLanguage code) " end "
+    return $ unlines' [pre, (codeSource code), post]
 -- ------ end
 -- ------ end

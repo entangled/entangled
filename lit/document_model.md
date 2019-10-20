@@ -94,6 +94,15 @@ data Document = Document
 ### Accessors
 
 ``` {.haskell #document-structure}
+referenceNames :: Document -> Set ReferenceName
+referenceNames = S.fromList . map referenceName . M.keys . references
+
+referencesByName :: Document -> ReferenceName -> [ReferenceId]
+referencesByName doc name
+    = (sort . filter ((== name) . referenceName) . M.keys . references) doc
+
+codeBlocksByName :: Document -> ReferenceName -> [CodeBlock]
+codeBlocksByName doc name = map (references doc M.!) $ referencesByName doc name
 ```
 
 ### Code blocks
@@ -130,7 +139,7 @@ A `ProgrammingLanguage` is either a known language (for which we know how to gen
 
 ``` {.haskell #document-structure}
 data ProgrammingLanguage
-    = KnownLanguage Text
+    = KnownLanguage Language
     | UnknownClass Text
     | NoLanguage
     deriving (Show, Eq)
