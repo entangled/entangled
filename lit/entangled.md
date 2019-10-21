@@ -52,7 +52,7 @@ All parsing will be done through megaparsec.
 ``` {.haskell #import-megaparsec}
 import Text.Megaparsec
     ( MonadParsec, Parsec, parse
-    , noneOf, chunk, many, some, endBy, eof, token
+    , chunk, many, some, eof, token
     , manyTill, anySingle, try, lookAhead, takeWhile1P, takeWhileP
     , (<|>), (<?>) )
 import Text.Megaparsec.Char
@@ -66,8 +66,8 @@ import Data.Void
 data EntangledError
     = TangleError Text
     | CyclicReference Text
-    | UnkownLanguageClass Text
+    | UnknownLanguageClass Text
     | MissingLanguageClass
     | UnknownError
-    deriving (Show)
+    deriving (Show, Ord, Eq)
 ```

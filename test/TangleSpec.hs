@@ -8,23 +8,27 @@ import Test.Hspec.Megaparsec
 import qualified Data.Text as T
 import Data.Text (Text)
 -- ------ end
+import qualified Data.Text.IO as T.IO
+
+import qualified Data.Map.Lazy as LM
+import Data.List ((!!))
 
 import Tangle
+import Attributes
 import Document
-    ( CodeProperty(..)
-    , Content(..)
-    , ReferenceId(..)
-    , ReferenceName(..)
-    , ProgrammingLanguage(..)
-    , CodeBlock(..) )
-import Config (Config, defaultConfig)
+import Config (Config, defaultConfig, languageFromName)
 import ListStream
 
 import Text.Megaparsec (parse, Parsec)
 import Text.Megaparsec.Error (ParseErrorBundle)
 import Data.Void (Void)
-import Control.Monad.Reader (ReaderT, runReaderT)
+import Control.Monad.Reader (ReaderT, runReaderT, runReader)
 import Control.Monad.State (StateT, evalStateT)
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad ((<=<))
+
+import Data.Maybe (fromJust)
+import Data.Either (fromRight, rights)
 
 type Parser = Parsec Void Text
 
@@ -35,6 +39,9 @@ type ParserC = StateT ReferenceCount (ReaderT Config (Parsec Void (ListStream Te
 
 pc :: ParserC a -> ListStream Text -> Either (ParseErrorBundle (ListStream Text) Void) a
 pc x t = parse (runReaderT (evalStateT x mempty) defaultConfig) "" t
+
+pd :: Text -> Either EntangledError Document
+pd t = runReader (parseMarkdown "" t) defaultConfig
 
 tangleSpec :: Spec
 tangleSpec = do
@@ -66,15 +73,26 @@ tangleSpec = do
                     [ "``` {.python #hello-world}"
                     , "print(\"Hello, World!\")"
                     , "```" ]
+            python = fromJust $ languageFromName "Python" defaultConfig
         it "parses a code block" $ do
             pc codeBlock test1 `shouldParse`
                 ( [ PlainText "``` {.python #hello-world}"
                   , Reference $ ReferenceId (ReferenceName "hello-world") 0
                   , PlainText "```" ]
                 , [ ( ReferenceId (ReferenceName "hello-world") 0
-                    , CodeBlock (KnownLanguage "Python")
+                    , CodeBlock (KnownLanguage python)
                                 [CodeClass "python", CodeId "hello-world"]
                                 "print(\"Hello, World!\")"
                     ) ]
                 )
+
+tangleEqualSpec :: Spec
+tangleEqualSpec = before (sequence $ map T.IO.readFile testFiles) $ do
+    describe "Code expansion on test0[1-3].md" $ do
+        it "expands to identical code" $ \files -> do
+            let docs = rights $ map pd files
+                codes = map (expandedCode annotateNaked) docs
+                hellos = map (LM.! (ReferenceName "hello.cc")) codes
+            hellos `shouldBe` (replicate 3 (hellos !! 0))
+    where testFiles = ["test/test01.md", "test/test02.md", "test/test03.md"]
 -- ------ end

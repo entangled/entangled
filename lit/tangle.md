@@ -11,7 +11,7 @@ module Tangle where
 
 import Control.Monad.Reader (MonadReader, reader, ReaderT, ask, runReaderT)
 import Control.Monad.State (MonadState, gets, modify, StateT, evalStateT)
-import Control.Monad.Fail (MonadFail)
+import Control.Monad ((>=>))
 
 import Data.Maybe (catMaybes)
 
@@ -19,8 +19,10 @@ import ListStream (ListStream (..))
 import Document
     ( CodeProperty (..), CodeBlock (..), Content (..), ReferenceId (..)
     , ReferenceName (..), ProgrammingLanguage (..), Document (..), FileMap, unlines'
-    , EntangledError (..) )
-import Config (Config, languageName, lookupLanguage)
+    , EntangledError (..), referenceNames, referencesByName )
+import Config (Config, lookupLanguage)
+
+<<tangle-imports>>
 
 <<parse-markdown>>
 <<generate-code>>
@@ -39,14 +41,102 @@ Remember the golden rule:
 
 We will be adding unit tests to check exactly this property.
 
+## CSS Attributes
+
+We'll reuse the attribute parser later on, so we put it in a separate module.
+
+``` {.haskell #tangle-imports}
+import Attributes (attributes)
+```
+
+``` {.haskell file=src/Attributes.hs}
+module Attributes where
+
+<<attributes-imports>>
+<<parse-attributes>>
+```
+
+``` {.haskell #attributes-imports}
+<<import-text>>
+import Document (CodeProperty(..))
+import Text.Megaparsec
+    ( MonadParsec, takeWhile1P, takeWhileP, chunk, endBy, (<|>) )
+import Text.Megaparsec.Char
+    ( space )
+```
+
+The one function that we will use is the `attributes` parser.
+
+``` {.haskell #parse-attributes}
+attributes :: (MonadParsec e Text m)
+           => m [CodeProperty]
+attributes = (  codeClass
+            <|> codeId
+            <|> codeAttribute
+             ) `endBy` space
+```
+
+#### Identifiers and values
+
+Anything goes, as long as it doesn't conflict with a space separated curly braces delimited list.
+
+``` {.haskell #parse-attributes}
+cssIdentifier :: (MonadParsec e Text m)
+              => m Text
+cssIdentifier = takeWhile1P (Just "identifier")
+                            (\c -> notElem c (" {}=" :: String))
+
+cssValue :: (MonadParsec e Text m)
+         => m Text
+cssValue = takeWhileP (Just "value")
+                      (\c -> notElem c (" {}=" :: String))
+```
+
+#### class
+A class starts with a period (`.`), and cannot contain spaces or curly braces.
+
+``` {.haskell #parse-attributes}
+codeClass :: (MonadParsec e Text m)
+          => m CodeProperty
+codeClass = do
+    chunk "."
+    CodeClass <$> cssIdentifier
+```
+
+#### id
+An id starts with a hash (`#`), and cannot contain spaces or curly braces.
+
+``` {.haskell #parse-attributes}
+codeId :: (MonadParsec e Text m)
+       => m CodeProperty
+codeId = do
+    chunk "#"
+    CodeId <$> cssIdentifier
+```
+
+#### attribute
+An generic attribute is written as key-value-pair, separated by an equals sign (`=`). Again no spaces or curly braces are allowed inside.
+
+``` {.haskell #parse-attributes}
+codeAttribute :: (MonadParsec e Text m)
+              => m CodeProperty
+codeAttribute = do
+    key <- cssIdentifier
+    chunk "="
+    value <- cssValue
+    return $ CodeAttribute key value
+```
+
 ## Quasi-parsing Markdown
 
 Parsing the markdown using MegaParsec,
 
-``` {.haskell #parse-markdown}
-```
-
 ### Parsing code blocks
+
+::: {.TODO}
+Add Wirth Syntax Notation with all the parsers.
+:::
+
 Code blocks are delimited with three back-quotes, and again closed with three back-quotes. Pandoc allows for any number larger than three, and using other symbols like tildes. The only form Entangled reacts to is the following **unindented** template: 
 
 ~~~markdown
@@ -86,61 +176,13 @@ codeHeader :: (MonadParsec e Text m)
            => m [CodeProperty]
 codeHeader = do
     chunk "```" >> space >> chunk "{" >> space
-    props <- (  codeClass
-            <|> codeId
-            <|> codeAttribute
-             ) `endBy` space
+    props <- attributes
     chunk "}" >> space >> eof
     return props 
 
 codeFooter :: (MonadParsec e Text m)
            => m ()
 codeFooter = chunk "```" >> space >> eof
-```
-
-#### class
-A class starts with a period (`.`), and cannot contain spaces or curly braces.
-
-``` {.haskell #parse-markdown}
-cssIdentifier :: (MonadParsec e Text m)
-              => m Text
-cssIdentifier = takeWhile1P (Just "identifier")
-                            (\c -> notElem c (" {}=" :: String))
-
-cssValue :: (MonadParsec e Text m)
-         => m Text
-cssValue = takeWhileP (Just "value")
-                      (\c -> notElem c (" {}=" :: String))
-
-codeClass :: (MonadParsec e Text m)
-          => m CodeProperty
-codeClass = do
-    chunk "."
-    CodeClass <$> cssIdentifier
-```
-
-#### id
-An id starts with a hash (`#`), and cannot contain spaces or curly braces.
-
-``` {.haskell #parse-markdown}
-codeId :: (MonadParsec e Text m)
-       => m CodeProperty
-codeId = do
-    chunk "#"
-    CodeId <$> cssIdentifier
-```
-
-#### attribute
-An generic attribute is written as key-value-pair, separated by an equals sign (`=`). Again no spaces or curly braces are allowed inside.
-
-``` {.haskell #parse-markdown}
-codeAttribute :: (MonadParsec e Text m)
-              => m CodeProperty
-codeAttribute = do
-    key <- cssIdentifier
-    chunk "="
-    value <- cssValue
-    return $ CodeAttribute key value
 ```
 
 ### Extracting data from a list of `CodeProperty`
@@ -213,6 +255,10 @@ newReference n = ReferenceId n <$> countReference n
 ```
 
 ### Parsing the document
+
+::: {.TODO}
+Add Wirth Syntax Notation with all the parsers.
+:::
 
 Using these two parsers, we can create a larger parser that works on a line-by-line basis. We define several helpers to create a parser for `ListStream Text` using single line parsers for `Text`.
 
@@ -310,8 +356,8 @@ indent pre text
     $ map indentLine
     $ T.lines text
     where indentLine line
-        | line == "" = line
-        | otherwise  = T.append (T.pack indent) line
+            | line == "" = line
+            | otherwise  = pre <> line
 ```
 
 ``` {.haskell #generate-code}
@@ -332,10 +378,10 @@ The function `parseCode` takes the `Text` from a code block and generates a list
 ``` {.haskell #generate-code}
 nowebReference :: CodeParser CodeLine
 nowebReference = do
-    indent <- space
-    string "<<"
-    id <- takeWhile1P Nothing (`notElem` " \t<>")
-    string ">>"
+    indent <- takeWhileP Nothing (`elem` (" \t" :: [Char]))
+    chunk "<<"
+    id <- takeWhile1P Nothing (`notElem` (" \t<>" :: [Char]))
+    chunk ">>"
     space >> eof
     return $ NowebReference (ReferenceName id) indent
 
@@ -353,66 +399,115 @@ We don't want code blocks refering to themselves. I used to keep a history of vi
 I now use a lazy map to provide the recursion, which becomes cumbersome if we also have to detect cycles in the dependency graph.
 
 ``` {.haskell #generate-code}
-type Dependencies = [ReferenceName]
-type ExpandedCode = LM.Map ReferenceName Text
-type Annotator = Document -> ReferenceId -> Text
+type ExpandedCode = LM.Map ReferenceName (Either EntangledError Text)
+type Annotator = Document -> ReferenceId -> (Either EntangledError Text)
+```
+
+The map of expanded code blocks is generated using an induction pattern here illustrated on lists. Suppose we already have the resulting `output` and a function `g :: [Output] -> Input -> Output` that generates any element in `output` given an input and the rest of all `output`, then `f` generates `output` as follows.
+
+``` {.haskell}
+f :: [Input] -> [Output]
+f input = output
+    where output = map generate input
+          generate = g output
+```
+
+Lazy evaluation does the rest.
+
+``` {.haskell #generate-code}
+expandedCode :: Annotator -> Document -> ExpandedCode
+expandedCode annotate doc = result
+    where result = LM.fromSet expand (referenceNames doc)
+          expand name = unlines' <$> (sequence
+                        $ map (annotate doc >=> expandCodeSource result name)
+                        $ referencesByName doc name)
+
+expandCodeSource :: ExpandedCode -> ReferenceName -> Text
+                 -> Either EntangledError Text
+expandCodeSource result name t
+    = unlines' <$> sequence (map codeLineToText $ parseCode name t)
+    where codeLineToText (PlainCode x) = Right x
+          codeLineToText (NowebReference name i)
+              = indent i <$> result LM.! name
 ```
 
 We have two types of annotators:
 
 * Naked annotator: creates the output code without annotation. From such an expansion it is not possible to untangle.
 
-* Commenting annotator: adds annotations in comments, from which we can locate the original code block.
-
-``` {.haskell #generate-code}
-expandedCode :: Annotator -> Document -> ExpandedCode
-expandedCode annotate doc = result
-    where result = LM.fromSet (referenceNames doc) expand
-          expand name = unlines'
-                        $ map (expandCodeSource result name)
-                        $ map (annotate doc)
-                        $ referencesByName doc name
-
-expandCodeSource :: ExpandedCode -> ReferenceName -> Text -> Text
-expandCodeSource result name t = codeLinesToText result $ parseCode name t
-```
-
-``` {.haskell #generate-code}
-codeLineToText :: ExpandedCode -> CodeLine -> Text
-codeLineToText _      (PlainCode x) = Right x
-codeLineToText result (NowebReference name i) = indent i <$> result LM.! name
-```
-
-Then multiple lines is just concatenating that.
-
-``` {.haskell #generate-code}
-codeLinesToText :: ExpandedCode -> [CodeLine] -> Text
-codeLinesToText result code = unlines' $ map (codeLineToText result) code
-```
-
 ``` {.haskell #generate-code}
 annotateNaked :: Document -> ReferenceId -> Either EntangledError Text
 annotateNaked doc ref = Right $ codeSource $ references doc M.! ref
 ```
 
-``` {.haskell #generate-code}
+* Commenting annotator: adds annotations in comments, from which we can locate the original code block.
+
+We put comments in a separate module.
+
+``` {.haskell #tangle-imports}
+-- import Comment (annotateComment)
+```
+
+## Entangled comments
+
+``` {.haskell file=src/Comment.hs}
+module Comment where
+
+<<comment-imports>>
+
+<<generate-comment>>
+<<parse-comment>>
+```
+
+``` {.haskell #comment-imports}
+<<import-text>>
+import qualified Data.Map.Strict as M
+
+import Document
+    ( CodeBlock(..)
+    , Document(..)
+    , EntangledError(..)
+    , ProgrammingLanguage(..)
+    , ReferenceId(..)
+    , ReferenceName(..)
+    , unlines'
+    )
+
+import Config
+    ( Language(..)
+    )
+```
+
+``` {.haskell #generate-comment}
 comment :: ProgrammingLanguage
         -> Text
-        -> m (Either EntangledError Text)
+        -> Either EntangledError Text
 comment (UnknownClass cls) _ = Left $ UnknownLanguageClass cls
 comment NoLanguage         _ = Left $ MissingLanguageClass
-comment (KnownLanguage lang) text = Right $ pre <> text <> post
+comment (KnownLanguage lang) text = Right $ formatComment lang text
+
+formatComment :: Language -> Text -> Text
+formatComment lang text = pre <> text <> post
     where pre  = languageStartComment lang <> "###"
-          post = "###" <> languageCloseComment lang
+          post = "###" <> (maybe "" id $ languageCloseComment lang)
 
 annotateComment :: Document -> ReferenceId -> Either EntangledError Text
 annotateComment doc ref = do
     let code = references doc M.! ref
     pre <- comment (codeLanguage code)
-           $ " begin <<" <> (referenceName ref) <> ">>["
+           $ " begin <<" <> (unReferenceName $ referenceName ref) <> ">>["
            <> T.pack (show $ referenceCount ref) <> "] "
     post <- comment (codeLanguage code) " end "
     return $ unlines' [pre, (codeSource code), post]
+
+headerComment :: Language -> FilePath -> Text
+headerComment lang path = formatComment lang
+    $ "language=" <> languageName lang <> " filename=" <> T.pack path
+```
+
+### Parsing comments
+
+``` {.haskell #parse-comment}
 ```
 
 ## Testing
@@ -424,23 +519,27 @@ import Test.Hspec
 import Test.Hspec.Megaparsec
 
 <<import-text>>
+import qualified Data.Text.IO as T.IO
+
+import qualified Data.Map.Lazy as LM
+import Data.List ((!!))
 
 import Tangle
+import Attributes
 import Document
-    ( CodeProperty(..)
-    , Content(..)
-    , ReferenceId(..)
-    , ReferenceName(..)
-    , ProgrammingLanguage(..)
-    , CodeBlock(..) )
-import Config (Config, defaultConfig)
+import Config (Config, defaultConfig, languageFromName)
 import ListStream
 
 import Text.Megaparsec (parse, Parsec)
 import Text.Megaparsec.Error (ParseErrorBundle)
 import Data.Void (Void)
-import Control.Monad.Reader (ReaderT, runReaderT)
+import Control.Monad.Reader (ReaderT, runReaderT, runReader)
 import Control.Monad.State (StateT, evalStateT)
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad ((<=<))
+
+import Data.Maybe (fromJust)
+import Data.Either (fromRight, rights)
 
 type Parser = Parsec Void Text
 
@@ -451,6 +550,9 @@ type ParserC = StateT ReferenceCount (ReaderT Config (Parsec Void (ListStream Te
 
 pc :: ParserC a -> ListStream Text -> Either (ParseErrorBundle (ListStream Text) Void) a
 pc x t = parse (runReaderT (evalStateT x mempty) defaultConfig) "" t
+
+pd :: Text -> Either EntangledError Document
+pd t = runReader (parseMarkdown "" t) defaultConfig
 
 tangleSpec :: Spec
 tangleSpec = do
@@ -482,16 +584,27 @@ tangleSpec = do
                     [ "``` {.python #hello-world}"
                     , "print(\"Hello, World!\")"
                     , "```" ]
+            python = fromJust $ languageFromName "Python" defaultConfig
         it "parses a code block" $ do
             pc codeBlock test1 `shouldParse`
                 ( [ PlainText "``` {.python #hello-world}"
                   , Reference $ ReferenceId (ReferenceName "hello-world") 0
                   , PlainText "```" ]
                 , [ ( ReferenceId (ReferenceName "hello-world") 0
-                    , CodeBlock (KnownLanguage "Python")
+                    , CodeBlock (KnownLanguage python)
                                 [CodeClass "python", CodeId "hello-world"]
                                 "print(\"Hello, World!\")"
                     ) ]
                 )
+
+tangleEqualSpec :: Spec
+tangleEqualSpec = before (sequence $ map T.IO.readFile testFiles) $ do
+    describe "Code expansion on test0[1-3].md" $ do
+        it "expands to identical code" $ \files -> do
+            let docs = rights $ map pd files
+                codes = map (expandedCode annotateNaked) docs
+                hellos = map (LM.! (ReferenceName "hello.cc")) codes
+            hellos `shouldBe` (replicate 3 (hellos !! 0))
+    where testFiles = ["test/test01.md", "test/test02.md", "test/test03.md"]
 ```
 

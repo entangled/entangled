@@ -3,7 +3,7 @@
 ``` {.haskell file=src/Config.hs}
 module Config where
 
-<<import-text>>
+import Data.Text (Text)
 <<import-set>>
 import qualified Toml
 import Toml (TomlCodec, (.=))

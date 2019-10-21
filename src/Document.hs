@@ -9,16 +9,22 @@ import Data.Text (Text)
 import qualified Data.Map.Strict as M
 import Data.Map.Strict (Map)
 -- ------ end
-import Data.Maybe (mapMaybe)
+-- ------ begin <<import-set>>[0]
+import qualified Data.Set as S
+import Data.Set (Set)
+-- ------ end
+import Data.List (sort)
+
+import Config (Language)
 
 -- ------ begin <<entangled-error>>[0]
 data EntangledError
     = TangleError Text
     | CyclicReference Text
-    | UnkownLanguageClass Text
+    | UnknownLanguageClass Text
     | MissingLanguageClass
     | UnknownError
-    deriving (Show)
+    deriving (Show, Ord, Eq)
 -- ------ end
 -- ------ begin <<document-utils>>[0]
 unlines' :: [Text] -> Text

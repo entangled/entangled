@@ -53,6 +53,8 @@ common deps
     , tomland >=1.2 && <2
     , uuid >=1.3 && <2
   default-extensions: OverloadedStrings FlexibleContexts FlexibleInstances RecordWildCards TypeFamilies GeneralizedNewtypeDeriving
+  default-language: Haskell2010
+  ghc-options: -fwarn-unused-imports
 
 library
   import: deps
@@ -62,14 +64,15 @@ library
       Tangle
       Console
       ListStream
+      Comment
+      Untangle
+      Attributes
   other-modules:
       Paths_entangled
   autogen-modules:
       Paths_entangled
   hs-source-dirs:
       src
-  default-extensions: OverloadedStrings FlexibleContexts FlexibleInstances RecordWildCards TypeFamilies GeneralizedNewtypeDeriving
-  default-language: Haskell2010
 
 executable entangled
   import: deps
@@ -80,12 +83,10 @@ executable entangled
       Paths_entangled
   hs-source-dirs:
       app
-  default-extensions: OverloadedStrings FlexibleContexts FlexibleInstances RecordWildCards TypeFamilies GeneralizedNewtypeDeriving
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       entangled
     , optparse-applicative >=0.15 && <0.16
-  default-language: Haskell2010
 
 test-suite entangled-test
   import: deps
@@ -103,4 +104,3 @@ test-suite entangled-test
     , QuickCheck >=2.13 && <3
     , hspec >=2.5 && <3
     , hspec-megaparsec >=2.0 && <3
-  default-language: Haskell2010

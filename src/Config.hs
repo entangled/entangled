@@ -1,10 +1,7 @@
 -- ------ language="Haskell" file="src/Config.hs"
 module Config where
 
--- ------ begin <<import-text>>[0]
-import qualified Data.Text as T
 import Data.Text (Text)
--- ------ end
 -- ------ begin <<import-set>>[0]
 import qualified Data.Set as S
 import Data.Set (Set)

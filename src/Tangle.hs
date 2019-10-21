@@ -16,7 +16,7 @@ import qualified Data.Map.Lazy as LM
 -- ------ begin <<import-megaparsec>>[0]
 import Text.Megaparsec
     ( MonadParsec, Parsec, parse
-    , noneOf, chunk, many, some, endBy, eof, token
+    , chunk, many, some, eof, token
     , manyTill, anySingle, try, lookAhead, takeWhile1P, takeWhileP
     , (<|>), (<?>) )
 import Text.Megaparsec.Char
@@ -26,7 +26,7 @@ import Data.Void
 
 import Control.Monad.Reader (MonadReader, reader, ReaderT, ask, runReaderT)
 import Control.Monad.State (MonadState, gets, modify, StateT, evalStateT)
-import Control.Monad.Fail (MonadFail)
+import Control.Monad ((>=>))
 
 import Data.Maybe (catMaybes)
 
@@ -34,21 +34,22 @@ import ListStream (ListStream (..))
 import Document
     ( CodeProperty (..), CodeBlock (..), Content (..), ReferenceId (..)
     , ReferenceName (..), ProgrammingLanguage (..), Document (..), FileMap, unlines'
-    , EntangledError (..) )
-import Config (Config, languageName, lookupLanguage)
+    , EntangledError (..), referenceNames, referencesByName )
+import Config (Config, lookupLanguage)
+
+-- ------ begin <<tangle-imports>>[0]
+import Attributes (attributes)
+-- ------ end
+-- ------ begin <<tangle-imports>>[1]
+-- import Comment (annotateComment)
+-- ------ end
 
 -- ------ begin <<parse-markdown>>[0]
-
--- ------ end
--- ------ begin <<parse-markdown>>[1]
 codeHeader :: (MonadParsec e Text m)
            => m [CodeProperty]
 codeHeader = do
     chunk "```" >> space >> chunk "{" >> space
-    props <- (  codeClass
-            <|> codeId
-            <|> codeAttribute
-             ) `endBy` space
+    props <- attributes
     chunk "}" >> space >> eof
     return props 
 
@@ -56,40 +57,7 @@ codeFooter :: (MonadParsec e Text m)
            => m ()
 codeFooter = chunk "```" >> space >> eof
 -- ------ end
--- ------ begin <<parse-markdown>>[2]
-cssIdentifier :: (MonadParsec e Text m)
-              => m Text
-cssIdentifier = takeWhile1P (Just "identifier")
-                            (\c -> notElem c (" {}=" :: String))
-
-cssValue :: (MonadParsec e Text m)
-         => m Text
-cssValue = takeWhileP (Just "value")
-                      (\c -> notElem c (" {}=" :: String))
-
-codeClass :: (MonadParsec e Text m)
-          => m CodeProperty
-codeClass = do
-    chunk "."
-    CodeClass <$> cssIdentifier
--- ------ end
--- ------ begin <<parse-markdown>>[3]
-codeId :: (MonadParsec e Text m)
-       => m CodeProperty
-codeId = do
-    chunk "#"
-    CodeId <$> cssIdentifier
--- ------ end
--- ------ begin <<parse-markdown>>[4]
-codeAttribute :: (MonadParsec e Text m)
-              => m CodeProperty
-codeAttribute = do
-    key <- cssIdentifier
-    chunk "="
-    value <- cssValue
-    return $ CodeAttribute key value
--- ------ end
--- ------ begin <<parse-markdown>>[5]
+-- ------ begin <<parse-markdown>>[1]
 getLanguage :: ( MonadReader Config m )
             => [CodeProperty] -> m ProgrammingLanguage
 getLanguage [] = return NoLanguage
@@ -99,7 +67,7 @@ getLanguage (CodeClass cls : _)
             <$> reader (lookupLanguage cls)
 getLanguage (_ : xs) = getLanguage xs
 -- ------ end
--- ------ begin <<parse-markdown>>[6]
+-- ------ begin <<parse-markdown>>[2]
 getReference :: ( MonadState ReferenceCount m )
              => [CodeProperty] -> m (Maybe ReferenceId)
 getReference [] = return Nothing
@@ -112,7 +80,7 @@ getReference (CodeAttribute k v:xs)
     | otherwise   = getReference xs
 getReference (_:xs) = getReference xs
 -- ------ end
--- ------ begin <<parse-markdown>>[7]
+-- ------ begin <<parse-markdown>>[3]
 getFilePath :: [CodeProperty] -> Maybe FilePath
 getFilePath [] = Nothing
 getFilePath (CodeAttribute k v:xs)
@@ -126,7 +94,7 @@ getFileMap = M.fromList . catMaybes . map filePair
               path <- getFilePath $ codeProperties block
               return (path, referenceName ref)
 -- ------ end
--- ------ begin <<parse-markdown>>[8]
+-- ------ begin <<parse-markdown>>[4]
 type ReferencePair = (ReferenceId, CodeBlock)
 
 type ReferenceCount = Map ReferenceName Int
@@ -142,7 +110,7 @@ newReference :: ( MonadState ReferenceCount m )
              => ReferenceName -> m ReferenceId
 newReference n = ReferenceId n <$> countReference n
 -- ------ end
--- ------ begin <<parse-markdown>>[9]
+-- ------ begin <<parse-markdown>>[5]
 type LineParser = Parsec Void Text
 type DocumentParser = ReaderT Config (StateT ReferenceCount (Parsec Void (ListStream Text)))
 
@@ -158,7 +126,7 @@ tokenLine :: ( MonadParsec e (ListStream Text) m )
           => (Text -> Maybe a) -> m a
 tokenLine f = token f mempty
 -- ------ end
--- ------ begin <<parse-markdown>>[10]
+-- ------ begin <<parse-markdown>>[6]
 codeBlock :: ( MonadParsec e (ListStream Text) m
              , MonadReader Config m 
              , MonadState ReferenceCount m )
@@ -204,8 +172,8 @@ indent pre text
     $ map indentLine
     $ T.lines text
     where indentLine line
-        | line == "" = line
-        | otherwise  = T.append (T.pack indent) line
+            | line == "" = line
+            | otherwise  = pre <> line
 -- ------ end
 -- ------ begin <<generate-code>>[1]
 data CodeLine = PlainCode Text
@@ -217,10 +185,10 @@ type CodeParser = Parsec Void Text
 -- ------ begin <<generate-code>>[2]
 nowebReference :: CodeParser CodeLine
 nowebReference = do
-    indent <- space
-    string "<<"
-    id <- takeWhile1P Nothing (`notElem` " \t<>")
-    string ">>"
+    indent <- takeWhileP Nothing (`elem` (" \t" :: [Char]))
+    chunk "<<"
+    id <- takeWhile1P Nothing (`notElem` (" \t<>" :: [Char]))
+    chunk ">>"
     space >> eof
     return $ NowebReference (ReferenceName id) indent
 
@@ -232,52 +200,27 @@ parseCode name = map parseLine . T.lines
                               l
 -- ------ end
 -- ------ begin <<generate-code>>[3]
-type Dependencies = [ReferenceName]
-type ExpandedCode = LM.Map ReferenceName Text
-type Annotator = Document -> ReferenceId -> Text
+type ExpandedCode = LM.Map ReferenceName (Either EntangledError Text)
+type Annotator = Document -> ReferenceId -> (Either EntangledError Text)
 -- ------ end
 -- ------ begin <<generate-code>>[4]
 expandedCode :: Annotator -> Document -> ExpandedCode
 expandedCode annotate doc = result
-    where result = LM.fromSet (referenceNames doc) expand
-          expand name = unlines'
-                        $ map (expandCodeSource result name)
-                        $ map (annotate doc)
-                        $ referencesByName doc name
+    where result = LM.fromSet expand (referenceNames doc)
+          expand name = unlines' <$> (sequence
+                        $ map (annotate doc >=> expandCodeSource result name)
+                        $ referencesByName doc name)
 
-expandCodeSource :: ExpandedCode -> ReferenceName -> Text -> Text
-expandCodeSource result name t = codeLinesToText result $ parseCode name t
+expandCodeSource :: ExpandedCode -> ReferenceName -> Text
+                 -> Either EntangledError Text
+expandCodeSource result name t
+    = unlines' <$> sequence (map codeLineToText $ parseCode name t)
+    where codeLineToText (PlainCode x) = Right x
+          codeLineToText (NowebReference name i)
+              = indent i <$> result LM.! name
 -- ------ end
 -- ------ begin <<generate-code>>[5]
-codeLineToText :: ExpandedCode -> CodeLine -> Text
-codeLineToText _      (PlainCode x) = Right x
-codeLineToText result (NowebReference name i) = indent i <$> result LM.! name
--- ------ end
--- ------ begin <<generate-code>>[6]
-codeLinesToText :: ExpandedCode -> [CodeLine] -> Text
-codeLinesToText result code = unlines' $ map (codeLineToText result) code
--- ------ end
--- ------ begin <<generate-code>>[7]
 annotateNaked :: Document -> ReferenceId -> Either EntangledError Text
 annotateNaked doc ref = Right $ codeSource $ references doc M.! ref
--- ------ end
--- ------ begin <<generate-code>>[8]
-comment :: ProgrammingLanguage
-        -> Text
-        -> m (Either EntangledError Text)
-comment (UnknownClass cls) _ = Left $ UnknownLanguageClass cls
-comment NoLanguage         _ = Left $ MissingLanguageClass
-comment (KnownLanguage lang) text = Right $ pre <> text <> post
-    where pre  = languageStartComment lang <> "###"
-          post = "###" <> languageCloseComment lang
-
-annotateComment :: Document -> ReferenceId -> Either EntangledError Text
-annotateComment doc ref = do
-    let code = references doc M.! ref
-    pre <- comment (codeLanguage code)
-           $ " begin <<" <> (referenceName ref) <> ">>["
-           <> T.pack (show $ referenceCount ref) <> "] "
-    post <- comment (codeLanguage code) " end "
-    return $ unlines' [pre, (codeSource code), post]
 -- ------ end
 -- ------ end

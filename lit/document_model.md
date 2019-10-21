@@ -5,7 +5,10 @@ module Document where
 
 <<import-text>>
 <<import-map>>
-import Data.Maybe (mapMaybe)
+<<import-set>>
+import Data.List (sort)
+
+import Config (Language)
 
 <<entangled-error>>
 <<document-utils>>

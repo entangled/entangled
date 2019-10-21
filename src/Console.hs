@@ -18,7 +18,7 @@ module Console
 
 import Control.Monad.Reader
 -- import Control.Monad.State.Class
-import Control.Monad.IO.Class
+-- import Control.Monad.IO.Class
 
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)

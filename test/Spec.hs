@@ -25,7 +25,7 @@ import Test.Hspec
 -- import Document
 
 import ListStreamSpec (listStreamSpec)
-import TangleSpec (tangleSpec)
+import TangleSpec (tangleSpec, tangleEqualSpec)
 
 -- parseMarkdown'' :: T.Text -> IO (Either TangleError Document)
 -- parseMarkdown'' t = do
@@ -112,5 +112,5 @@ main = do
     -- lib <- Map.fromList . zip testFiles 
     --     <$> mapM (\ f -> do { t <- T.IO.readFile f; d <- fromRight' <$> parseMarkdown'' t; return (t, d) }) testFiles
     -- hspec $ spec lib
-    hspec $ listStreamSpec >> tangleSpec
+    hspec $ listStreamSpec >> tangleSpec >> tangleEqualSpec
 
