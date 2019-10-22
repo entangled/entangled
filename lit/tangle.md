@@ -84,12 +84,12 @@ Anything goes, as long as it doesn't conflict with a space separated curly brace
 cssIdentifier :: (MonadParsec e Text m)
               => m Text
 cssIdentifier = takeWhile1P (Just "identifier")
-                            (\c -> notElem c (" {}=" :: String))
+                            (\c -> notElem c (" {}=<>" :: String))
 
 cssValue :: (MonadParsec e Text m)
          => m Text
 cssValue = takeWhileP (Just "value")
-                      (\c -> notElem c (" {}=" :: String))
+                      (\c -> notElem c (" {}=<>" :: String))
 ```
 
 #### class
@@ -442,7 +442,7 @@ annotateNaked doc ref = Right $ codeSource $ references doc M.! ref
 
 * Commenting annotator: adds annotations in comments, from which we can locate the original code block.
 
-We put comments in a separate module.
+We put comments in a separate module, where we also address parsing back the generated comments.
 
 ``` {.haskell #tangle-imports}
 -- import Comment (annotateComment)
@@ -461,21 +461,31 @@ module Comment where
 
 ``` {.haskell #comment-imports}
 <<import-text>>
-import qualified Data.Map.Strict as M
+```
 
+Tangled files start with a single line header comment, followed by nested blocks of (possibly indented) code delimeted by lines:
+
+``` {.c}
+\\ -#- entangled -#- begin <<reference-name>>[3]
+code content;
+\\ -#- entangled -#- end
+```
+
+The `-#- entangled -#-` bit is stored in `delim`.
+
+``` {.haskell #generate-comment}
+delim :: Text
+delim = "-#- entangled -#- "
+```
+
+Given any content, the `comment` function generates a commented line following the above prescription.
+
+``` {.haskell #comment-imports}
 import Document
-    ( CodeBlock(..)
-    , Document(..)
-    , EntangledError(..)
-    , ProgrammingLanguage(..)
-    , ReferenceId(..)
-    , ReferenceName(..)
-    , unlines'
-    )
-
+    ( ProgrammingLanguage(..)
+    , EntangledError(..) )
 import Config
-    ( Language(..)
-    )
+    ( Language(..) )
 ```
 
 ``` {.haskell #generate-comment}
@@ -488,16 +498,32 @@ comment (KnownLanguage lang) text = Right $ formatComment lang text
 
 formatComment :: Language -> Text -> Text
 formatComment lang text = pre <> text <> post
-    where pre  = languageStartComment lang <> "###"
-          post = "###" <> (maybe "" id $ languageCloseComment lang)
+    where pre  = languageStartComment lang <> delim
+          post = maybe "" id $ languageCloseComment lang
+```
 
+Using this we can write the `annotateComment` function. Given a `ReferenceId` this retrieves the code text and annotates it with a begin and end comment line.
+
+``` {.haskell #comment-imports}
+import qualified Data.Map.Strict as M
+
+import Document
+    ( CodeBlock(..)
+    , Document(..)
+    , ReferenceId(..)
+    , ReferenceName(..)
+    , unlines'
+    )
+```
+
+``` {.haskell #generate-comment}
 annotateComment :: Document -> ReferenceId -> Either EntangledError Text
 annotateComment doc ref = do
     let code = references doc M.! ref
     pre <- comment (codeLanguage code)
-           $ " begin <<" <> (unReferenceName $ referenceName ref) <> ">>["
-           <> T.pack (show $ referenceCount ref) <> "] "
-    post <- comment (codeLanguage code) " end "
+           $ "begin <<" <> (unReferenceName $ referenceName ref) <> ">>["
+           <> T.pack (show $ referenceCount ref) <> "]"
+    post <- comment (codeLanguage code) "end"
     return $ unlines' [pre, (codeSource code), post]
 
 headerComment :: Language -> FilePath -> Text
@@ -507,7 +533,59 @@ headerComment lang path = formatComment lang
 
 ### Parsing comments
 
+``` {.haskell #comment-imports}
+import Text.Megaparsec
+    ( MonadParsec, chunk, skipManyTill, anySingle, (<?>), takeWhileP, eof )
+import Text.Megaparsec.Char (space)
+import Text.Megaparsec.Char.Lexer
+    ( decimal )
+
+import Document (CodeProperty)
+import Attributes (attributes, cssIdentifier)
+```
+
+The same comment lines have to be parsed back when we untangle. The first line is the top header comment. We don't know yet what the language is going to be, so we `skipManyTill` we find the `delim` text.
+
 ``` {.haskell #parse-comment}
+topHeader :: ( MonadParsec e Text m )
+          => m [CodeProperty]
+topHeader = do
+    skipManyTill (anySingle <?> "open comment")
+                 (chunk delim)
+    attributes
+```
+
+Other parsers will always be combined with `commented`, giving the value of the original parser and a `Text` that gives the indentation level of the parsed comment.
+
+``` {.haskell #parse-comment}
+commented :: (MonadParsec e Text m)
+          => Language -> m a -> m (a, Text)
+commented lang p = do 
+    indent <- takeWhileP Nothing (`elem` (" \t" :: [Char]))
+    pre <- chunk $ (languageStartComment lang) <> delim
+    x <- p
+    post <- chunk $ (maybe "" id $ languageCloseComment lang)
+    space
+    eof
+    return (x, indent)
+```
+
+
+
+``` {.haskell #parse-comment}
+beginBlock :: (MonadParsec e Text m)
+           => m ReferenceId
+beginBlock = do
+    chunk " begin <<"
+    name <- cssIdentifier
+    chunk ">>["
+    count <- decimal
+    chunk "]"
+    return $ ReferenceId (ReferenceName name) count
+
+endBlock :: (MonadParsec e Text m)
+         => m ()
+endBlock = chunk " end " >> return ()
 ```
 
 ## Testing
