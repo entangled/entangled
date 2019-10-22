@@ -52,7 +52,7 @@ All parsing will be done through megaparsec.
 ``` {.haskell #import-megaparsec}
 import Text.Megaparsec
     ( MonadParsec, Parsec, parse
-    , chunk, many, some, eof, token
+    , chunk, many, some, eof
     , manyTill, anySingle, try, lookAhead, takeWhile1P, takeWhileP
     , (<|>), (<?>) )
 import Text.Megaparsec.Char

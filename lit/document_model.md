@@ -70,6 +70,9 @@ data ReferenceId = ReferenceId
     { referenceName :: ReferenceName
     , referenceCount :: Int
     } deriving (Show, Eq, Ord)
+
+nowebReference :: ReferenceName -> Text
+nowebReference (ReferenceName x) = "<<" <> x <> ">>"
 ```
 
 The type is deriving `Ord`, so that we can use it as an index for a `Map`.
@@ -126,6 +129,13 @@ data CodeProperty
     | CodeAttribute Text Text
     | CodeClass Text
     deriving (Eq, Show)
+
+getAttribute :: [CodeProperty] -> Text -> Maybe Text
+getAttribute [] _ = Nothing
+getAttribute (CodeAttribute k v:ps) l
+    | k == l    = Just v
+    | otherwise = getAttribute ps l
+getAttribute (_:ps) l = getAttribute ps l
 ```
 
 In our case the *class* represents the code language or an abbreviation thereof.

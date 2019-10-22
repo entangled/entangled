@@ -39,6 +39,9 @@ data ReferenceId = ReferenceId
     { referenceName :: ReferenceName
     , referenceCount :: Int
     } deriving (Show, Eq, Ord)
+
+nowebReference :: ReferenceName -> Text
+nowebReference (ReferenceName x) = "<<" <> x <> ">>"
 -- ------ end
 -- ------ begin <<document-structure>>[1]
 data Content
@@ -72,6 +75,13 @@ data CodeProperty
     | CodeAttribute Text Text
     | CodeClass Text
     deriving (Eq, Show)
+
+getAttribute :: [CodeProperty] -> Text -> Maybe Text
+getAttribute [] _ = Nothing
+getAttribute (CodeAttribute k v:ps) l
+    | k == l    = Just v
+    | otherwise = getAttribute ps l
+getAttribute (_:ps) l = getAttribute ps l
 -- ------ end
 -- ------ begin <<document-structure>>[4]
 data CodeBlock = CodeBlock

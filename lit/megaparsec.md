@@ -5,12 +5,16 @@ Megaparsec is considered to be preferable over older Parsec. It is a bit more wo
 ``` {.haskell file=src/ListStream.hs}
 module ListStream where
 
+import Data.Text (Text)
+import Text.Megaparsec (Parsec, MonadParsec, token, parse)
 import Text.Megaparsec (Stream (..), PosState (..), SourcePos (..), mkPos, unPos)
 import Data.Proxy (Proxy (..))
+import Data.Void (Void)
 
 <<instance-list-stream>>
 
 <<list-stream-helpers>>
+<<line-parser>>
 ```
 
 The minimal definition of a stream must define `tokensToChunk`, `chunkToTokens`, `chunkLength`, `take1_`, `takeN_`, `takeWhile_`, `showTokens` and `reachOffset`.
@@ -79,6 +83,25 @@ reachOffset offset state@PosState{..} = (sourcePos, repr, state')
                     , pstateOffset = offset
                     , pstateSourcePos = sourcePos }
 ```
+
+## Text-parser tokens
+
+``` {.haskell #line-parser}
+type LineParser = Parsec Void Text
+
+parseLine :: LineParser a -> Text -> Maybe (a, Text)
+parseLine p t = either (const Nothing) (\x -> Just (x, t))
+              $ parse p "" t
+
+parseLineNot :: LineParser a -> Text -> Maybe Text
+parseLineNot p t = either (const $ Just t) (const Nothing)
+                 $ parse p "" t
+
+tokenLine :: ( MonadParsec e (ListStream Text) m )
+          => (Text -> Maybe a) -> m a
+tokenLine f = token f mempty
+```
+
 
 ## Testing on lists
 

@@ -262,26 +262,15 @@ Add Wirth Syntax Notation with all the parsers.
 
 Using these two parsers, we can create a larger parser that works on a line-by-line basis. We define several helpers to create a parser for `ListStream Text` using single line parsers for `Text`.
 
-``` {.haskell #parse-markdown}
-type LineParser = Parsec Void Text
-type DocumentParser = ReaderT Config (StateT ReferenceCount (Parsec Void (ListStream Text)))
-
-parseLine :: LineParser a -> Text -> Maybe (a, Text)
-parseLine p t = either (const Nothing) (\x -> Just (x, t))
-              $ parse p "" t
-
-parseLineNot :: (Monoid a) => LineParser a -> Text -> Maybe Text
-parseLineNot p t = either (const $ Just t) (const Nothing)
-                 $ parse p "" t
-
-tokenLine :: ( MonadParsec e (ListStream Text) m )
-          => (Text -> Maybe a) -> m a
-tokenLine f = token f mempty
+``` {.haskell #tangle-imports}
+import ListStream (parseLine, parseLineNot, tokenLine)
 ```
 
 To parse markdown, we first try to parse a code block (as given above), stored in `CodeBlock`. If that fails lines are interpreted as other markdown, and stored in `PlainText`.
 
 ``` {.haskell #parse-markdown}
+type DocumentParser = ReaderT Config (StateT ReferenceCount (Parsec Void (ListStream Text)))
+
 codeBlock :: ( MonadParsec e (ListStream Text) m
              , MonadReader Config m 
              , MonadState ReferenceCount m )
@@ -569,8 +558,6 @@ commented lang p = do
     eof
     return (x, indent)
 ```
-
-
 
 ``` {.haskell #parse-comment}
 beginBlock :: (MonadParsec e Text m)

@@ -1,8 +1,11 @@
 -- ------ language="Haskell" file="src/ListStream.hs"
 module ListStream where
 
+import Data.Text (Text)
+import Text.Megaparsec (Parsec, MonadParsec, token, parse)
 import Text.Megaparsec (Stream (..), PosState (..), SourcePos (..), mkPos, unPos)
 import Data.Proxy (Proxy (..))
+import Data.Void (Void)
 
 -- ------ begin <<instance-list-stream>>[0]
 newtype ListStream a = ListStream { unListStream :: [a] }
@@ -49,5 +52,20 @@ instance (Eq a, Ord a, Show a) => Stream (ListStream a) where
 -- ------ begin <<list-stream-helpers>>[0]
 offsetSourcePos offset sourcePos@SourcePos{..}
     = sourcePos { sourceLine = mkPos (unPos sourceLine + offset) }
+-- ------ end
+-- ------ begin <<line-parser>>[0]
+type LineParser = Parsec Void Text
+
+parseLine :: LineParser a -> Text -> Maybe (a, Text)
+parseLine p t = either (const Nothing) (\x -> Just (x, t))
+              $ parse p "" t
+
+parseLineNot :: LineParser a -> Text -> Maybe Text
+parseLineNot p t = either (const $ Just t) (const Nothing)
+                 $ parse p "" t
+
+tokenLine :: ( MonadParsec e (ListStream Text) m )
+          => (Text -> Maybe a) -> m a
+tokenLine f = token f mempty
 -- ------ end
 -- ------ end

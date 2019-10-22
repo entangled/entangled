@@ -115,13 +115,13 @@ readGlobalConfig :: IO Config
 readGlobalConfig = return mempty
 -- ------ end
 -- ------ begin <<config-reader>>[0]
-lookupLanguage :: Text -> Config -> Maybe Language
-lookupLanguage x cfg
+lookupLanguage :: Config -> Text -> Maybe Language
+lookupLanguage cfg x
     = find (elem x . languageIdentifiers) 
     $ configLanguages cfg
 
-languageFromName :: Text -> Config -> Maybe Language
-languageFromName x cfg
+languageFromName :: Config -> Text -> Maybe Language
+languageFromName cfg x
     = find ((== x) . languageName)
     $ configLanguages cfg
 -- ------ end

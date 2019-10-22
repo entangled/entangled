@@ -16,7 +16,7 @@ import qualified Data.Map.Lazy as LM
 -- ------ begin <<import-megaparsec>>[0]
 import Text.Megaparsec
     ( MonadParsec, Parsec, parse
-    , chunk, many, some, eof, token
+    , chunk, many, some, eof
     , manyTill, anySingle, try, lookAhead, takeWhile1P, takeWhileP
     , (<|>), (<?>) )
 import Text.Megaparsec.Char
@@ -41,6 +41,9 @@ import Config (Config, lookupLanguage)
 import Attributes (attributes)
 -- ------ end
 -- ------ begin <<tangle-imports>>[1]
+import ListStream (parseLine, parseLineNot, tokenLine)
+-- ------ end
+-- ------ begin <<tangle-imports>>[2]
 -- import Comment (annotateComment)
 -- ------ end
 
@@ -111,22 +114,8 @@ newReference :: ( MonadState ReferenceCount m )
 newReference n = ReferenceId n <$> countReference n
 -- ------ end
 -- ------ begin <<parse-markdown>>[5]
-type LineParser = Parsec Void Text
 type DocumentParser = ReaderT Config (StateT ReferenceCount (Parsec Void (ListStream Text)))
 
-parseLine :: LineParser a -> Text -> Maybe (a, Text)
-parseLine p t = either (const Nothing) (\x -> Just (x, t))
-              $ parse p "" t
-
-parseLineNot :: (Monoid a) => LineParser a -> Text -> Maybe Text
-parseLineNot p t = either (const $ Just t) (const Nothing)
-                 $ parse p "" t
-
-tokenLine :: ( MonadParsec e (ListStream Text) m )
-          => (Text -> Maybe a) -> m a
-tokenLine f = token f mempty
--- ------ end
--- ------ begin <<parse-markdown>>[6]
 codeBlock :: ( MonadParsec e (ListStream Text) m
              , MonadReader Config m 
              , MonadState ReferenceCount m )
