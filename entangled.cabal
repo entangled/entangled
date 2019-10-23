@@ -96,6 +96,7 @@ test-suite entangled-test
   other-modules:
       ListStreamSpec
       TangleSpec
+      TextUtilSpec
       Paths_entangled
   hs-source-dirs:
       test

@@ -2,6 +2,7 @@
 module TextUtil where
 
 import Data.Char (isSpace)
+import Data.Maybe (isNothing, catMaybes)
 -- ------ begin <<import-text>>[0]
 import qualified Data.Text as T
 import Data.Text (Text)
@@ -10,9 +11,7 @@ import Data.Text (Text)
 -- ------ begin <<indent>>[0]
 indent :: Text -> Text -> Text
 indent pre text
-    = unlines' 
-    $ map indentLine
-    $ T.lines text
+    = unlines' $ map indentLine $ lines' text
     where indentLine line
             | line == "" = line
             | otherwise  = pre <> line
@@ -20,8 +19,10 @@ indent pre text
 -- ------ begin <<unindent>>[0]
 unindent :: Text -> Text -> Maybe Text
 unindent prefix s
-    | T.all isSpace s = Just ""
-    | otherwise       = T.stripPrefix prefix s
+    = unlines' <$> sequence (map unindentLine $ lines' s)
+    where unindentLine t
+            | T.all isSpace t = Just ""
+            | otherwise       = T.stripPrefix prefix t
 -- ------ end
 -- ------ begin <<unlines>>[0]
 lines' :: Text -> [Text]
