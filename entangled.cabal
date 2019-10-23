@@ -67,6 +67,7 @@ library
       Comment
       Untangle
       Attributes
+      TextUtil
   other-modules:
       Paths_entangled
   autogen-modules:
@@ -104,3 +105,4 @@ test-suite entangled-test
     , QuickCheck >=2.13 && <3
     , hspec >=2.5 && <3
     , hspec-megaparsec >=2.0 && <3
+    , quickcheck-instances >=0.3.22 && <0.4

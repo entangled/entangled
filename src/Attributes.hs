@@ -2,10 +2,7 @@
 module Attributes where
 
 -- ------ begin <<attributes-imports>>[0]
--- ------ begin <<import-text>>[0]
-import qualified Data.Text as T
 import Data.Text (Text)
--- ------ end
 import Document (CodeProperty(..))
 import Text.Megaparsec
     ( MonadParsec, takeWhile1P, takeWhileP, chunk, endBy, (<|>) )

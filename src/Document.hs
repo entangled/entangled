@@ -16,20 +16,25 @@ import Data.Set (Set)
 import Data.List (sort)
 
 import Config (Language)
+import TextUtil (tshow)
 
 -- ------ begin <<entangled-error>>[0]
 data EntangledError
     = TangleError Text
+    | UntangleError Text
     | CyclicReference Text
     | UnknownLanguageClass Text
     | MissingLanguageClass
     | UnknownError
     deriving (Show, Ord, Eq)
+
+toEntangledError :: (Show e)
+                 => (Text -> EntangledError) -> Either e a
+                 -> Either EntangledError a
+toEntangledError _ (Right x) = Right x
+toEntangledError f (Left x) = Left $ f $ tshow x
 -- ------ end
--- ------ begin <<document-utils>>[0]
-unlines' :: [Text] -> Text
-unlines' = T.intercalate "\n"
--- ------ end
+
 -- ------ begin <<document-structure>>[0]
 newtype ReferenceName = ReferenceName
     { unReferenceName :: Text
@@ -49,6 +54,7 @@ data Content
     | Reference ReferenceId
     deriving (Show, Eq)
 
+type ReferencePair = (ReferenceId, CodeBlock)
 type ReferenceMap = Map ReferenceId CodeBlock
 type FileMap = Map FilePath ReferenceName
 

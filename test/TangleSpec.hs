@@ -73,7 +73,7 @@ tangleSpec = do
                     [ "``` {.python #hello-world}"
                     , "print(\"Hello, World!\")"
                     , "```" ]
-            python = fromJust $ languageFromName "Python" defaultConfig
+            python = fromJust $ languageFromName defaultConfig "Python"
         it "parses a code block" $ do
             pc codeBlock test1 `shouldParse`
                 ( [ PlainText "``` {.python #hello-world}"

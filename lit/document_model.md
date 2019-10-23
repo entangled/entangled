@@ -9,25 +9,11 @@ module Document where
 import Data.List (sort)
 
 import Config (Language)
+import TextUtil (tshow)
 
 <<entangled-error>>
-<<document-utils>>
+
 <<document-structure>>
-```
-
-## Utils
-
-We need a version of `unlines` that doesn't append a final newline.
-
-``` {.haskell #document-utils}
-unlines' :: [Text] -> Text
-unlines' = T.intercalate "\n"
-```
-
-This way, `unlines'` has nicer properties. No single `Text` in Entangled ends in a newline, meaning
-
-``` {.haskell}
-unlines' [unlines' a, unlines' b] = unlines' (a <> b)
 ```
 
 ## Structure
@@ -87,6 +73,7 @@ data Content
     | Reference ReferenceId
     deriving (Show, Eq)
 
+type ReferencePair = (ReferenceId, CodeBlock)
 type ReferenceMap = Map ReferenceId CodeBlock
 type FileMap = Map FilePath ReferenceName
 

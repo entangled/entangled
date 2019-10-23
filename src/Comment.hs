@@ -22,8 +22,8 @@ import Document
     , Document(..)
     , ReferenceId(..)
     , ReferenceName(..)
-    , unlines'
     )
+import TextUtil (unlines')
 -- ------ end
 -- ------ begin <<comment-imports>>[3]
 import Text.Megaparsec

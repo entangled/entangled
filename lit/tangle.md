@@ -18,7 +18,7 @@ import Data.Maybe (catMaybes)
 import ListStream (ListStream (..))
 import Document
     ( CodeProperty (..), CodeBlock (..), Content (..), ReferenceId (..)
-    , ReferenceName (..), ProgrammingLanguage (..), Document (..), FileMap, unlines'
+    , ReferenceName (..), ProgrammingLanguage (..), Document (..), FileMap
     , EntangledError (..), referenceNames, referencesByName )
 import Config (Config, lookupLanguage)
 
@@ -57,7 +57,7 @@ module Attributes where
 ```
 
 ``` {.haskell #attributes-imports}
-<<import-text>>
+import Data.Text (Text)
 import Document (CodeProperty(..))
 import Text.Megaparsec
     ( MonadParsec, takeWhile1P, takeWhileP, chunk, endBy, (<|>) )
@@ -196,7 +196,7 @@ getLanguage [] = return NoLanguage
 getLanguage (CodeClass cls : _)
     = maybe (UnknownClass cls) 
             KnownLanguage
-            <$> reader (lookupLanguage cls)
+            <$> reader (\cfg -> lookupLanguage cfg cls)
 getLanguage (_ : xs) = getLanguage xs
 ```
 
@@ -338,15 +338,8 @@ for i in range(n):
 
 Indentation is done by `lines` $\to$ `map (append indent)` $\to$ `unlines`, with the distinction that empty lines are not indented, and that the inverse of `lines` is `unlines'`, which doesn't append a final newline.
 
-``` {.haskell #generate-code}
-indent :: Text -> Text -> Text
-indent pre text
-    = unlines' 
-    $ map indentLine
-    $ T.lines text
-    where indentLine line
-            | line == "" = line
-            | otherwise  = pre <> line
+``` {.haskell #tangle-imports}
+import TextUtil (indent, unlines')
 ```
 
 ``` {.haskell #generate-code}
@@ -501,8 +494,8 @@ import Document
     , Document(..)
     , ReferenceId(..)
     , ReferenceName(..)
-    , unlines'
     )
+import TextUtil (unlines')
 ```
 
 ``` {.haskell #generate-comment}
@@ -649,7 +642,7 @@ tangleSpec = do
                     [ "``` {.python #hello-world}"
                     , "print(\"Hello, World!\")"
                     , "```" ]
-            python = fromJust $ languageFromName "Python" defaultConfig
+            python = fromJust $ languageFromName defaultConfig "Python"
         it "parses a code block" $ do
             pc codeBlock test1 `shouldParse`
                 ( [ PlainText "``` {.python #hello-world}"

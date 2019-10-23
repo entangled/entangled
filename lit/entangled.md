@@ -36,13 +36,126 @@ import qualified Data.Set as S
 import Data.Set (Set)
 ```
 
-### Text
+## Text
 
 We will be using the `Text` module everywhere.
 
 ``` {.haskell #import-text}
 import qualified Data.Text as T
 import Data.Text (Text)
+```
+
+We need a version of `unlines` that doesn't append a final newline. This also means changing `T.lines` a little.
+
+``` {.haskell #unlines}
+lines' :: Text -> [Text]
+lines' text
+    | text == ""               = [""]
+    | "\n" `T.isSuffixOf` text = T.lines text <> [""]
+    | otherwise                = T.lines text
+
+unlines' :: [Text] -> Text
+unlines' = T.intercalate "\n"
+```
+
+This way, `unlines'` has nicer properties. No single `Text` in Entangled ends in a newline, meaning the `unlines'` operation is associative:
+
+``` {.haskell}
+unlines' [unlines' a, unlines' b] = unlines' (a <> b)
+```
+
+With the notable exception of empty lists. The `[Text]` type is a proper monoid, however when we consider `Text` itself in the context of an element of an `unlines`ed text, the zero element for `Text`, being `""` changes meaning. An empty line is something different than the absence of text. To preserve both associativity and make the `unlines . lines = id` property more strict we need to wrap `Text` in a `Maybe`.
+
+``` {.haskell #maybe-unlines}
+mLines :: Maybe Text -> [Text]
+mLines Nothing = []
+mLines (Just text) = lines' text
+
+mUnlines :: [Text] -> Maybe Text
+mUnlines [] = Nothing
+mUnlines ts = Just $ unlines' ts
+```
+
+Now we can test:
+
+``` {.haskell #test-unlines-inverse}
+t == mUnlines (mLines t)
+```
+
+and
+
+``` {.haskell #test-unlines-associative}
+mUnlines (catMaybes [mUnlines a, mUnlines b]) == mUnlines (a <> b)
+```
+
+Also composing `T.pack` and `show` as a usefule shorthand:
+
+``` {.haskell #tshow}
+tshow :: (Show a) => a -> Text
+tshow = T.pack . show
+```
+
+### `TextUtils` module 
+
+``` {.haskell file=src/TextUtil.hs}
+module TextUtil where
+
+import Data.Char (isSpace)
+<<import-text>>
+
+<<indent>>
+<<unindent>>
+<<unlines>>
+<<maybe-unlines>>
+<<tshow>>
+```
+
+``` {.haskell #indent}
+indent :: Text -> Text -> Text
+indent pre text
+    = unlines' 
+    $ map indentLine
+    $ T.lines text
+    where indentLine line
+            | line == "" = line
+            | otherwise  = pre <> line
+```
+
+``` {.haskell #unindent}
+unindent :: Text -> Text -> Maybe Text
+unindent prefix s
+    | T.all isSpace s = Just ""
+    | otherwise       = T.stripPrefix prefix s
+```
+
+#### Tests
+
+``` {.haskell file=test/TextUtilSpec.hs}
+module TextUtilSpec where
+
+<<import-text>>
+import Data.Maybe (catMaybes)
+import Test.Hspec
+import Test.QuickCheck
+import Test.QuickCheck.Instances.Text
+
+import TextUtil
+
+propUnlines :: Maybe Text -> Bool
+propUnlines t = 
+    <<test-unlines-inverse>>
+
+propUnlineLists :: ([Text], [Text]) -> Bool
+propUnlineLists (a, b) =
+    <<test-unlines-associative>>
+
+textUtilSpec :: Spec
+textUtilSpec = do
+    describe "property check" $ do
+        it "mUnlines inverses mLines" $
+            property $ propUnlines
+        it "mUnlines can be nested (associativity)" $
+            property $ propUnlineLists
 ```
 
 ### MegaParsec
@@ -65,9 +178,16 @@ import Data.Void
 ``` {.haskell #entangled-error}
 data EntangledError
     = TangleError Text
+    | UntangleError Text
     | CyclicReference Text
     | UnknownLanguageClass Text
     | MissingLanguageClass
     | UnknownError
     deriving (Show, Ord, Eq)
+
+toEntangledError :: (Show e)
+                 => (Text -> EntangledError) -> Either e a
+                 -> Either EntangledError a
+toEntangledError _ (Right x) = Right x
+toEntangledError f (Left x) = Left $ f $ tshow x
 ```

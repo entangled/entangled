@@ -33,7 +33,7 @@ import Data.Maybe (catMaybes)
 import ListStream (ListStream (..))
 import Document
     ( CodeProperty (..), CodeBlock (..), Content (..), ReferenceId (..)
-    , ReferenceName (..), ProgrammingLanguage (..), Document (..), FileMap, unlines'
+    , ReferenceName (..), ProgrammingLanguage (..), Document (..), FileMap
     , EntangledError (..), referenceNames, referencesByName )
 import Config (Config, lookupLanguage)
 
@@ -44,6 +44,9 @@ import Attributes (attributes)
 import ListStream (parseLine, parseLineNot, tokenLine)
 -- ------ end
 -- ------ begin <<tangle-imports>>[2]
+import TextUtil (indent, unlines')
+-- ------ end
+-- ------ begin <<tangle-imports>>[3]
 -- import Comment (annotateComment)
 -- ------ end
 
@@ -67,7 +70,7 @@ getLanguage [] = return NoLanguage
 getLanguage (CodeClass cls : _)
     = maybe (UnknownClass cls) 
             KnownLanguage
-            <$> reader (lookupLanguage cls)
+            <$> reader (\cfg -> lookupLanguage cfg cls)
 getLanguage (_ : xs) = getLanguage xs
 -- ------ end
 -- ------ begin <<parse-markdown>>[2]
@@ -155,23 +158,13 @@ parseMarkdown f t = do
                      (getFileMap refs)
 -- ------ end
 -- ------ begin <<generate-code>>[0]
-indent :: Text -> Text -> Text
-indent pre text
-    = unlines' 
-    $ map indentLine
-    $ T.lines text
-    where indentLine line
-            | line == "" = line
-            | otherwise  = pre <> line
--- ------ end
--- ------ begin <<generate-code>>[1]
 data CodeLine = PlainCode Text
               | NowebReference ReferenceName Text
               deriving (Eq, Show)
 
 type CodeParser = Parsec Void Text
 -- ------ end
--- ------ begin <<generate-code>>[2]
+-- ------ begin <<generate-code>>[1]
 nowebReference :: CodeParser CodeLine
 nowebReference = do
     indent <- takeWhileP Nothing (`elem` (" \t" :: [Char]))
@@ -188,11 +181,11 @@ parseCode name = map parseLine . T.lines
                               (T.unpack $ unReferenceName name)
                               l
 -- ------ end
--- ------ begin <<generate-code>>[3]
+-- ------ begin <<generate-code>>[2]
 type ExpandedCode = LM.Map ReferenceName (Either EntangledError Text)
 type Annotator = Document -> ReferenceId -> (Either EntangledError Text)
 -- ------ end
--- ------ begin <<generate-code>>[4]
+-- ------ begin <<generate-code>>[3]
 expandedCode :: Annotator -> Document -> ExpandedCode
 expandedCode annotate doc = result
     where result = LM.fromSet expand (referenceNames doc)
@@ -208,7 +201,7 @@ expandCodeSource result name t
           codeLineToText (NowebReference name i)
               = indent i <$> result LM.! name
 -- ------ end
--- ------ begin <<generate-code>>[5]
+-- ------ begin <<generate-code>>[4]
 annotateNaked :: Document -> ReferenceId -> Either EntangledError Text
 annotateNaked doc ref = Right $ codeSource $ references doc M.! ref
 -- ------ end

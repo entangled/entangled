@@ -100,6 +100,14 @@ parseLineNot p t = either (const $ Just t) (const Nothing)
 tokenLine :: ( MonadParsec e (ListStream Text) m )
           => (Text -> Maybe a) -> m a
 tokenLine f = token f mempty
+
+tokenP :: ( MonadParsec e (ListStream Text) m )
+       => LineParser a -> m (a, Text)
+tokenP = tokenLine . parseLine
+
+tokenNotP :: ( MonadParsec e (ListStream Text) m )
+       => LineParser a -> m Text
+tokenNotP = tokenLine . parseLineNot
 ```
 
 
