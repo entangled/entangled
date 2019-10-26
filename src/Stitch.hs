@@ -1,7 +1,7 @@
--- ------ language="Haskell" file="src/Untangle.hs"
-module Untangle where
+-- ------ language="Haskell" file="src/Stitch.hs"
+module Stitch where
 
--- ------ begin <<untangle-imports>>[0]
+-- ------ begin <<stitch-imports>>[0]
 import ListStream (ListStream(..), tokenP)
 import Document
     ( CodeBlock(..), ProgrammingLanguage(..)
@@ -59,15 +59,15 @@ sourceLine = do
     x <- anySingle
     return ([x], [])
 -- ------ end
--- ------ begin <<untangle>>[0]
+-- ------ begin <<stitch>>[0]
 type SourceParser = ReaderT Config (Parsec Void (ListStream Text))
 
-untangle :: ( MonadReader Config m )
+stitch :: ( MonadReader Config m )
          => FilePath -> Text
          -> m (Either EntangledError [ReferencePair])
-untangle filename text = do
+stitch filename text = do
     p <- asks $ runReaderT (sourceDocument :: SourceParser [ReferencePair])
     let refs = parse p filename $ ListStream (T.lines text)
-    return $ toEntangledError UntangleError refs
+    return $ toEntangledError StitchError refs
 -- ------ end
 -- ------ end

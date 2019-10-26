@@ -40,13 +40,11 @@ common deps
     , filepath >=1.4 && <2
     , fsnotify >=0.3 && <0.4
     , megaparsec >=7.0 && <8
-    , microlens-platform >=0.3 && <0.4
+    , microlens-platform >=0.3 && <0.5
     , mtl >=2.2 && <3
     , prettyprinter >=1.2 && <2
     , prettyprinter-ansi-terminal >=1.1 && <2
     , random >=1.0 && <2
-    , regex-tdfa >=1.2 && <2
-    , regex-tdfa-text
     , terminal-size >=0.3 && <1
     , text >=1.2 && <2
     , time >=1.8 && <2

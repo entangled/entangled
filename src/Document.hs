@@ -21,7 +21,7 @@ import TextUtil (tshow)
 -- ------ begin <<entangled-error>>[0]
 data EntangledError
     = TangleError Text
-    | UntangleError Text
+    | StitchError Text
     | CyclicReference Text
     | UnknownLanguageClass Text
     | MissingLanguageClass

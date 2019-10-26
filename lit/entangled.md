@@ -201,7 +201,7 @@ import Data.Void
 ``` {.haskell #entangled-error}
 data EntangledError
     = TangleError Text
-    | UntangleError Text
+    | StitchError Text
     | CyclicReference Text
     | UnknownLanguageClass Text
     | MissingLanguageClass

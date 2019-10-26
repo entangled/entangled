@@ -1,11 +1,11 @@
 # Untangling
 
-```{.haskell file=src/Untangle.hs}
-module Untangle where
+```{.haskell file=src/Stitch.hs}
+module Stitch where
 
-<<untangle-imports>>
+<<stitch-imports>>
 <<source-parser>>
-<<untangle>>
+<<stitch>>
 ```
 
 Untangling starts with reading the top line to identify the file and language. Following that should be one series of referenced code block items.
@@ -50,25 +50,25 @@ sourceLine = do
     return ([x], [])
 ```
 
-## The `untangle` function
+## The `stitch` function
 
-In the `untangle` function we take out the `Config` from the anonymous `MonadReader` and put it in a `SourceParser` monad. This transformation is the `asks . runReaderT` combo. It seems silly that we can't "inherit" the outer monad here. I tried turning the transformers around like: `ParsecT Void (ListStream Text) m`, but type deduction fails on that one.
+In the `stitch` function we take out the `Config` from the anonymous `MonadReader` and put it in a `SourceParser` monad. This transformation is the `asks . runReaderT` combo. It seems silly that we can't "inherit" the outer monad here. I tried turning the transformers around like: `ParsecT Void (ListStream Text) m`, but type deduction fails on that one.
 
-``` {.haskell #untangle}
+``` {.haskell #stitch}
 type SourceParser = ReaderT Config (Parsec Void (ListStream Text))
 
-untangle :: ( MonadReader Config m )
+stitch :: ( MonadReader Config m )
          => FilePath -> Text
          -> m (Either EntangledError [ReferencePair])
-untangle filename text = do
+stitch filename text = do
     p <- asks $ runReaderT (sourceDocument :: SourceParser [ReferencePair])
     let refs = parse p filename $ ListStream (T.lines text)
-    return $ toEntangledError UntangleError refs
+    return $ toEntangledError StitchError refs
 ```
 
 ## Imports
 
-``` {.haskell #untangle-imports}
+``` {.haskell #stitch-imports}
 import ListStream (ListStream(..), tokenP)
 import Document
     ( CodeBlock(..), ProgrammingLanguage(..)
