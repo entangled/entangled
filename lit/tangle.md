@@ -301,7 +301,8 @@ parseMarkdown :: ( MonadReader Config m )
               => FilePath -> Text -> m (Either EntangledError Document)
 parseMarkdown f t = do
     cfg <- ask
-    let result' = parse (evalStateT (runReaderT markdown cfg) mempty) f (ListStream $ T.lines t)
+    let result' = parse (evalStateT (runReaderT markdown cfg) mempty)
+                        f (ListStream $ T.lines t)
     return $ case result' of
         Left err              -> Left (TangleError $ T.pack $ show err)
         Right (content, refs) -> Right $

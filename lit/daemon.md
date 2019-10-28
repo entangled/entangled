@@ -16,15 +16,21 @@ The Entangled daemon does the following:
 We'll use `Lens` with template Haskell for convenience. That being said, I'm not a fan of the more cryptic unreadable junk that's possible with `lens`. Where possible I use the wordy functions over the alien gibberish in operator form.
 
 ``` {.haskell #daemon}
-{-# LANGUAGE: TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell #-}
 module Daemon where
 
 <<daemon-imports>>
+<<daemon-events>>
 <<daemon-session>>
-<<daemon-files>>
+<<daemon-user-io>>
+<<daemon-loading>>
+<<daemon-watches>>
 ```
 
 ``` {.haskell #daemon-imports}
+<<import-text>>
+<<import-map>>
+import TextUtil (tshow)
 import Lens.Micro.Platform
 ```
 
@@ -54,9 +60,22 @@ data Event
     deriving (Show)
 ```
 
+### Session
+
+``` {.haskell #daemon-imports}
+import Document
+import Console (LogLevel(..))
+
+import Control.Concurrent.Chan
+import Control.Concurrent
+import Control.Monad.State
+import Control.Monad.IO.Class
+```
+
 ``` {.haskell #daemon-session}
 data Session = Session
-    { _sourceData    :: Map FilePath [Content]
+    { _sourceData    :: Map FilePath Document
+    , _targetFiles   :: Map FilePath ReferenceName
     , _referenceMap  :: ReferenceMap
     , _watches       :: [FSNotify.StopListening]
     , _manager       :: FSNotify.WatchManager
@@ -66,29 +85,41 @@ data Session = Session
 
 makeLenses ''Session
 
-listAllSourceFiles :: ( MonadState Session m ) => m [FilePath]
-listAllSourceFiles = use $ sourceData . to M.keys
+listSourceFiles :: ( MonadState Session m ) => m [FilePath]
+listSourceFiles = use $ sourceData . to M.keys
 
-listAllTargetFiles :: ( MonadState Session m ) => m [FilePath]
-listAllTargetFiles = use $ referenceMap . to getTargets
+listTargetFiles :: ( MonadState Session m ) => m [FilePath]
+listTargetFiles = use $ targetFiles . to M.keys
 ```
 
 Every time an event happens we send it to `_eventChannel`. When we tangle we change the `_daemonState` to `Tangling`. Write events to target files are then not triggering a stitch. The other way around, if the daemon is in `Stitching` state, write events to the markdown source do not trigger a tangle. Because these events will arrive asynchronously, we use an `MVar` to change the state.
 
+Setting the state is a bit involved (a bit more than with an `IORef`), but it guarantees safe use in a multi-threaded environment. An `MVar` can only be set if it is first emptied, the combined action can be done with `modifyMVar_`.
+
+``` {.haskell #daemon-session}
+setDaemonState :: ( MonadIO m
+                  , MonadState Session m )
+               => DaemonState -> m ()
+setDaemonState s = do
+    state <- use daemonState
+    liftIO $ modifyMVar_ state (const $ return s)
+```
+
 ### File IO
 
 ``` {.haskell #daemon-imports}
+import System.FilePath (takeDirectory, equalFilePath)
 import System.Directory 
     ( canonicalizePath
     , doesFileExist
     , removeFile
     , createDirectoryIfMissing
-    , makeRelativeToCurrentDirectory)
+    , makeRelativeToCurrentDirectory )
 ```
 
 There is a limited set of IO file system actions that result from a tangle or stitch. We define a little language using a type class.
 
-``` {.haskell #daemon-files}
+``` {.haskell #daemon-user-io}
 class Monad m => MonadUserIO m where
     overwrite :: FilePath -> Text -> m ()
     create :: FilePath -> Text -> m ()
@@ -100,6 +131,11 @@ class Monad m => MonadUserIO m where
 These are IO actions that need logging, possible confirmation by the user and execution.
 
 ## Watching
+
+``` {.haskell #daemon-imports}
+import Data.List (nub)
+import Control.Monad (mapM)
+```
 
 The `passEvent` function acts as the call-back for the FSNotify watcher. There are two strategies in which editors save files:
 
@@ -118,8 +154,8 @@ passEvent state' channel srcs tgts fsEvent = do
     abs_path <- canonicalizePath $ FSNotify.eventPath fsEvent
     state    <- readMVar state'
 
-    let isSourceFile = any (equalFilePath path) srcs
-        isTargetFile = any (equalFilePath path) tgts
+    let isSourceFile = any (equalFilePath abs_path) srcs
+        isTargetFile = any (equalFilePath abs_path) tgts
         pass         = case state of
                          Idle      -> isSourceFile || isTargetFile
                          Tangling  -> isSourceFile
@@ -136,18 +172,19 @@ setWatch :: ( MonadIO m
             , MonadUserIO m )
          => m ()
 setWatch = do
-    srcs <- listSourceFiles >>= (mapM canonicalizePath)
-    tgts <- listTargetFiles >>= (mapM canonicalizePath)
+    srcs <- listSourceFiles >>= (liftIO . mapM canonicalizePath)
+    tgts <- listTargetFiles >>= (liftIO . mapM canonicalizePath)
     fsnotify <- use manager
     channel  <- use eventChannel
 
     let abs_dirs = nub $ map takeDirectory (srcs <> tgts)
-    rel_dirs <- mapM makeRelativeToCurrentDirectory abs_dirs
+    rel_dirs <- liftIO $ mapM makeRelativeToCurrentDirectory abs_dirs
 
     state <- use daemonState
-    stopActions <- mapM
+    stopActions <- liftIO $ mapM
         (\dir -> FSNotify.watchDir fsnotify dir (const True)
                                    (passEvent state channel srcs tgts))
+        abs_dirs\
     assign watches stopActions
 
     notify Message $ "watching: " <> tshow rel_dirs
@@ -160,7 +197,59 @@ closeWatch :: ( MonadIO m
            => m ()
 closeWatch = do
     stopActions <- use watches
-    sequence_ stopActions
+    liftIO $ sequence_ stopActions
     notify Message "suspended watches"
 ```
 
+## Loading
+
+``` {.haskell #daemon-loading}
+loadSourceFile :: ( MonadUserIO m
+                  , MonadReader Config m )
+               => FilePath -> m (Either EntangledError Document)
+loadSourceFile path = read path >>= parseMarkdown path
+```
+
+``` {.haskell #daemon-loading}
+addSourceFile :: ( MonadUserIO m
+                 , MonadReader Config m
+                 , MonadState Session m )
+              => FilePath -> m ()
+addSourceFile abs_path = do
+    doc'     <- loadSourceFile
+    case doc' of
+        Left err -> notify Error $ "Error loading '" <> rel_path <> "': " <> tshow err
+        Right doc@(Document refs content files) -> do
+            updateReferenceMap refs
+            modify (over sourceData (M.insert abs_path doc))
+```
+
+## Main loop
+
+The `mainLoop` is fed events and handles them.
+
+``` {.haskell #daemon-main-loop}
+class ( MonadIO m, MonadReader Config m, MonadState Session m )
+      => MonadEntangled m
+
+type Entangled m = RWST Config () Session IO
+
+mainLoop :: [Event] -> Entangled ()
+<<main-loop-cases>>
+```
+
+``` {.haskell #main-loop-cases}
+mainLoop [] = return ()
+```
+
+After the first event we need to wait a bit, there may be more comming.
+
+``` {.haskell #main-loop-cases}
+mainLoop (WriteSource abs_path : xs) = do
+    rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
+    wait
+    setDaemonState Tangling
+    doc <- fromJust <$> getDocument abs_path    -- TODO: handle errors
+    old_tgts <- listTargetFiles
+    
+```

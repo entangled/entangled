@@ -63,9 +63,10 @@ library
       Console
       ListStream
       Comment
-      Untangle
+      Stitch
       Attributes
       TextUtil
+      Daemon
   other-modules:
       Paths_entangled
   autogen-modules:
