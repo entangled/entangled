@@ -4,6 +4,7 @@
 module Daemon where
 
 -- ------ begin <<daemon-imports>>[0]
+import Prelude hiding (readFile)
 -- ------ begin <<import-text>>[0]
 import qualified Data.Text as T
 import Data.Text (Text)
@@ -19,15 +20,23 @@ import Lens.Micro.Platform
 import qualified System.FSNotify as FSNotify
 -- ------ end
 -- ------ begin <<daemon-imports>>[2]
+import Database.Selda
+import Database.Selda.SQLite
+-- ------ end
+-- ------ begin <<daemon-imports>>[3]
 import Document
+import Config
+import Tangle (parseMarkdown)
+import Stitch (stitch)
 import Console (LogLevel(..))
 
 import Control.Concurrent.Chan
 import Control.Concurrent
 import Control.Monad.State
+import Control.Monad.Reader
 import Control.Monad.IO.Class
 -- ------ end
--- ------ begin <<daemon-imports>>[3]
+-- ------ begin <<daemon-imports>>[4]
 import System.FilePath (takeDirectory, equalFilePath)
 import System.Directory 
     ( canonicalizePath
@@ -36,7 +45,7 @@ import System.Directory
     , createDirectoryIfMissing
     , makeRelativeToCurrentDirectory )
 -- ------ end
--- ------ begin <<daemon-imports>>[4]
+-- ------ begin <<daemon-imports>>[5]
 import Data.List (nub)
 import Control.Monad (mapM)
 -- ------ end
@@ -55,10 +64,7 @@ data Event
 -- ------ end
 -- ------ begin <<daemon-session>>[0]
 data Session = Session
-    { _sourceData    :: Map FilePath Document
-    , _targetFiles   :: Map FilePath ReferenceName
-    , _referenceMap  :: ReferenceMap
-    , _watches       :: [FSNotify.StopListening]
+    { _watches       :: [FSNotify.StopListening]
     , _manager       :: FSNotify.WatchManager
     , _eventChannel  :: Chan Event
     , _daemonState   :: MVar DaemonState
@@ -86,26 +92,52 @@ class Monad m => MonadUserIO m where
     create :: FilePath -> Text -> m ()
     delete :: FilePath -> m ()
     notify :: LogLevel -> Text -> m ()
-    read :: FilePath -> m Text
+    readFile :: FilePath -> m Text
 -- ------ end
 -- ------ begin <<daemon-loading>>[0]
 loadSourceFile :: ( MonadUserIO m
-                  , MonadReader Config m )
-               => FilePath -> m (Either EntangledError Document)
-loadSourceFile path = read path >>= parseMarkdown path
+                  , MonadReader Config m
+                  , MonadState Session m
+                  , MonadIO m )
+               => FilePath -> m ()
+loadSourceFile abs_path = do
+    rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
+    doc'     <- readFile abs_path >>= parseMarkdown rel_path
+    case doc' of
+        Left err ->
+            notify Error $ "Error loading '" <> T.pack rel_path <> "': " <> tshow err
+        Right doc@(Document refs content files) -> do
+            modify (over sourceData (M.insert abs_path (documentContent doc)))
 -- ------ end
 -- ------ begin <<daemon-loading>>[1]
-addSourceFile :: ( MonadUserIO m
-                 , MonadReader Config m
-                 , MonadState Session m )
-              => FilePath -> m ()
-addSourceFile abs_path = do
-    doc'     <- loadSourceFile
-    case doc' of
-        Left err -> notify Error $ "Error loading '" <> rel_path <> "': " <> tshow err
-        Right doc@(Document refs content files) -> do
-            updateReferenceMap refs
-            modify (over sourceData (M.insert abs_path doc))
+loadTargetFile :: ( MonadUserIO m
+                  , MonadReader Config m
+                  , MonadState Session m
+                  , MonadIO m )
+               => FilePath -> m ()
+loadTargetFile abs_path = do
+    rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
+    refs' <- readFile abs_path >>= stitch rel_path
+    case refs' of
+        Left err ->
+            notify Error $ "Error loading '" <> T.pack rel_path <> "':" <> tshow err
+        Right refs ->
+            updateReferences refs
+
+allReferences :: ( MonadState Session m )
+              => m ReferenceMap
+allReferences = M.unions <$> use (over sourceFiles (map references . M.values))
+
+updateReferenceMap :: ( MonadState Session m
+                      , MonadUserIO m )
+                   => [ReferencePair] -> m ()
+updateReferenceMap =
+    either (notify Error . tshow)
+           (assign allReferences)
+           <$> use allReferences >>= foldM updateReference
+    where updateReference refs (ref, code)
+              | ref `M.member` refs = Right $ M.insert ref code refs
+              | otherwise = Left $ StitchError "Unknown reference '" <> tshow ref <> "'"
 -- ------ end
 -- ------ begin <<daemon-watches>>[0]
 passEvent :: MVar DaemonState -> Chan Event
@@ -144,7 +176,7 @@ setWatch = do
     stopActions <- liftIO $ mapM
         (\dir -> FSNotify.watchDir fsnotify dir (const True)
                                    (passEvent state channel srcs tgts))
-        abs_dirs\
+        abs_dirs
     assign watches stopActions
 
     notify Message $ "watching: " <> tshow rel_dirs

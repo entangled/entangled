@@ -15,6 +15,7 @@ import Control.Applicative ((<|>))
 -- ------ begin <<config-types>>[0]
 data Entangled = Entangled
     { watchList :: Maybe [Text]
+    , database :: Maybe Text
     , useNamespaces :: Maybe Bool
     } deriving (Show)
 
@@ -40,6 +41,7 @@ data Config = Config
 entangledCodec :: TomlCodec Entangled
 entangledCodec = Entangled
     <$> Toml.dioptional (Toml.arrayOf Toml._Text "watch-list") .= watchList
+    <*> Toml.dioptional (Toml.text "database") .= database
     <*> Toml.dioptional (Toml.bool "use-namespaces") .= useNamespaces
 
 languageCodec :: TomlCodec Language
@@ -102,6 +104,7 @@ defaultConfig :: Config
 defaultConfig = Config
     { configEntangled = Just $
           Entangled { useNamespaces=Just False
+                    , database=".entangled.sqlite"
                     , watchList=Nothing
                     }
     , configLanguages = defaultLanguages

@@ -26,6 +26,7 @@ There are currently no customisation options for entangled, but I keep my option
 ``` {.toml #example-config}
 [entangled]
 watch-list = ["lit/*.md"]   # list of glob-patterns
+database = ".entangled.sqlite" # backend database
 use-namespaces = true       # soon to be implemented
 enable-git = false          # tbi somewhat less soon
 
@@ -48,6 +49,7 @@ The Haskell definition of the `Config` data type is
 ``` {.haskell #config-types}
 data Entangled = Entangled
     { watchList :: Maybe [Text]
+    , database :: Maybe Text
     , useNamespaces :: Maybe Bool
     } deriving (Show)
 
@@ -76,6 +78,7 @@ Serialisation to and from TOML:
 entangledCodec :: TomlCodec Entangled
 entangledCodec = Entangled
     <$> Toml.dioptional (Toml.arrayOf Toml._Text "watch-list") .= watchList
+    <*> Toml.dioptional (Toml.text "database") .= database
     <*> Toml.dioptional (Toml.bool "use-namespaces") .= useNamespaces
 
 languageCodec :: TomlCodec Language
@@ -151,6 +154,7 @@ defaultConfig :: Config
 defaultConfig = Config
     { configEntangled = Just $
           Entangled { useNamespaces=Just False
+                    , database=".entangled.sqlite"
                     , watchList=Nothing
                     }
     , configLanguages = defaultLanguages

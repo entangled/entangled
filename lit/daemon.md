@@ -28,6 +28,7 @@ module Daemon where
 ```
 
 ``` {.haskell #daemon-imports}
+import Prelude hiding (readFile)
 <<import-text>>
 <<import-map>>
 import TextUtil (tshow)
@@ -60,24 +61,34 @@ data Event
     deriving (Show)
 ```
 
+### Selda
+
+To manage the data on the back-end. We use Selda to interface with a SQLite database.
+
+``` {.haskell #daemon-imports}
+import Database.Selda
+import Database.Selda.SQLite
+```
+
 ### Session
 
 ``` {.haskell #daemon-imports}
 import Document
+import Config
+import Tangle (parseMarkdown)
+import Stitch (stitch)
 import Console (LogLevel(..))
 
 import Control.Concurrent.Chan
 import Control.Concurrent
 import Control.Monad.State
+import Control.Monad.Reader
 import Control.Monad.IO.Class
 ```
 
 ``` {.haskell #daemon-session}
 data Session = Session
-    { _sourceData    :: Map FilePath Document
-    , _targetFiles   :: Map FilePath ReferenceName
-    , _referenceMap  :: ReferenceMap
-    , _watches       :: [FSNotify.StopListening]
+    { _watches       :: [FSNotify.StopListening]
     , _manager       :: FSNotify.WatchManager
     , _eventChannel  :: Chan Event
     , _daemonState   :: MVar DaemonState
@@ -125,7 +136,7 @@ class Monad m => MonadUserIO m where
     create :: FilePath -> Text -> m ()
     delete :: FilePath -> m ()
     notify :: LogLevel -> Text -> m ()
-    read :: FilePath -> m Text
+    readFile :: FilePath -> m Text
 ```
 
 These are IO actions that need logging, possible confirmation by the user and execution.
@@ -184,7 +195,7 @@ setWatch = do
     stopActions <- liftIO $ mapM
         (\dir -> FSNotify.watchDir fsnotify dir (const True)
                                    (passEvent state channel srcs tgts))
-        abs_dirs\
+        abs_dirs
     assign watches stopActions
 
     notify Message $ "watching: " <> tshow rel_dirs
@@ -205,23 +216,49 @@ closeWatch = do
 
 ``` {.haskell #daemon-loading}
 loadSourceFile :: ( MonadUserIO m
-                  , MonadReader Config m )
-               => FilePath -> m (Either EntangledError Document)
-loadSourceFile path = read path >>= parseMarkdown path
+                  , MonadReader Config m
+                  , MonadState Session m
+                  , MonadIO m )
+               => FilePath -> m ()
+loadSourceFile abs_path = do
+    rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
+    doc'     <- readFile abs_path >>= parseMarkdown rel_path
+    case doc' of
+        Left err ->
+            notify Error $ "Error loading '" <> T.pack rel_path <> "': " <> tshow err
+        Right doc@(Document refs content files) -> do
+            modify (over sourceData (M.insert abs_path (documentContent doc)))
 ```
 
 ``` {.haskell #daemon-loading}
-addSourceFile :: ( MonadUserIO m
-                 , MonadReader Config m
-                 , MonadState Session m )
-              => FilePath -> m ()
-addSourceFile abs_path = do
-    doc'     <- loadSourceFile
-    case doc' of
-        Left err -> notify Error $ "Error loading '" <> rel_path <> "': " <> tshow err
-        Right doc@(Document refs content files) -> do
-            updateReferenceMap refs
-            modify (over sourceData (M.insert abs_path doc))
+loadTargetFile :: ( MonadUserIO m
+                  , MonadReader Config m
+                  , MonadState Session m
+                  , MonadIO m )
+               => FilePath -> m ()
+loadTargetFile abs_path = do
+    rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
+    refs' <- readFile abs_path >>= stitch rel_path
+    case refs' of
+        Left err ->
+            notify Error $ "Error loading '" <> T.pack rel_path <> "':" <> tshow err
+        Right refs ->
+            updateReferences refs
+
+allReferences :: ( MonadState Session m )
+              => m ReferenceMap
+allReferences = M.unions <$> use (over sourceFiles (map references . M.values))
+
+updateReferenceMap :: ( MonadState Session m
+                      , MonadUserIO m )
+                   => [ReferencePair] -> m ()
+updateReferenceMap =
+    either (notify Error . tshow)
+           (assign allReferences)
+           <$> use allReferences >>= foldM updateReference
+    where updateReference refs (ref, code)
+              | ref `M.member` refs = Right $ M.insert ref code refs
+              | otherwise = Left $ StitchError "Unknown reference '" <> tshow ref <> "'"
 ```
 
 ## Main loop
