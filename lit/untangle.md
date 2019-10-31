@@ -39,7 +39,7 @@ sourceBlock lang = do
     when (any isNothing unindentedLines) $ fail "Indentation error"
     let content = unlines' $ catMaybes unindentedLines
     return ( if referenceCount ref == 0
-                 then [(indent beginIndent $ nowebReference $ referenceName ref)]
+                 then [(indent beginIndent $ showNowebReference $ referenceName ref)]
                  else []
            , (ref, CodeBlock (KnownLanguage lang) [] content):refpairs )
 
@@ -71,10 +71,6 @@ stitch filename text = do
 ``` {.haskell #stitch-imports}
 import ListStream (ListStream(..), tokenP)
 import Document
-    ( CodeBlock(..), ProgrammingLanguage(..)
-    , ReferenceId(..), ReferencePair, ReferenceMap
-    , getAttribute, nowebReference
-    , EntangledError(..), toEntangledError )
 import Config (Config, languageFromName, Language)
 import Comment (topHeader, beginBlock, endBlock, commented)
 import TextUtil (indent, unindent, unlines')

@@ -13,7 +13,10 @@ import Data.Map.Strict (Map)
 import qualified Data.Set as S
 import Data.Set (Set)
 -- ------ end
+import Data.Typeable (Typeable)
 import Data.List (sort)
+
+import Control.Monad.Catch
 
 import Config (Language)
 import TextUtil (tshow)
@@ -24,15 +27,18 @@ data EntangledError
     | StitchError Text
     | CyclicReference Text
     | UnknownLanguageClass Text
+    | DatabaseError Text
     | MissingLanguageClass
     | UnknownError
-    deriving (Show, Ord, Eq)
+    deriving (Show, Ord, Eq, Typeable)
 
 toEntangledError :: (Show e)
                  => (Text -> EntangledError) -> Either e a
                  -> Either EntangledError a
 toEntangledError _ (Right x) = Right x
 toEntangledError f (Left x) = Left $ f $ tshow x
+
+instance Exception EntangledError
 -- ------ end
 
 -- ------ begin <<document-structure>>[0]
@@ -45,8 +51,8 @@ data ReferenceId = ReferenceId
     , referenceCount :: Int
     } deriving (Show, Eq, Ord)
 
-nowebReference :: ReferenceName -> Text
-nowebReference (ReferenceName x) = "<<" <> x <> ">>"
+showNowebReference :: ReferenceName -> Text
+showNowebReference (ReferenceName x) = "<<" <> x <> ">>"
 -- ------ end
 -- ------ begin <<document-structure>>[1]
 data Content
@@ -61,19 +67,19 @@ type FileMap = Map FilePath ReferenceName
 data Document = Document
     { references      :: ReferenceMap
     , documentContent :: [Content]
-    , files           :: FileMap
+    , documentTargets :: FileMap
     } deriving (Show)
 -- ------ end
 -- ------ begin <<document-structure>>[2]
-referenceNames :: Document -> Set ReferenceName
-referenceNames = S.fromList . map referenceName . M.keys . references
+referenceNames :: ReferenceMap -> Set ReferenceName
+referenceNames = S.fromList . map referenceName . M.keys
 
-referencesByName :: Document -> ReferenceName -> [ReferenceId]
-referencesByName doc name
-    = (sort . filter ((== name) . referenceName) . M.keys . references) doc
+referencesByName :: ReferenceMap -> ReferenceName -> [ReferenceId]
+referencesByName refs name
+    = (sort . filter ((== name) . referenceName) . M.keys) refs
 
-codeBlocksByName :: Document -> ReferenceName -> [CodeBlock]
-codeBlocksByName doc name = map (references doc M.!) $ referencesByName doc name
+codeBlocksByName :: ReferenceMap -> ReferenceName -> [CodeBlock]
+codeBlocksByName refs name = map (refs M.!) $ referencesByName refs name
 -- ------ end
 -- ------ begin <<document-structure>>[3]
 data CodeProperty

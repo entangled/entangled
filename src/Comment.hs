@@ -18,11 +18,6 @@ import Config
 import qualified Data.Map.Strict as M
 
 import Document
-    ( CodeBlock(..)
-    , Document(..)
-    , ReferenceId(..)
-    , ReferenceName(..)
-    )
 import TextUtil (unlines')
 -- ------ end
 -- ------ begin <<comment-imports>>[3]
@@ -54,9 +49,9 @@ formatComment lang text = pre <> text <> post
           post = maybe "" id $ languageCloseComment lang
 -- ------ end
 -- ------ begin <<generate-comment>>[2]
-annotateComment :: Document -> ReferenceId -> Either EntangledError Text
-annotateComment doc ref = do
-    let code = references doc M.! ref
+annotateComment :: ReferenceMap -> ReferenceId -> Either EntangledError Text
+annotateComment refs ref = do
+    let code = refs M.! ref
     pre <- comment (codeLanguage code)
            $ "begin <<" <> (unReferenceName $ referenceName ref) <> ">>["
            <> T.pack (show $ referenceCount ref) <> "]"

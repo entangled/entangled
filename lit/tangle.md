@@ -17,9 +17,6 @@ import Data.Maybe (catMaybes)
 
 import ListStream (ListStream (..))
 import Document
-    ( CodeProperty (..), CodeBlock (..), Content (..), ReferenceId (..)
-    , ReferenceName (..), ProgrammingLanguage (..), Document (..), FileMap
-    , EntangledError (..), referenceNames, referencesByName )
 import Config (Config, lookupLanguage)
 
 <<tangle-imports>>
@@ -238,8 +235,6 @@ getFileMap = M.fromList . catMaybes . map filePair
 To build up the `ReferenceMap` we define `ReferenceCount`.
 
 ``` {.haskell #parse-markdown}
-type ReferencePair = (ReferenceId, CodeBlock)
-
 type ReferenceCount = Map ReferenceName Int
 
 countReference :: ( MonadState ReferenceCount m )
@@ -383,7 +378,7 @@ I now use a lazy map to provide the recursion, which becomes cumbersome if we al
 
 ``` {.haskell #generate-code}
 type ExpandedCode = LM.Map ReferenceName (Either EntangledError Text)
-type Annotator = Document -> ReferenceId -> (Either EntangledError Text)
+type Annotator = ReferenceMap -> ReferenceId -> (Either EntangledError Text)
 ```
 
 The map of expanded code blocks is generated using an induction pattern here illustrated on lists. Suppose we already have the resulting `output` and a function `g :: [Output] -> Input -> Output` that generates any element in `output` given an input and the rest of all `output`, then `f` generates `output` as follows.
@@ -398,12 +393,12 @@ f input = output
 Lazy evaluation does the rest.
 
 ``` {.haskell #generate-code}
-expandedCode :: Annotator -> Document -> ExpandedCode
-expandedCode annotate doc = result
-    where result = LM.fromSet expand (referenceNames doc)
+expandedCode :: Annotator -> ReferenceMap -> ExpandedCode
+expandedCode annotate refs = result
+    where result = LM.fromSet expand (referenceNames refs)
           expand name = unlines' <$> (sequence
-                        $ map (annotate doc >=> expandCodeSource result name)
-                        $ referencesByName doc name)
+                        $ map (annotate refs >=> expandCodeSource result name)
+                        $ referencesByName refs name)
 
 expandCodeSource :: ExpandedCode -> ReferenceName -> Text
                  -> Either EntangledError Text
@@ -419,8 +414,8 @@ We have two types of annotators:
 * Naked annotator: creates the output code without annotation. From such an expansion it is not possible to untangle.
 
 ``` {.haskell #generate-code}
-annotateNaked :: Document -> ReferenceId -> Either EntangledError Text
-annotateNaked doc ref = Right $ codeSource $ references doc M.! ref
+annotateNaked :: ReferenceMap -> ReferenceId -> Either EntangledError Text
+annotateNaked refs ref = Right $ codeSource $ refs M.! ref
 ```
 
 * Commenting annotator: adds annotations in comments, from which we can locate the original code block.
@@ -491,18 +486,13 @@ Using this we can write the `annotateComment` function. Given a `ReferenceId` th
 import qualified Data.Map.Strict as M
 
 import Document
-    ( CodeBlock(..)
-    , Document(..)
-    , ReferenceId(..)
-    , ReferenceName(..)
-    )
 import TextUtil (unlines')
 ```
 
 ``` {.haskell #generate-comment}
-annotateComment :: Document -> ReferenceId -> Either EntangledError Text
-annotateComment doc ref = do
-    let code = references doc M.! ref
+annotateComment :: ReferenceMap -> ReferenceId -> Either EntangledError Text
+annotateComment refs ref = do
+    let code = refs M.! ref
     pre <- comment (codeLanguage code)
            $ "begin <<" <> (unReferenceName $ referenceName ref) <> ">>["
            <> T.pack (show $ referenceCount ref) <> "]"

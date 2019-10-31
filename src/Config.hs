@@ -59,6 +59,7 @@ configCodec = Config
 -- ------ begin <<config-monoid>>[0]
 instance Semigroup Entangled where
     a <> b = Entangled (watchList a <> watchList b)
+                       (database a <|> database b)
                        (useNamespaces a <|> useNamespaces b)
 
 instance Semigroup Config where
@@ -104,7 +105,7 @@ defaultConfig :: Config
 defaultConfig = Config
     { configEntangled = Just $
           Entangled { useNamespaces=Just False
-                    , database=".entangled.sqlite"
+                    , database=Just ".entangled.sqlite"
                     , watchList=Nothing
                     }
     , configLanguages = defaultLanguages

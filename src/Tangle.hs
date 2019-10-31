@@ -32,9 +32,6 @@ import Data.Maybe (catMaybes)
 
 import ListStream (ListStream (..))
 import Document
-    ( CodeProperty (..), CodeBlock (..), Content (..), ReferenceId (..)
-    , ReferenceName (..), ProgrammingLanguage (..), Document (..), FileMap
-    , EntangledError (..), referenceNames, referencesByName )
 import Config (Config, lookupLanguage)
 
 -- ------ begin <<tangle-imports>>[0]
@@ -101,8 +98,6 @@ getFileMap = M.fromList . catMaybes . map filePair
               return (path, referenceName ref)
 -- ------ end
 -- ------ begin <<parse-markdown>>[4]
-type ReferencePair = (ReferenceId, CodeBlock)
-
 type ReferenceCount = Map ReferenceName Int
 
 countReference :: ( MonadState ReferenceCount m )
@@ -184,15 +179,15 @@ parseCode name = map parseLine . T.lines
 -- ------ end
 -- ------ begin <<generate-code>>[2]
 type ExpandedCode = LM.Map ReferenceName (Either EntangledError Text)
-type Annotator = Document -> ReferenceId -> (Either EntangledError Text)
+type Annotator = ReferenceMap -> ReferenceId -> (Either EntangledError Text)
 -- ------ end
 -- ------ begin <<generate-code>>[3]
-expandedCode :: Annotator -> Document -> ExpandedCode
-expandedCode annotate doc = result
-    where result = LM.fromSet expand (referenceNames doc)
+expandedCode :: Annotator -> ReferenceMap -> ExpandedCode
+expandedCode annotate refs = result
+    where result = LM.fromSet expand (referenceNames refs)
           expand name = unlines' <$> (sequence
-                        $ map (annotate doc >=> expandCodeSource result name)
-                        $ referencesByName doc name)
+                        $ map (annotate refs >=> expandCodeSource result name)
+                        $ referencesByName refs name)
 
 expandCodeSource :: ExpandedCode -> ReferenceName -> Text
                  -> Either EntangledError Text
@@ -203,7 +198,7 @@ expandCodeSource result name t
               = indent i <$> result LM.! name
 -- ------ end
 -- ------ begin <<generate-code>>[4]
-annotateNaked :: Document -> ReferenceId -> Either EntangledError Text
-annotateNaked doc ref = Right $ codeSource $ references doc M.! ref
+annotateNaked :: ReferenceMap -> ReferenceId -> Either EntangledError Text
+annotateNaked refs ref = Right $ codeSource $ refs M.! ref
 -- ------ end
 -- ------ end

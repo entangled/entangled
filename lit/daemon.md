@@ -61,20 +61,13 @@ data Event
     deriving (Show)
 ```
 
-### Selda
-
-To manage the data on the back-end. We use Selda to interface with a SQLite database.
-
-``` {.haskell #daemon-imports}
-import Database.Selda
-import Database.Selda.SQLite
-```
-
 ### Session
 
 ``` {.haskell #daemon-imports}
 import Document
 import Config
+import Database
+import Database.SQLite.Simple
 import Tangle (parseMarkdown)
 import Stitch (stitch)
 import Console (LogLevel(..))
@@ -92,15 +85,18 @@ data Session = Session
     , _manager       :: FSNotify.WatchManager
     , _eventChannel  :: Chan Event
     , _daemonState   :: MVar DaemonState
+    , _sqlite        :: Connection
     }
 
 makeLenses ''Session
 
-listSourceFiles :: ( MonadState Session m ) => m [FilePath]
-listSourceFiles = use $ sourceData . to M.keys
+db :: ( MonadIO m, MonadState Session m )
+   => SQL a -> m a
+db (SQL x) = use sqlite >>= liftIO . runReaderT x
 
-listTargetFiles :: ( MonadState Session m ) => m [FilePath]
-listTargetFiles = use $ targetFiles . to M.keys
+newtype Daemon = Daemon { unDaemon :: RWST Config () Session IO }
+    deriving ( Applicative, Functor, Monad, MonadIO, MonadState Session
+             , MonadReader Config )
 ```
 
 Every time an event happens we send it to `_eventChannel`. When we tangle we change the `_daemonState` to `Tangling`. Write events to target files are then not triggering a stitch. The other way around, if the daemon is in `Stitching` state, write events to the markdown source do not trigger a tangle. Because these events will arrive asynchronously, we use an `MVar` to change the state.
@@ -183,8 +179,8 @@ setWatch :: ( MonadIO m
             , MonadUserIO m )
          => m ()
 setWatch = do
-    srcs <- listSourceFiles >>= (liftIO . mapM canonicalizePath)
-    tgts <- listTargetFiles >>= (liftIO . mapM canonicalizePath)
+    srcs <- db listSourceFiles >>= (liftIO . mapM canonicalizePath)
+    tgts <- db listTargetFiles >>= (liftIO . mapM canonicalizePath)
     fsnotify <- use manager
     channel  <- use eventChannel
 
@@ -215,50 +211,50 @@ closeWatch = do
 ## Loading
 
 ``` {.haskell #daemon-loading}
-loadSourceFile :: ( MonadUserIO m
-                  , MonadReader Config m
-                  , MonadState Session m
-                  , MonadIO m )
-               => FilePath -> m ()
-loadSourceFile abs_path = do
-    rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
-    doc'     <- readFile abs_path >>= parseMarkdown rel_path
-    case doc' of
-        Left err ->
-            notify Error $ "Error loading '" <> T.pack rel_path <> "': " <> tshow err
-        Right doc@(Document refs content files) -> do
-            modify (over sourceData (M.insert abs_path (documentContent doc)))
+-- loadSourceFile :: ( MonadUserIO m
+--                   , MonadReader Config m
+--                   , MonadState Session m
+--                   , MonadIO m )
+--                => FilePath -> m ()
+-- loadSourceFile abs_path = do
+--     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
+--     doc'     <- readFile abs_path >>= parseMarkdown rel_path
+--     case doc' of
+--         Left err ->
+--             notify Error $ "Error loading '" <> T.pack rel_path <> "': " <> tshow err
+--         Right doc@(Document refs content files) -> do
+--             modify (over sourceData (M.insert abs_path (documentContent doc)))
 ```
 
 ``` {.haskell #daemon-loading}
-loadTargetFile :: ( MonadUserIO m
-                  , MonadReader Config m
-                  , MonadState Session m
-                  , MonadIO m )
-               => FilePath -> m ()
-loadTargetFile abs_path = do
-    rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
-    refs' <- readFile abs_path >>= stitch rel_path
-    case refs' of
-        Left err ->
-            notify Error $ "Error loading '" <> T.pack rel_path <> "':" <> tshow err
-        Right refs ->
-            updateReferences refs
-
-allReferences :: ( MonadState Session m )
-              => m ReferenceMap
-allReferences = M.unions <$> use (over sourceFiles (map references . M.values))
-
-updateReferenceMap :: ( MonadState Session m
-                      , MonadUserIO m )
-                   => [ReferencePair] -> m ()
-updateReferenceMap =
-    either (notify Error . tshow)
-           (assign allReferences)
-           <$> use allReferences >>= foldM updateReference
-    where updateReference refs (ref, code)
-              | ref `M.member` refs = Right $ M.insert ref code refs
-              | otherwise = Left $ StitchError "Unknown reference '" <> tshow ref <> "'"
+-- loadTargetFile :: ( MonadUserIO m
+--                   , MonadReader Config m
+--                   , MonadState Session m
+--                   , MonadIO m )
+--                => FilePath -> m ()
+-- loadTargetFile abs_path = do
+--     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
+--     refs' <- readFile abs_path >>= stitch rel_path
+--     case refs' of
+--         Left err ->
+--             notify Error $ "Error loading '" <> T.pack rel_path <> "':" <> tshow err
+--         Right refs ->
+--             updateReferences refs
+-- 
+-- allReferences :: ( MonadState Session m )
+--               => m ReferenceMap
+-- allReferences = M.unions <$> use (over sourceFiles (map references . M.values))
+-- 
+-- updateReferenceMap :: ( MonadState Session m
+--                       , MonadUserIO m )
+--                    => [ReferencePair] -> m ()
+-- updateReferenceMap =
+--     either (notify Error . tshow)
+--            (assign allReferences)
+--            <$> use allReferences >>= foldM updateReference
+--     where updateReference refs (ref, code)
+--               | ref `M.member` refs = Right $ M.insert ref code refs
+--               | otherwise = Left $ StitchError "Unknown reference '" <> tshow ref <> "'"
 ```
 
 ## Main loop

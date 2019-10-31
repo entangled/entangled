@@ -6,7 +6,10 @@ module Document where
 <<import-text>>
 <<import-map>>
 <<import-set>>
+import Data.Typeable (Typeable)
 import Data.List (sort)
+
+import Control.Monad.Catch
 
 import Config (Language)
 import TextUtil (tshow)
@@ -57,12 +60,11 @@ data ReferenceId = ReferenceId
     , referenceCount :: Int
     } deriving (Show, Eq, Ord)
 
-nowebReference :: ReferenceName -> Text
-nowebReference (ReferenceName x) = "<<" <> x <> ">>"
+showNowebReference :: ReferenceName -> Text
+showNowebReference (ReferenceName x) = "<<" <> x <> ">>"
 ```
 
 The type is deriving `Ord`, so that we can use it as an index for a `Map`.
-
 
 ### Document
 Using the `ReferenceId` type we can represent a text (or `Document`) as a sequence of plain `Text` or `ReferenceId`, paired up with a map linking each `ReferenceId` with a code block.
@@ -80,22 +82,22 @@ type FileMap = Map FilePath ReferenceName
 data Document = Document
     { references      :: ReferenceMap
     , documentContent :: [Content]
-    , files           :: FileMap
+    , documentTargets :: FileMap
     } deriving (Show)
 ```
 
 ### Accessors
 
 ``` {.haskell #document-structure}
-referenceNames :: Document -> Set ReferenceName
-referenceNames = S.fromList . map referenceName . M.keys . references
+referenceNames :: ReferenceMap -> Set ReferenceName
+referenceNames = S.fromList . map referenceName . M.keys
 
-referencesByName :: Document -> ReferenceName -> [ReferenceId]
-referencesByName doc name
-    = (sort . filter ((== name) . referenceName) . M.keys . references) doc
+referencesByName :: ReferenceMap -> ReferenceName -> [ReferenceId]
+referencesByName refs name
+    = (sort . filter ((== name) . referenceName) . M.keys) refs
 
-codeBlocksByName :: Document -> ReferenceName -> [CodeBlock]
-codeBlocksByName doc name = map (references doc M.!) $ referencesByName doc name
+codeBlocksByName :: ReferenceMap -> ReferenceName -> [CodeBlock]
+codeBlocksByName refs name = map (refs M.!) $ referencesByName refs name
 ```
 
 ### Code blocks

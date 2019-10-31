@@ -20,12 +20,10 @@ import Lens.Micro.Platform
 import qualified System.FSNotify as FSNotify
 -- ------ end
 -- ------ begin <<daemon-imports>>[2]
-import Database.Selda
-import Database.Selda.SQLite
--- ------ end
--- ------ begin <<daemon-imports>>[3]
 import Document
 import Config
+import Database
+import Database.SQLite.Simple
 import Tangle (parseMarkdown)
 import Stitch (stitch)
 import Console (LogLevel(..))
@@ -36,7 +34,7 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.IO.Class
 -- ------ end
--- ------ begin <<daemon-imports>>[4]
+-- ------ begin <<daemon-imports>>[3]
 import System.FilePath (takeDirectory, equalFilePath)
 import System.Directory 
     ( canonicalizePath
@@ -45,7 +43,7 @@ import System.Directory
     , createDirectoryIfMissing
     , makeRelativeToCurrentDirectory )
 -- ------ end
--- ------ begin <<daemon-imports>>[5]
+-- ------ begin <<daemon-imports>>[4]
 import Data.List (nub)
 import Control.Monad (mapM)
 -- ------ end
@@ -68,15 +66,18 @@ data Session = Session
     , _manager       :: FSNotify.WatchManager
     , _eventChannel  :: Chan Event
     , _daemonState   :: MVar DaemonState
+    , _sqlite        :: Connection
     }
 
 makeLenses ''Session
 
-listSourceFiles :: ( MonadState Session m ) => m [FilePath]
-listSourceFiles = use $ sourceData . to M.keys
+db :: ( MonadIO m, MonadState Session m )
+   => SQL a -> m a
+db (SQL x) = use sqlite >>= liftIO . runReaderT x
 
-listTargetFiles :: ( MonadState Session m ) => m [FilePath]
-listTargetFiles = use $ targetFiles . to M.keys
+newtype Daemon = Daemon { unDaemon :: RWST Config () Session IO }
+    deriving ( Applicative, Functor, Monad, MonadIO, MonadState Session
+             , MonadReader Config )
 -- ------ end
 -- ------ begin <<daemon-session>>[1]
 setDaemonState :: ( MonadIO m
@@ -95,49 +96,49 @@ class Monad m => MonadUserIO m where
     readFile :: FilePath -> m Text
 -- ------ end
 -- ------ begin <<daemon-loading>>[0]
-loadSourceFile :: ( MonadUserIO m
-                  , MonadReader Config m
-                  , MonadState Session m
-                  , MonadIO m )
-               => FilePath -> m ()
-loadSourceFile abs_path = do
-    rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
-    doc'     <- readFile abs_path >>= parseMarkdown rel_path
-    case doc' of
-        Left err ->
-            notify Error $ "Error loading '" <> T.pack rel_path <> "': " <> tshow err
-        Right doc@(Document refs content files) -> do
-            modify (over sourceData (M.insert abs_path (documentContent doc)))
+-- loadSourceFile :: ( MonadUserIO m
+--                   , MonadReader Config m
+--                   , MonadState Session m
+--                   , MonadIO m )
+--                => FilePath -> m ()
+-- loadSourceFile abs_path = do
+--     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
+--     doc'     <- readFile abs_path >>= parseMarkdown rel_path
+--     case doc' of
+--         Left err ->
+--             notify Error $ "Error loading '" <> T.pack rel_path <> "': " <> tshow err
+--         Right doc@(Document refs content files) -> do
+--             modify (over sourceData (M.insert abs_path (documentContent doc)))
 -- ------ end
 -- ------ begin <<daemon-loading>>[1]
-loadTargetFile :: ( MonadUserIO m
-                  , MonadReader Config m
-                  , MonadState Session m
-                  , MonadIO m )
-               => FilePath -> m ()
-loadTargetFile abs_path = do
-    rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
-    refs' <- readFile abs_path >>= stitch rel_path
-    case refs' of
-        Left err ->
-            notify Error $ "Error loading '" <> T.pack rel_path <> "':" <> tshow err
-        Right refs ->
-            updateReferences refs
-
-allReferences :: ( MonadState Session m )
-              => m ReferenceMap
-allReferences = M.unions <$> use (over sourceFiles (map references . M.values))
-
-updateReferenceMap :: ( MonadState Session m
-                      , MonadUserIO m )
-                   => [ReferencePair] -> m ()
-updateReferenceMap =
-    either (notify Error . tshow)
-           (assign allReferences)
-           <$> use allReferences >>= foldM updateReference
-    where updateReference refs (ref, code)
-              | ref `M.member` refs = Right $ M.insert ref code refs
-              | otherwise = Left $ StitchError "Unknown reference '" <> tshow ref <> "'"
+-- loadTargetFile :: ( MonadUserIO m
+--                   , MonadReader Config m
+--                   , MonadState Session m
+--                   , MonadIO m )
+--                => FilePath -> m ()
+-- loadTargetFile abs_path = do
+--     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
+--     refs' <- readFile abs_path >>= stitch rel_path
+--     case refs' of
+--         Left err ->
+--             notify Error $ "Error loading '" <> T.pack rel_path <> "':" <> tshow err
+--         Right refs ->
+--             updateReferences refs
+-- 
+-- allReferences :: ( MonadState Session m )
+--               => m ReferenceMap
+-- allReferences = M.unions <$> use (over sourceFiles (map references . M.values))
+-- 
+-- updateReferenceMap :: ( MonadState Session m
+--                       , MonadUserIO m )
+--                    => [ReferencePair] -> m ()
+-- updateReferenceMap =
+--     either (notify Error . tshow)
+--            (assign allReferences)
+--            <$> use allReferences >>= foldM updateReference
+--     where updateReference refs (ref, code)
+--               | ref `M.member` refs = Right $ M.insert ref code refs
+--               | otherwise = Left $ StitchError "Unknown reference '" <> tshow ref <> "'"
 -- ------ end
 -- ------ begin <<daemon-watches>>[0]
 passEvent :: MVar DaemonState -> Chan Event
@@ -164,8 +165,8 @@ setWatch :: ( MonadIO m
             , MonadUserIO m )
          => m ()
 setWatch = do
-    srcs <- listSourceFiles >>= (liftIO . mapM canonicalizePath)
-    tgts <- listTargetFiles >>= (liftIO . mapM canonicalizePath)
+    srcs <- db listSourceFiles >>= (liftIO . mapM canonicalizePath)
+    tgts <- db listTargetFiles >>= (liftIO . mapM canonicalizePath)
     fsnotify <- use manager
     channel  <- use eventChannel
 

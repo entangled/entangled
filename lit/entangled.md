@@ -204,13 +204,16 @@ data EntangledError
     | StitchError Text
     | CyclicReference Text
     | UnknownLanguageClass Text
+    | DatabaseError Text
     | MissingLanguageClass
     | UnknownError
-    deriving (Show, Ord, Eq)
+    deriving (Show, Ord, Eq, Typeable)
 
 toEntangledError :: (Show e)
                  => (Text -> EntangledError) -> Either e a
                  -> Either EntangledError a
 toEntangledError _ (Right x) = Right x
 toEntangledError f (Left x) = Left $ f $ tshow x
+
+instance Exception EntangledError
 ```
