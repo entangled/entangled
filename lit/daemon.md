@@ -23,8 +23,9 @@ module Daemon where
 <<daemon-events>>
 <<daemon-session>>
 <<daemon-user-io>>
-<<daemon-loading>>
+-- <<daemon-loading>>
 <<daemon-watches>>
+<<daemon-main-loop>>
 ```
 
 ``` {.haskell #daemon-imports}
@@ -65,7 +66,7 @@ data Event
 
 ``` {.haskell #daemon-imports}
 import Document
-import Config
+import Config (Config(..))
 import Database
 import Database.SQLite.Simple
 import Tangle (parseMarkdown)
@@ -76,6 +77,7 @@ import Control.Concurrent.Chan
 import Control.Concurrent
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Monad.RWS
 import Control.Monad.IO.Class
 ```
 
@@ -94,7 +96,7 @@ db :: ( MonadIO m, MonadState Session m )
    => SQL a -> m a
 db (SQL x) = use sqlite >>= liftIO . runReaderT x
 
-newtype Daemon = Daemon { unDaemon :: RWST Config () Session IO }
+newtype Daemon a = Daemon { unDaemon :: RWST Config () Session IO a }
     deriving ( Applicative, Functor, Monad, MonadIO, MonadState Session
              , MonadReader Config )
 ```
@@ -265,9 +267,7 @@ The `mainLoop` is fed events and handles them.
 class ( MonadIO m, MonadReader Config m, MonadState Session m )
       => MonadEntangled m
 
-type Entangled m = RWST Config () Session IO
-
-mainLoop :: [Event] -> Entangled ()
+mainLoop :: [Event] -> Daemon ()
 <<main-loop-cases>>
 ```
 
@@ -280,9 +280,11 @@ After the first event we need to wait a bit, there may be more comming.
 ``` {.haskell #main-loop-cases}
 mainLoop (WriteSource abs_path : xs) = do
     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
-    wait
+    -- wait
     setDaemonState Tangling
-    doc <- fromJust <$> getDocument abs_path    -- TODO: handle errors
-    old_tgts <- listTargetFiles
-    
+    -- doc <- fromJust <$> getDocument abs_path    -- TODO: handle errors
+    old_tgts <- db listTargetFiles
+    return ()
+mainLoop (WriteTarget abs_path : xs) = return () 
+mainLoop (_ : xs) = return () 
 ```

@@ -34,20 +34,24 @@ instance MonadSQL SQL where
     getConnection = SQL ask
 
 -- ------ begin <<database-insertion>>[0]
+liftSQL :: Connection -> SQL a -> IO a
+liftSQL conn (SQL x) = runReaderT x conn
+
 addDocument :: FilePath -> Document -> SQL ()
 addDocument rel_path Document{..} = do
     conn <- getConnection
-    liftIO $ execute conn "insert into \"documents\" values (?)" (Only rel_path)
+    liftIO $ execute conn "insert into `documents`(`filename`) values (?)" (Only rel_path)
     docId <- liftIO $ lastInsertRowId conn
-    insertCodes docId references
-    insertContent docId documentContent
-    insertTargets docId documentTargets
+    liftIO $ withTransaction conn $ liftSQL conn $ do
+        insertCodes docId references
+        insertContent docId documentContent
+        insertTargets docId documentTargets
 -- ------ end
 -- ------ begin <<database-insertion>>[1]
 insertCodes :: Int64 -> ReferenceMap -> SQL ()
 insertCodes docId codes = do
         conn <- getConnection
-        liftIO $ executeMany conn "insert into \"codes\" values (?,?,?,?,?)" rows
+        liftIO $ executeMany conn "insert into `codes` values (?,?,?,?,?)" rows
     where codeRow ( (ReferenceId (ReferenceName name) count)
                   , (CodeBlock (KnownLanguage Language{languageName}) _ source) )
               = Just (name, count, source, languageName, docId)
@@ -59,7 +63,7 @@ insertCodes docId codes = do
 insertContent :: Int64 -> [Content] -> SQL ()
 insertContent docId content = do
         conn <- getConnection
-        liftIO $ executeMany conn "insert into \"content\" values (?,?,?,?)" rows
+        liftIO $ executeMany conn "insert into `content`(`document`,`plain`,`codeName`,`codeOrdinal`) values (?,?,?,?)" rows
     where contentRow (PlainText text)
               = (docId, Just text, Nothing, Nothing)
           contentRow (Reference (ReferenceId (ReferenceName name) count))
@@ -70,7 +74,7 @@ insertContent docId content = do
 insertTargets :: Int64 -> Map FilePath ReferenceName -> SQL ()
 insertTargets docId files = do
         conn <- getConnection
-        liftIO $ executeMany conn "insert into \"targets\" values (?, ?)" rows
+        liftIO $ executeMany conn "insert into `targets` values (?, ?, ?)" rows
     where targetRow (path, ReferenceName name) = (path, name, docId)
           rows = map targetRow (M.toList files)
 -- ------ end

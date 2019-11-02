@@ -53,6 +53,10 @@ schema.svg: <<file|schema>>
 
 In `SQLite.Simple` the above schema becomes
 
+``` {.sqlite file=schema.sql}
+<<schema>>
+```
+
 ::: {.TODO}
 Implement the interface in Selda.
 :::
@@ -62,20 +66,24 @@ Implement the interface in Selda.
 ### Documents
 
 ``` {.sqlite #schema}
-create table "documents"
+create table if not exists "documents"
     ( "id"        integer primary key autoincrement
     , "filename"  text not null );
 ```
 
 ``` {.haskell #database-insertion}
+liftSQL :: Connection -> SQL a -> IO a
+liftSQL conn (SQL x) = runReaderT x conn
+
 addDocument :: FilePath -> Document -> SQL ()
 addDocument rel_path Document{..} = do
     conn <- getConnection
-    liftIO $ execute conn "insert into \"documents\" values (?)" (Only rel_path)
+    liftIO $ execute conn "insert into `documents`(`filename`) values (?)" (Only rel_path)
     docId <- liftIO $ lastInsertRowId conn
-    insertCodes docId references
-    insertContent docId documentContent
-    insertTargets docId documentTargets
+    liftIO $ withTransaction conn $ liftSQL conn $ do
+        insertCodes docId references
+        insertContent docId documentContent
+        insertTargets docId documentTargets
 ```
 
 ### Codes
@@ -83,7 +91,7 @@ addDocument rel_path Document{..} = do
 The code table maps to a `ReferencePair` containing both `CodeBlock` and `ReferenceId`. I use the `name`, `ordinal` pair as primary key.
 
 ``` {.sqlite #schema}
-create table "codes"
+create table if not exists "codes"
     ( "name"      text not null
     , "ordinal"   integer not null
     , "source"    text not null
@@ -97,7 +105,7 @@ create table "codes"
 insertCodes :: Int64 -> ReferenceMap -> SQL ()
 insertCodes docId codes = do
         conn <- getConnection
-        liftIO $ executeMany conn "insert into \"codes\" values (?,?,?,?,?)" rows
+        liftIO $ executeMany conn "insert into `codes` values (?,?,?,?,?)" rows
     where codeRow ( (ReferenceId (ReferenceName name) count)
                   , (CodeBlock (KnownLanguage Language{languageName}) _ source) )
               = Just (name, count, source, languageName, docId)
@@ -109,7 +117,7 @@ insertCodes docId codes = do
 ### Content
 
 ``` {.sqlite #schema}
-create table "content"
+create table if not exists "content"
     ( "id"          integer primary key autoincrement
     , "document"    integer not null
     , "plain"       text
@@ -118,14 +126,14 @@ create table "content"
     , foreign key ("document") references "documents"("id")
     , foreign key ("codeName") references "codes"("name")
     , foreign key ("codeOrdinal") references "codes"("ordinal")
-    , check ("plain" is not null or ("codeName" is not null and "codeOrdinal" is not null) );
+    , check ("plain" is not null or ("codeName" is not null and "codeOrdinal" is not null)) );
 ```
 
 ``` {.haskell #database-insertion}
 insertContent :: Int64 -> [Content] -> SQL ()
 insertContent docId content = do
         conn <- getConnection
-        liftIO $ executeMany conn "insert into \"content\" values (?,?,?,?)" rows
+        liftIO $ executeMany conn "insert into `content`(`document`,`plain`,`codeName`,`codeOrdinal`) values (?,?,?,?)" rows
     where contentRow (PlainText text)
               = (docId, Just text, Nothing, Nothing)
           contentRow (Reference (ReferenceId (ReferenceName name) count))
@@ -136,7 +144,7 @@ insertContent docId content = do
 ### Targets
 
 ``` {.sqlite #schema}
-create table "targets"
+create table if not exists "targets"
     ( "filename"  text not null unique
     , "codename"  text not null
     , "document"  integer not null
@@ -148,7 +156,7 @@ create table "targets"
 insertTargets :: Int64 -> Map FilePath ReferenceName -> SQL ()
 insertTargets docId files = do
         conn <- getConnection
-        liftIO $ executeMany conn "insert into \"targets\" values (?, ?)" rows
+        liftIO $ executeMany conn "insert into `targets` values (?, ?, ?)" rows
     where targetRow (path, ReferenceName name) = (path, name, docId)
           rows = map targetRow (M.toList files)
 ```

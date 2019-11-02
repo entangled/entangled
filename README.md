@@ -31,17 +31,17 @@ Todo:
 
 # Building
 
-`enTangleD` is written in [Haskell](https://www.haskell.org/), and uses the `stack` build system. You can build an executable by running
+`enTangleD` is written in [Haskell](https://www.haskell.org/), and uses the `cabal` build system. You can build an executable by running
 
-    stack build
+    cabal build
 
-If this is the first time you run `stack`, this may take a while. Install the executable in your `~/.local/bin`
+Install the executable in your `~/.local/bin`
 
-    stack install
+    cabal install
 
 Run unit tests
 
-    stack test
+    cabal test
 
 # Using
 
@@ -114,3 +114,11 @@ If you want to create PDF output, you'll also need a LaTeX distribution installe
 ## Distribution
 
 If you've written a literate code using enTangleD and would like to distribute it, one way is to include the tangled source code in the tar ball. The other way is to include the `scripts` folder in your repository. You may want to check out the `tangle` and `weave` scripts, include a different LaTeX theme or play with `style.css`.
+
+# Development
+
+## Generating manpage
+
+```
+pandoc lit/manpage.md -s -t man | /usr/bin/man -l -
+```

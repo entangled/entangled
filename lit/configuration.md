@@ -155,7 +155,7 @@ defaultConfig :: Config
 defaultConfig = Config
     { configEntangled = Just $
           Entangled { useNamespaces=Just False
-                    , database=Just ".entangled.sqlite"
+                    , database=Just ".entangled/db.sqlite"
                     , watchList=Nothing
                     }
     , configLanguages = defaultLanguages

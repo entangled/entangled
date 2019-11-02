@@ -21,7 +21,7 @@ import qualified System.FSNotify as FSNotify
 -- ------ end
 -- ------ begin <<daemon-imports>>[2]
 import Document
-import Config
+import Config (Config(..))
 import Database
 import Database.SQLite.Simple
 import Tangle (parseMarkdown)
@@ -32,6 +32,7 @@ import Control.Concurrent.Chan
 import Control.Concurrent
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Monad.RWS
 import Control.Monad.IO.Class
 -- ------ end
 -- ------ begin <<daemon-imports>>[3]
@@ -75,7 +76,7 @@ db :: ( MonadIO m, MonadState Session m )
    => SQL a -> m a
 db (SQL x) = use sqlite >>= liftIO . runReaderT x
 
-newtype Daemon = Daemon { unDaemon :: RWST Config () Session IO }
+newtype Daemon a = Daemon { unDaemon :: RWST Config () Session IO a }
     deriving ( Applicative, Functor, Monad, MonadIO, MonadState Session
              , MonadReader Config )
 -- ------ end
@@ -95,51 +96,7 @@ class Monad m => MonadUserIO m where
     notify :: LogLevel -> Text -> m ()
     readFile :: FilePath -> m Text
 -- ------ end
--- ------ begin <<daemon-loading>>[0]
--- loadSourceFile :: ( MonadUserIO m
---                   , MonadReader Config m
---                   , MonadState Session m
---                   , MonadIO m )
---                => FilePath -> m ()
--- loadSourceFile abs_path = do
---     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
---     doc'     <- readFile abs_path >>= parseMarkdown rel_path
---     case doc' of
---         Left err ->
---             notify Error $ "Error loading '" <> T.pack rel_path <> "': " <> tshow err
---         Right doc@(Document refs content files) -> do
---             modify (over sourceData (M.insert abs_path (documentContent doc)))
--- ------ end
--- ------ begin <<daemon-loading>>[1]
--- loadTargetFile :: ( MonadUserIO m
---                   , MonadReader Config m
---                   , MonadState Session m
---                   , MonadIO m )
---                => FilePath -> m ()
--- loadTargetFile abs_path = do
---     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
---     refs' <- readFile abs_path >>= stitch rel_path
---     case refs' of
---         Left err ->
---             notify Error $ "Error loading '" <> T.pack rel_path <> "':" <> tshow err
---         Right refs ->
---             updateReferences refs
--- 
--- allReferences :: ( MonadState Session m )
---               => m ReferenceMap
--- allReferences = M.unions <$> use (over sourceFiles (map references . M.values))
--- 
--- updateReferenceMap :: ( MonadState Session m
---                       , MonadUserIO m )
---                    => [ReferencePair] -> m ()
--- updateReferenceMap =
---     either (notify Error . tshow)
---            (assign allReferences)
---            <$> use allReferences >>= foldM updateReference
---     where updateReference refs (ref, code)
---               | ref `M.member` refs = Right $ M.insert ref code refs
---               | otherwise = Left $ StitchError "Unknown reference '" <> tshow ref <> "'"
--- ------ end
+-- <<daemon-loading>>
 -- ------ begin <<daemon-watches>>[0]
 passEvent :: MVar DaemonState -> Chan Event
           -> [FilePath] -> [FilePath] -> FSNotify.Event -> IO ()
@@ -191,6 +148,26 @@ closeWatch = do
     stopActions <- use watches
     liftIO $ sequence_ stopActions
     notify Message "suspended watches"
+-- ------ end
+-- ------ begin <<daemon-main-loop>>[0]
+class ( MonadIO m, MonadReader Config m, MonadState Session m )
+      => MonadEntangled m
+
+mainLoop :: [Event] -> Daemon ()
+-- ------ begin <<main-loop-cases>>[0]
+mainLoop [] = return ()
+-- ------ end
+-- ------ begin <<main-loop-cases>>[1]
+mainLoop (WriteSource abs_path : xs) = do
+    rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
+    -- wait
+    setDaemonState Tangling
+    -- doc <- fromJust <$> getDocument abs_path    -- TODO: handle errors
+    old_tgts <- db listTargetFiles
+    return ()
+mainLoop (WriteTarget abs_path : xs) = return () 
+mainLoop (_ : xs) = return () 
+-- ------ end
 -- ------ end
 -- ------ end
 -- ------ end

@@ -17,3 +17,5 @@ dist-newstyle
 
 docker/**/*.tar.gz
 docker/**/*.deb
+.entangled
+
