@@ -138,11 +138,15 @@ runInsert cfg files = do
         Just db -> return $ T.unpack db
     createDirectoryIfMissing True (takeDirectory dbPath)
     putStrLn $ "inserting files: " <> show files
-    withSQL dbPath $ createTables >> mapM_ readDoc files
+    withSQL dbPath $ do
+        conn <- getConnection
+        liftIO $ execute_ conn "pragma synchronous = off"
+        liftIO $ execute_ conn "pragma journal_mode = memory"
+        createTables >> mapM_ readDoc files
     where readDoc f = do
             doc <- runReaderT (liftIO (T.IO.readFile f) >>= parseMarkdown f) cfg
             case doc of
                 Left e -> liftIO $ T.IO.putStrLn ("warning: " <> tshow e)
-                Right d -> addDocument f d
+                Right d -> updateDocument f d
 ```
 

@@ -168,16 +168,15 @@ insertTargets docId files = do
 When a Markdown source is written to, we first remove all data that was inserted from that document and then reinsert the new data. This is to prevent that code blocks remain from older versions. This problem could also be solved by a separate garbage collection step.
 
 ``` {.haskell #database-update}
-getDocumentId :: FilePath -> SQL Int64
+getDocumentId :: FilePath -> SQL (Maybe Int64)
 getDocumentId rel_path = do
     conn <- getConnection
     docId' <- liftIO $ query conn "select `id` from `documents` where `filename` is ?" (Only rel_path)
     case docId' of
-        []      -> throwM $ DatabaseError
-                          $ "file `" <> T.pack rel_path <> "` not in db."
-        [(Only docId)] -> return docId
-        _       -> throwM $ DatabaseError
-                          $ "file `" <> T.pack rel_path <> "` has multiple entries."
+        []             -> return Nothing
+        [(Only docId)] -> return $ Just docId
+        _              -> throwM $ DatabaseError
+                                 $ "file `" <> T.pack rel_path <> "` has multiple entries."
 
 removeDocumentData :: Int64 -> SQL ()
 removeDocumentData docId = do
@@ -189,11 +188,18 @@ removeDocumentData docId = do
 
 updateDocument :: FilePath -> Document -> SQL ()
 updateDocument rel_path Document{..} = do
-    docId <- getDocumentId rel_path
-    removeDocumentData docId
-    insertCodes docId references
-    insertContent docId documentContent
-    insertTargets docId documentTargets
+    conn <- getConnection
+    docId' <- getDocumentId rel_path
+    liftIO $ withTransaction conn $ liftSQL conn $ do
+        docId <- case docId' of
+            Just docId -> do
+                removeDocumentData docId >> return docId
+            Nothing    -> liftIO $ do
+                execute conn "insert into `documents`(`filename`) values (?)" (Only rel_path)
+                lastInsertRowId conn
+        insertCodes docId references
+        insertContent docId documentContent
+        insertTargets docId documentTargets
 ```
 
 ### Stitch
