@@ -137,7 +137,7 @@ class Monad m => MonadUserIO m where
     readFile :: FilePath -> m Text
 ```
 
-These are IO actions that need logging, possible confirmation by the user and execution.
+These are IO actions that need logging, possible confirmation by the user and execution. Also, using this we can do some mock testing.
 
 ## Watching
 

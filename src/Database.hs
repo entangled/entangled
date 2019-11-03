@@ -24,18 +24,24 @@ import Document
 import Config
 -- ------ end
 
-newtype SQL a = SQL { unSQL :: ReaderT Connection IO a }
+newtype SQL a = SQL { unSQL :: WriterT [Text] (ReaderT Connection IO a) }
     deriving (Applicative, Functor, Monad, MonadIO, MonadThrow)
+
+class (Monad m) => MonadLog m where
+    log :: Text -> m ()
 
 class (MonadIO m, MonadThrow m) => MonadSQL m where
     getConnection :: m Connection
+
+instance MonadLog SQL where
+    log = SQL tell
 
 instance MonadSQL SQL where
     getConnection = SQL ask
 
 -- ------ begin <<database-insertion>>[0]
-liftSQL :: Connection -> SQL a -> IO a
-liftSQL conn (SQL x) = runReaderT x conn
+liftSQL :: Connection -> SQL a -> IO (a, [Text])
+liftSQL conn (SQL x) = runReaderT (runWriterT x) conn
 -- ------ end
 -- ------ begin <<database-insertion>>[1]
 insertCodes :: Int64 -> ReferenceMap -> SQL ()
@@ -87,17 +93,19 @@ removeDocumentData docId = do
         execute conn "delete from `codes` where `document` is ?" (Only docId)
         execute conn "delete from `targets` where `document` is ?" (Only docId)
 
-insertDocument :: FilePath -> Document -> SQL ()
+insertDocument :: (MonadUserIO m) => FilePath -> Document -> SQL (m ())
 insertDocument rel_path Document{..} = do
     conn <- getConnection
     docId' <- getDocumentId rel_path
     liftIO $ withTransaction conn $ liftSQL conn $ do
         docId <- case docId' of
             Just docId -> do
+                log $ "Replacing '" <> T.pack rel_path <> "'."
                 removeDocumentData docId >> return docId
-            Nothing    -> liftIO $ do
-                execute conn "insert into `documents`(`filename`) values (?)" (Only rel_path)
-                lastInsertRowId conn
+            Nothing    -> do
+                log $ "Inserting new '" <> T.pack rel_path <> "'."
+                liftIO $ execute conn "insert into `documents`(`filename`) values (?)" (Only rel_path)
+                liftIO $ lastInsertRowId conn
         insertCodes docId references
         insertContent docId documentContent
         insertTargets docId documentTargets
