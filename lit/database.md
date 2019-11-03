@@ -74,16 +74,6 @@ create table if not exists "documents"
 ``` {.haskell #database-insertion}
 liftSQL :: Connection -> SQL a -> IO a
 liftSQL conn (SQL x) = runReaderT x conn
-
-addDocument :: FilePath -> Document -> SQL ()
-addDocument rel_path Document{..} = do
-    conn <- getConnection
-    liftIO $ execute conn "insert into `documents`(`filename`) values (?)" (Only rel_path)
-    docId <- liftIO $ lastInsertRowId conn
-    liftIO $ withTransaction conn $ liftSQL conn $ do
-        insertCodes docId references
-        insertContent docId documentContent
-        insertTargets docId documentTargets
 ```
 
 ### Codes
@@ -186,8 +176,8 @@ removeDocumentData docId = do
         execute conn "delete from `codes` where `document` is ?" (Only docId)
         execute conn "delete from `targets` where `document` is ?" (Only docId)
 
-updateDocument :: FilePath -> Document -> SQL ()
-updateDocument rel_path Document{..} = do
+insertDocument :: FilePath -> Document -> SQL ()
+insertDocument rel_path Document{..} = do
     conn <- getConnection
     docId' <- getDocumentId rel_path
     liftIO $ withTransaction conn $ liftSQL conn $ do
@@ -206,6 +196,7 @@ updateDocument rel_path Document{..} = do
 
 ::: {.TODO}
 Make this update more efficient. See https://stackoverflow.com/questions/11563869/update-multiple-rows-with-different-values-in-a-single-sql-query for an example.
+Other performance related post: https://stackoverflow.com/questions/1711631/improve-insert-per-second-performance-of-sqlite
 :::
 
 ``` {.haskell #database-update}

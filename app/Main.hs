@@ -121,6 +121,6 @@ runInsert cfg files = do
             doc <- runReaderT (liftIO (T.IO.readFile f) >>= parseMarkdown f) cfg
             case doc of
                 Left e -> liftIO $ T.IO.putStrLn ("warning: " <> tshow e)
-                Right d -> updateDocument f d
+                Right d -> insertDocument f d
 -- ------ end
 -- ------ end
