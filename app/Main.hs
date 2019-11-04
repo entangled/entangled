@@ -9,6 +9,7 @@ import Data.Text (Text)
 import qualified Data.Text.IO as T.IO
 import Control.Monad.IO.Class
 import Control.Monad.Reader
+import Control.Monad.Writer
 import System.Directory
 import System.FilePath
 -- ------ end
@@ -22,6 +23,7 @@ import Options.Applicative
 import System.Exit
 import Database.SQLite.Simple
 import Database
+import Logging
 import Config
 import Tangle (parseMarkdown)
 import TextUtil
@@ -86,15 +88,12 @@ run Args{..}
             runSession config (inputFiles a)
         CommandInsert a -> do
             config <- configStack
-            runInsert config (insertFiles a)
+            printLogger $ runInsert config (insertFiles a)
         NoCommand -> do
             return ()
     where runSession config files = putStrLn $ show config
 
 -- ------ begin <<run-insert>>[0]
-withSQL :: FilePath -> SQL a -> IO a
-withSQL p (SQL x) = withConnection p (liftIO . runReaderT x)
-
 schema :: IO [Query]
 schema = do
     qs <-  T.splitOn ";" <$> T.IO.readFile "schema.sql"
@@ -105,13 +104,21 @@ createTables = do
     conn <- getConnection
     liftIO $ schema >>= mapM_ (execute_ conn)
 
-runInsert :: Config -> [FilePath] -> IO ()
+newtype LoggerIO a = LoggerIO { printLogger :: (IO a) }
+    deriving ( Applicative, Functor, Monad, MonadIO )
+
+instance MonadLogger LoggerIO where
+    logEntry level x = liftIO $ T.IO.putStrLn $ tshow level <> ": " <> x
+
+runInsert :: Config -> [FilePath] -> LoggerIO ()
 runInsert cfg files = do
     dbPath <- case configEntangled cfg >>= database of
-        Nothing -> putStrLn "database not configured" >> exitFailure
+        Nothing -> do
+            logError "database not configured"
+            liftIO exitFailure
         Just db -> return $ T.unpack db
-    createDirectoryIfMissing True (takeDirectory dbPath)
-    putStrLn $ "inserting files: " <> show files
+    liftIO $ createDirectoryIfMissing True (takeDirectory dbPath)
+    logMessage $ "inserting files: " <> tshow files
     withSQL dbPath $ do
         conn <- getConnection
         liftIO $ execute_ conn "pragma synchronous = off"

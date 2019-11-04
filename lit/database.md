@@ -6,38 +6,72 @@ We use an SQLite database to manage document content. Using SQL requires a remap
 module Database where
 
 <<database-imports>>
-
-newtype SQL a = SQL { unSQL :: WriterT [Text] (ReaderT Connection IO a) }
-    deriving (Applicative, Functor, Monad, MonadIO, MonadThrow)
-
-class (Monad m) => MonadLog m where
-    log :: Text -> m ()
-
-class (MonadIO m, MonadThrow m) => MonadSQL m where
-    getConnection :: m Connection
-
-instance MonadLog SQL where
-    log = SQL tell
-
-instance MonadSQL SQL where
-    getConnection = SQL ask
-
+<<database-types>>
 <<database-insertion>>
 <<database-update>>
 <<database-queries>>
 ```
 
+## Types
+
+We wrap all SQL interaction in a `SQL` monad, which stores the `Connection` object and a logger.
+
 ``` {.haskell #database-imports}
+import Logging
+
 import Database.SQLite.Simple
 import Database.SQLite.Simple.FromRow
-<<import-text>>
-<<import-map>>
-import Data.Maybe (catMaybes)
-import Data.Int (Int64)
 
 import Control.Monad.Reader
 import Control.Monad.IO.Class
 import Control.Monad.Catch
+import Control.Monad.Writer
+
+<<import-text>>
+```
+
+``` {.haskell #database-types}
+newtype SQL a = SQL { unSQL :: WriterT [(LogLevel, Text)] (ReaderT Connection IO) a }
+    deriving (Applicative, Functor, Monad, MonadIO, MonadThrow, MonadLogger)
+
+class (MonadIO m, MonadThrow m, MonadLogger m) => MonadSQL m where
+    getConnection :: m Connection
+    runSQL :: (MonadIO n, MonadLogger n) => Connection -> m a -> n a
+
+instance MonadSQL SQL where
+    getConnection = SQL ask
+    runSQL conn (SQL x) = do
+        (x, msgs) <- liftIO $ runReaderT (runWriterT x) conn
+        forwardEntries msgs
+        return x
+
+withSQL :: (MonadIO m, MonadLogger m) => FilePath -> SQL a -> m a
+withSQL p (SQL x) = do
+    (x, msgs) <- liftIO $ withConnection p (liftIO . runReaderT (runWriterT x))
+    forwardEntries msgs
+    return x
+```
+
+The `SQLite.Simple` function `withTransaction` takes an `IO` action as argument. We somehow have to redirect logging information around the unpacking to `IO` and lifting back to `MonadSQL`. This is not the prettiest solution, and we see some repetition of the pattern where we unpack result and log, forward log to outer monad and return result pattern.
+
+``` {.haskell #database-types}
+type RedirectLog m a = WriterT [(LogLevel, Text)] m a
+
+redirectLogger :: (MonadIO m, MonadSQL n) => Connection -> n a -> RedirectLog m a
+redirectLogger conn x = runSQL conn x
+
+withTransactionM :: (MonadSQL m) => m a -> m a
+withTransactionM t = do
+    conn <- getConnection
+    (x, msgs) <- liftIO $ withTransaction conn $ runWriterT $ redirectLogger conn t
+    forwardEntries msgs
+    return x
+```
+
+``` {.haskell #database-imports}
+<<import-map>>
+import Data.Maybe (catMaybes)
+import Data.Int (Int64)
 
 import Document
 import Config
@@ -75,11 +109,6 @@ Implement the interface in Selda.
 create table if not exists "documents"
     ( "id"        integer primary key autoincrement
     , "filename"  text not null );
-```
-
-``` {.haskell #database-insertion}
-liftSQL :: Connection -> SQL a -> IO (a, [Text])
-liftSQL conn (SQL x) = runReaderT (runWriterT x) conn
 ```
 
 ### Codes
@@ -182,17 +211,17 @@ removeDocumentData docId = do
         execute conn "delete from `codes` where `document` is ?" (Only docId)
         execute conn "delete from `targets` where `document` is ?" (Only docId)
 
-insertDocument :: (MonadUserIO m) => FilePath -> Document -> SQL (m ())
+insertDocument :: FilePath -> Document -> SQL ()
 insertDocument rel_path Document{..} = do
     conn <- getConnection
     docId' <- getDocumentId rel_path
-    liftIO $ withTransaction conn $ liftSQL conn $ do
+    withTransactionM $ do
         docId <- case docId' of
             Just docId -> do
-                log $ "Replacing '" <> T.pack rel_path <> "'."
+                logMessage $ "Replacing '" <> T.pack rel_path <> "'."
                 removeDocumentData docId >> return docId
             Nothing    -> do
-                log $ "Inserting new '" <> T.pack rel_path <> "'."
+                logMessage $ "Inserting new '" <> T.pack rel_path <> "'."
                 liftIO $ execute conn "insert into `documents`(`filename`) values (?)" (Only rel_path)
                 liftIO $ lastInsertRowId conn
         insertCodes docId references

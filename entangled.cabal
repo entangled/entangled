@@ -48,6 +48,7 @@ common deps
     , random >=1.0 && <2
     , sqlite-simple >=0.4.16 && <0.5
     , terminal-size >=0.3 && <1
+    , transformers >=0.5 && <0.6
     , text >=1.2 && <2
     , time >=1.8 && <2
     , tomland >=1.2 && <2
@@ -63,6 +64,7 @@ library
       Document
       Tangle
       Console
+      Logging
       ListStream
       Comment
       Stitch

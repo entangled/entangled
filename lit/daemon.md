@@ -31,6 +31,7 @@ module Daemon where
 ``` {.haskell #daemon-imports}
 import Prelude hiding (readFile)
 <<import-text>>
+import qualified Data.Text.IO as T.IO 
 <<import-map>>
 import TextUtil (tshow)
 import Lens.Micro.Platform
@@ -68,10 +69,11 @@ data Event
 import Document
 import Config (Config(..))
 import Database
+import Logging
 import Database.SQLite.Simple
 import Tangle (parseMarkdown)
 import Stitch (stitch)
-import Console (LogLevel(..))
+-- import Console (LogLevel(..))
 
 import Control.Concurrent.Chan
 import Control.Concurrent
@@ -79,6 +81,7 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.RWS
 import Control.Monad.IO.Class
+import Control.Monad.Writer
 ```
 
 ``` {.haskell #daemon-session}
@@ -92,13 +95,18 @@ data Session = Session
 
 makeLenses ''Session
 
-db :: ( MonadIO m, MonadState Session m )
+db :: ( MonadIO m, MonadState Session m, MonadLogger m )
    => SQL a -> m a
-db (SQL x) = use sqlite >>= liftIO . runReaderT x
+db x = do
+    conn <- use sqlite
+    runSQL conn x
 
-newtype Daemon a = Daemon { unDaemon :: RWST Config () Session IO a }
+newtype Daemon a = Daemon { unDaemon :: RWST Config [Text] Session IO a }
     deriving ( Applicative, Functor, Monad, MonadIO, MonadState Session
              , MonadReader Config )
+
+instance MonadLogger Daemon where
+    logEntry level msg = liftIO $ T.IO.putStrLn msg
 ```
 
 Every time an event happens we send it to `_eventChannel`. When we tangle we change the `_daemonState` to `Tangling`. Write events to target files are then not triggering a stitch. The other way around, if the daemon is in `Stitching` state, write events to the markdown source do not trigger a tangle. Because these events will arrive asynchronously, we use an `MVar` to change the state.
@@ -176,10 +184,7 @@ passEvent state' channel srcs tgts fsEvent = do
 ```
 
 ``` {.haskell #daemon-watches}
-setWatch :: ( MonadIO m
-            , MonadState Session m
-            , MonadUserIO m )
-         => m ()
+setWatch :: Daemon ()
 setWatch = do
     srcs <- db listSourceFiles >>= (liftIO . mapM canonicalizePath)
     tgts <- db listTargetFiles >>= (liftIO . mapM canonicalizePath)
@@ -196,18 +201,15 @@ setWatch = do
         abs_dirs
     assign watches stopActions
 
-    notify Message $ "watching: " <> tshow rel_dirs
+    logMessage $ "watching: " <> tshow rel_dirs
 ```
 
 ``` {.haskell #daemon-watches}
-closeWatch :: ( MonadIO m
-              , MonadState Session m
-              , MonadUserIO m )
-           => m ()
+closeWatch :: Daemon ()
 closeWatch = do
     stopActions <- use watches
     liftIO $ sequence_ stopActions
-    notify Message "suspended watches"
+    logMessage "suspended watches"
 ```
 
 ## Loading

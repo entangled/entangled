@@ -3,12 +3,22 @@
 module Database where
 
 -- ------ begin <<database-imports>>[0]
+import Logging
+
 import Database.SQLite.Simple
 import Database.SQLite.Simple.FromRow
+
+import Control.Monad.Reader
+import Control.Monad.IO.Class
+import Control.Monad.Catch
+import Control.Monad.Writer
+
 -- ------ begin <<import-text>>[0]
 import qualified Data.Text as T
 import Data.Text (Text)
 -- ------ end
+-- ------ end
+-- ------ begin <<database-imports>>[1]
 -- ------ begin <<import-map>>[0]
 import qualified Data.Map.Strict as M
 import Data.Map.Strict (Map)
@@ -16,34 +26,44 @@ import Data.Map.Strict (Map)
 import Data.Maybe (catMaybes)
 import Data.Int (Int64)
 
-import Control.Monad.Reader
-import Control.Monad.IO.Class
-import Control.Monad.Catch
-
 import Document
 import Config
 -- ------ end
+-- ------ begin <<database-types>>[0]
+newtype SQL a = SQL { unSQL :: WriterT [(LogLevel, Text)] (ReaderT Connection IO) a }
+    deriving (Applicative, Functor, Monad, MonadIO, MonadThrow, MonadLogger)
 
-newtype SQL a = SQL { unSQL :: WriterT [Text] (ReaderT Connection IO a) }
-    deriving (Applicative, Functor, Monad, MonadIO, MonadThrow)
-
-class (Monad m) => MonadLog m where
-    log :: Text -> m ()
-
-class (MonadIO m, MonadThrow m) => MonadSQL m where
+class (MonadIO m, MonadThrow m, MonadLogger m) => MonadSQL m where
     getConnection :: m Connection
-
-instance MonadLog SQL where
-    log = SQL tell
+    runSQL :: (MonadIO n, MonadLogger n) => Connection -> m a -> n a
 
 instance MonadSQL SQL where
     getConnection = SQL ask
+    runSQL conn (SQL x) = do
+        (x, msgs) <- liftIO $ runReaderT (runWriterT x) conn
+        forwardEntries msgs
+        return x
 
--- ------ begin <<database-insertion>>[0]
-liftSQL :: Connection -> SQL a -> IO (a, [Text])
-liftSQL conn (SQL x) = runReaderT (runWriterT x) conn
+withSQL :: (MonadIO m, MonadLogger m) => FilePath -> SQL a -> m a
+withSQL p (SQL x) = do
+    (x, msgs) <- liftIO $ withConnection p (liftIO . runReaderT (runWriterT x))
+    forwardEntries msgs
+    return x
 -- ------ end
--- ------ begin <<database-insertion>>[1]
+-- ------ begin <<database-types>>[1]
+type RedirectLog m a = WriterT [(LogLevel, Text)] m a
+
+redirectLogger :: (MonadIO m, MonadSQL n) => Connection -> n a -> RedirectLog m a
+redirectLogger conn x = runSQL conn x
+
+withTransactionM :: (MonadSQL m) => m a -> m a
+withTransactionM t = do
+    conn <- getConnection
+    (x, msgs) <- liftIO $ withTransaction conn $ runWriterT $ redirectLogger conn t
+    forwardEntries msgs
+    return x
+-- ------ end
+-- ------ begin <<database-insertion>>[0]
 insertCodes :: Int64 -> ReferenceMap -> SQL ()
 insertCodes docId codes = do
         conn <- getConnection
@@ -55,7 +75,7 @@ insertCodes docId codes = do
               = Nothing
           rows = catMaybes $ map codeRow (M.toList codes)
 -- ------ end
--- ------ begin <<database-insertion>>[2]
+-- ------ begin <<database-insertion>>[1]
 insertContent :: Int64 -> [Content] -> SQL ()
 insertContent docId content = do
         conn <- getConnection
@@ -66,7 +86,7 @@ insertContent docId content = do
               = (docId, Nothing, Just name, Just count)
           rows = map contentRow content
 -- ------ end
--- ------ begin <<database-insertion>>[3]
+-- ------ begin <<database-insertion>>[2]
 insertTargets :: Int64 -> Map FilePath ReferenceName -> SQL ()
 insertTargets docId files = do
         conn <- getConnection
@@ -93,17 +113,17 @@ removeDocumentData docId = do
         execute conn "delete from `codes` where `document` is ?" (Only docId)
         execute conn "delete from `targets` where `document` is ?" (Only docId)
 
-insertDocument :: (MonadUserIO m) => FilePath -> Document -> SQL (m ())
+insertDocument :: FilePath -> Document -> SQL ()
 insertDocument rel_path Document{..} = do
     conn <- getConnection
     docId' <- getDocumentId rel_path
-    liftIO $ withTransaction conn $ liftSQL conn $ do
+    withTransactionM $ do
         docId <- case docId' of
             Just docId -> do
-                log $ "Replacing '" <> T.pack rel_path <> "'."
+                logMessage $ "Replacing '" <> T.pack rel_path <> "'."
                 removeDocumentData docId >> return docId
             Nothing    -> do
-                log $ "Inserting new '" <> T.pack rel_path <> "'."
+                logMessage $ "Inserting new '" <> T.pack rel_path <> "'."
                 liftIO $ execute conn "insert into `documents`(`filename`) values (?)" (Only rel_path)
                 liftIO $ lastInsertRowId conn
         insertCodes docId references
