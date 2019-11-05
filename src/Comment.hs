@@ -33,7 +33,7 @@ import Attributes (attributes, cssIdentifier)
 
 -- ------ begin <<generate-comment>>[0]
 delim :: Text
-delim = "-#- entangled -#- "
+delim = " -#- entangled -#- "
 -- ------ end
 -- ------ begin <<generate-comment>>[1]
 comment :: ProgrammingLanguage
@@ -46,7 +46,7 @@ comment (KnownLanguage lang) text = Right $ formatComment lang text
 formatComment :: Language -> Text -> Text
 formatComment lang text = pre <> text <> post
     where pre  = languageStartComment lang <> delim
-          post = maybe "" id $ languageCloseComment lang
+          post = maybe "" (" " <>) $ languageCloseComment lang
 -- ------ end
 -- ------ begin <<generate-comment>>[2]
 annotateComment :: ReferenceMap -> ReferenceId -> Either EntangledError Text

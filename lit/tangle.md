@@ -225,9 +225,11 @@ getFilePath (_:xs) = getFilePath xs
 
 getFileMap :: [ReferencePair] -> FileMap
 getFileMap = M.fromList . catMaybes . map filePair
-    where filePair (ref, block) = do
-              path <- getFilePath $ codeProperties block
-              return (path, referenceName ref)
+    where filePair (ref, CodeBlock{..}) = do
+              path <- getFilePath $ codeProperties
+              case codeLanguage of
+                  KnownLanguage _ -> return (path, referenceName ref)
+                  _               -> Nothing
 ```
 
 ### References
@@ -453,7 +455,7 @@ The `-#- entangled -#-` bit is stored in `delim`.
 
 ``` {.haskell #generate-comment}
 delim :: Text
-delim = "-#- entangled -#- "
+delim = " -#- entangled -#- "
 ```
 
 Given any content, the `comment` function generates a commented line following the above prescription.
@@ -477,7 +479,7 @@ comment (KnownLanguage lang) text = Right $ formatComment lang text
 formatComment :: Language -> Text -> Text
 formatComment lang text = pre <> text <> post
     where pre  = languageStartComment lang <> delim
-          post = maybe "" id $ languageCloseComment lang
+          post = maybe "" (" " <>) $ languageCloseComment lang
 ```
 
 Using this we can write the `annotateComment` function. Given a `ReferenceId` this retrieves the code text and annotates it with a begin and end comment line.

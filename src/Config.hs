@@ -79,26 +79,27 @@ configStack = do
 -- ------ begin <<config-defaults>>[0]
 defaultLanguages :: Set Language
 defaultLanguages = S.fromList
-    [ Language "C++"         ["cpp", "c++"]               "// ------" Nothing
-    , Language "C"           ["c"]                        "// ------" Nothing
-    , Language "Rust"        ["rust"]                     "// ------" Nothing
-    , Language "Haskell"     ["hs", "haskell"]            "-- ------" Nothing
-    , Language "Python"      ["py", "python", "python3"]  "## ------" Nothing
-    , Language "Julia"       ["jl", "julia"]              "## ------" Nothing
-    , Language "JavaScript"  ["js", "javascript", "ecma"] "// ------" Nothing
-    , Language "Scheme"      ["scm", "scheme"]            ";; ------" Nothing
-    , Language "R"           ["r"]                        "## ------" Nothing
-    , Language "YAML"        ["yaml"]                     "## ------" Nothing
-    , Language "Gnuplot"     ["gnuplot"]                  "## ------" Nothing
-    , Language "Make"        ["make", "makefile"]         "## ------" Nothing
-    , Language "Elm"         ["elm"]                      "-- ------" Nothing
-    , Language "HTML"        ["html"]                     "<!-- ----" (Just " -->")
-    , Language "CSS"         ["css"]                      "/* ------" (Just " */")
-    , Language "Awk"         ["awk"]                      "## ------" Nothing
-    , Language "OCaml"       ["ocaml"]                    "(* ------" (Just " *)")
-    , Language "LaTeX"       ["latex"]                    "%% ------" Nothing
-    , Language "Lua"         ["lua"]                      "-- ------" Nothing
-    , Language "OpenCL"      ["opencl"]                   "// ------" Nothing
+    [ Language "C++"         ["cpp", "c++"]               "//" Nothing
+    , Language "C"           ["c"]                        "//" Nothing
+    , Language "Rust"        ["rust"]                     "//" Nothing
+    , Language "Haskell"     ["hs", "haskell"]            "--" Nothing
+    , Language "Python"      ["py", "python", "python3"]  "##" Nothing
+    , Language "Julia"       ["jl", "julia"]              "##" Nothing
+    , Language "JavaScript"  ["js", "javascript", "ecma"] "//" Nothing
+    , Language "Scheme"      ["scm", "scheme"]            ";;" Nothing
+    , Language "R"           ["r"]                        "##" Nothing
+    , Language "YAML"        ["yaml"]                     "##" Nothing
+    , Language "Gnuplot"     ["gnuplot"]                  "##" Nothing
+    , Language "Make"        ["make", "makefile"]         "##" Nothing
+    , Language "Elm"         ["elm"]                      "--" Nothing
+    , Language "HTML"        ["html"]                     "<!--" (Just "-->")
+    , Language "CSS"         ["css"]                      "/*" (Just "*/")
+    , Language "Awk"         ["awk"]                      "##" Nothing
+    , Language "OCaml"       ["ocaml"]                    "(*" (Just "*)")
+    , Language "LaTeX"       ["latex"]                    "%%" Nothing
+    , Language "Lua"         ["lua"]                      "--" Nothing
+    , Language "OpenCL"      ["opencl"]                   "//" Nothing
+    , Language "SQLite"      ["sqlite"]                   "--" Nothing
     ]
 
 defaultConfig :: Config

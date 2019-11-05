@@ -93,9 +93,11 @@ getFilePath (_:xs) = getFilePath xs
 
 getFileMap :: [ReferencePair] -> FileMap
 getFileMap = M.fromList . catMaybes . map filePair
-    where filePair (ref, block) = do
-              path <- getFilePath $ codeProperties block
-              return (path, referenceName ref)
+    where filePair (ref, CodeBlock{..}) = do
+              path <- getFilePath $ codeProperties
+              case codeLanguage of
+                  KnownLanguage _ -> return (path, referenceName ref)
+                  _               -> Nothing
 -- ------ end
 -- ------ begin <<parse-markdown>>[4]
 type ReferenceCount = Map ReferenceName Int

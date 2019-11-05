@@ -77,6 +77,7 @@ import Data.Int (Int64)
 
 import Document
 import Config
+import TextUtil
 ```
 
 ::: {.note}
@@ -258,7 +259,7 @@ listTargetFiles :: SQL [FilePath]
 listTargetFiles = do
     conn <- getConnection
     map fromOnly <$>
-        liftIO (query_ conn "select (`filename`) from `targets`" :: IO [Only FilePath])
+        liftIO (query_ conn "select `filename` from `targets`" :: IO [Only FilePath])
 ```
 
 ``` {.haskell #database-queries}
@@ -266,7 +267,29 @@ listSourceFiles :: SQL [FilePath]
 listSourceFiles = do
     conn <- getConnection
     map fromOnly <$>
-        liftIO (query_ conn "select (`filename`) from `documents`" :: IO [Only FilePath])
+        liftIO (query_ conn "select `filename` from `documents`" :: IO [Only FilePath])
+```
+
+``` {.haskell #database-queries}
+queryTargetRef :: FilePath -> SQL (Maybe ReferenceName)
+queryTargetRef rel_path = do
+    conn <- getConnection
+    x' <- liftIO (query conn "select `codename` from `targets` where `filename` is ?" (Only rel_path) :: IO [Only Text])
+    case x' of
+        []  -> return Nothing
+        [Only x] -> return $ Just (ReferenceName x)
+        _   -> throwM $ DatabaseError $ "target file `" <> T.pack rel_path <> "` has multiple entries."
+```
+
+``` {.haskell #database-queries}
+stitchDocument :: FilePath -> SQL Text
+stitchDocument rel_path = do
+    conn <- getConnection
+    docId <- getDocumentId rel_path >>= \case
+        Nothing -> throwM $ StitchError $ "File `" <> T.pack rel_path <> "` not in database."
+        Just x  -> return x
+    result <- liftIO (query conn "select coalesce(`plain`,`codes`.`source`) from `content` left outer join `codes` on (`codeName`,`codeOrdinal`)=(`codes`.`name`,`codes`.`ordinal`) where `content`.`document` is ?" (Only docId) :: IO [Only Text])
+    return $ unlines' $ map fromOnly result
 ```
 
 ### References
