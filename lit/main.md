@@ -34,6 +34,7 @@ data Args = Args
 data SubCommand
     = CommandInsert InsertArgs
     | CommandDaemon DaemonArgs
+    | CommandList
     | NoCommand
 
 parseNoCommand :: Parser SubCommand
@@ -44,7 +45,8 @@ parseArgs = Args
     <$> switch (long "version" <> short 'v' <> help "Show version information.")
     <*> ( subparser
           (  command "daemon" (info parseDaemonArgs ( fullDesc )) 
-          <> command "insert" (info parseInsertArgs ( fullDesc )) )
+          <> command "insert" (info parseInsertArgs ( fullDesc )) 
+          <> command "list"   (info (pure CommandList) ( fullDesc )) )
         <|> parseNoCommand )
 ```
 
@@ -108,6 +110,9 @@ run Args{..}
         CommandInsert a -> do
             config <- configStack
             printLogger $ runInsert config (insertFiles a)
+        CommandList -> do
+            config <- configStack
+            printLogger $ runList config
         NoCommand -> do
             return ()
     where runSession config files = putStrLn $ show config
@@ -135,6 +140,22 @@ newtype LoggerIO a = LoggerIO { printLogger :: (IO a) }
 
 instance MonadLogger LoggerIO where
     logEntry level x = liftIO $ T.IO.putStrLn $ tshow level <> ": " <> x
+
+runList :: Config -> LoggerIO ()
+runList cfg = do
+    dbPath <- case configEntangled cfg >>= database of
+        Nothing -> do
+            logError "database not configured"
+            liftIO exitFailure
+        Just db -> return $ T.unpack db
+    liftIO $ createDirectoryIfMissing True (takeDirectory dbPath)
+    withSQL dbPath $ do 
+        conn <- getConnection
+        liftIO $ execute_ conn "pragma synchronous = off"
+        liftIO $ execute_ conn "pragma journal_mode = memory"
+        createTables
+        lst <- liftIO $ (query_ conn "select `filename` from `targets`" :: IO [Only Text])
+        liftIO $ T.IO.putStrLn $ T.unlines $ map fromOnly lst
 
 runInsert :: Config -> [FilePath] -> LoggerIO ()
 runInsert cfg files = do

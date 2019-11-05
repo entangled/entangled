@@ -54,6 +54,8 @@ withSQL p (SQL x) = do
 
 The `SQLite.Simple` function `withTransaction` takes an `IO` action as argument. We somehow have to redirect logging information around the unpacking to `IO` and lifting back to `MonadSQL`. This is not the prettiest solution, and we see some repetition of the pattern where we unpack result and log, forward log to outer monad and return result pattern.
 
+All the `RedirectLog` code is needed to aid the type checker, or it won't know what to do.
+
 ``` {.haskell #database-types}
 type RedirectLog m a = WriterT [(LogLevel, Text)] m a
 
