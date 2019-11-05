@@ -154,13 +154,10 @@ listSourceFiles = do
         liftIO (query_ conn "select (`filename`) from `documents`" :: IO [Only FilePath])
 -- ------ end
 -- ------ begin <<database-queries>>[2]
-queryReferenceMap :: ( MonadReader Config m
-                     , MonadSQL m )
-                  => m ReferenceMap
-queryReferenceMap = do
+queryReferenceMap :: Config -> SQL ReferenceMap
+queryReferenceMap config = do
         conn <- getConnection
-        config <- ask
-        rows <- liftIO (query_ conn "select (`name`, `ordinal`, `source`, `language`) from `codes`" :: IO [(Text, Int, Text, Text)])
+        rows <- liftIO (query_ conn "select `name`, `ordinal`, `source`, `language` from `codes`" :: IO [(Text, Int, Text, Text)])
         M.fromList <$> mapM (refpair config) rows
     where refpair config (name, ordinal, source, lang) =
             case (languageFromName config lang) of

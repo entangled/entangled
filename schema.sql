@@ -1,4 +1,7 @@
 -- ------ language="SQLite" file="schema.sql"
+pragma synchronous = off;
+pragma journal_mode = memory;
+
 -- ------ begin <<schema>>[0]
 create table if not exists "documents"
     ( "id"        integer primary key autoincrement

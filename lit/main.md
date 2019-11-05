@@ -3,6 +3,8 @@
 ``` {.haskell #main-imports}
 <<import-text>>
 import qualified Data.Text.IO as T.IO
+import qualified Data.Map.Lazy as LM
+
 import Control.Monad.IO.Class
 import Control.Monad.Reader
 import Control.Monad.Writer
@@ -32,10 +34,8 @@ data Args = Args
     , subCommand :: SubCommand }
 
 data SubCommand
-    = CommandInsert InsertArgs
-    | CommandDaemon DaemonArgs
-    | CommandList
-    | NoCommand
+    = NoCommand
+    <<subcommand-options>>
 
 parseNoCommand :: Parser SubCommand
 parseNoCommand = pure NoCommand
@@ -43,14 +43,20 @@ parseNoCommand = pure NoCommand
 parseArgs :: Parser Args
 parseArgs = Args
     <$> switch (long "version" <> short 'v' <> help "Show version information.")
-    <*> ( subparser
-          (  command "daemon" (info parseDaemonArgs ( fullDesc )) 
-          <> command "insert" (info parseInsertArgs ( fullDesc )) 
-          <> command "list"   (info (pure CommandList) ( fullDesc )) )
-        <|> parseNoCommand )
+    <*> ( subparser ( mempty
+          <<subparsers>>
+        ) <|> parseNoCommand )
 ```
 
 ### Starting the daemon
+
+``` {.haskell #subcommand-options}
+| CommandDaemon DaemonArgs
+```
+
+``` {.haskell #subparsers}
+<>  command "daemon" (info parseDaemonArgs ( fullDesc )) 
+```
 
 ``` {.haskell #main-options}
 data DaemonArgs = DaemonArgs
@@ -64,6 +70,14 @@ parseDaemonArgs = CommandDaemon <$> DaemonArgs
 
 ### Inserting files to the database
 
+``` {.haskell #subcommand-options}
+| CommandInsert InsertArgs
+```
+
+``` {.haskell #subparsers}
+<> command "insert" (info parseInsertArgs ( fullDesc ))
+```
+
 ``` {.haskell #main-options}
 data InsertArgs = InsertArgs
     { insertFiles :: [FilePath] }
@@ -71,6 +85,38 @@ data InsertArgs = InsertArgs
 parseInsertArgs :: Parser SubCommand
 parseInsertArgs = CommandInsert <$> InsertArgs
     <$> many (argument str (metavar "FILES..."))
+```
+
+### Tangling a single reference
+
+``` {.haskell #subcommand-options}
+| CommandTangle TangleArgs
+```
+
+``` {.haskell #subparsers}
+<> command "tangle" (info (CommandTangle <$> parseTangleArgs) ( fullDesc ))
+```
+
+``` {.haskell #main-options}
+data TangleArgs = TangleArgs
+    { tangleTarget :: Text
+    , tangleDecorate :: Bool
+    } deriving (Show)
+
+parseTangleArgs :: Parser TangleArgs
+parseTangleArgs = TangleArgs
+    <$> argument str (metavar "TARGET")
+    <*> switch (long "decorate" <> short 'd' <> help "Decorate with stitching comments.")
+```
+
+### Listing all target files
+
+``` {.haskell #subcommand-options}
+| CommandList
+```
+
+``` {.haskell #subparsers}
+<> command "list"   (info (pure CommandList) ( fullDesc ))
 ```
 
 ## Main
@@ -81,12 +127,14 @@ module Main where
 <<main-imports>>
 
 import System.Exit
+import Document
 import Database.SQLite.Simple
 import Database
 import Logging
 import Config
-import Tangle (parseMarkdown)
+import Tangle (parseMarkdown, expandedCode, annotateNaked)
 import TextUtil
+import Comment
 
 <<main-options>>
 
@@ -104,6 +152,9 @@ run :: Args -> IO ()
 run Args{..}
     | versionFlag       = putStrLn "enTangleD 1.0.0"
     | otherwise         = case subCommand of
+        CommandTangle a -> do
+            config <- configStack
+            printLogger $ runTangle config a
         CommandDaemon a -> do
             config <- configStack
             runSession config (inputFiles a)
@@ -141,36 +192,42 @@ newtype LoggerIO a = LoggerIO { printLogger :: (IO a) }
 instance MonadLogger LoggerIO where
     logEntry level x = liftIO $ T.IO.putStrLn $ tshow level <> ": " <> x
 
-runList :: Config -> LoggerIO ()
-runList cfg = do
+getDatabasePath :: Config -> LoggerIO FilePath
+getDatabasePath cfg = do
     dbPath <- case configEntangled cfg >>= database of
         Nothing -> do
             logError "database not configured"
             liftIO exitFailure
         Just db -> return $ T.unpack db
     liftIO $ createDirectoryIfMissing True (takeDirectory dbPath)
-    withSQL dbPath $ do 
-        conn <- getConnection
-        liftIO $ execute_ conn "pragma synchronous = off"
-        liftIO $ execute_ conn "pragma journal_mode = memory"
+    return dbPath
+
+runTangle :: Config -> TangleArgs -> LoggerIO ()
+runTangle cfg TangleArgs{..} = do
+    dbPath <- getDatabasePath cfg
+    refs <- withSQL dbPath $ do 
         createTables
-        lst <- liftIO $ (query_ conn "select `filename` from `targets`" :: IO [Only Text])
-        liftIO $ T.IO.putStrLn $ T.unlines $ map fromOnly lst
+        queryReferenceMap cfg
+    let annotate = if tangleDecorate then annotateComment else annotateNaked
+        codes = expandedCode annotate refs
+    case codes LM.!? (ReferenceName tangleTarget) of
+        Nothing -> logError $ "Reference `" <> tangleTarget <> "` not found."
+        Just (Left e) -> logError $ tshow e
+        Just (Right t) -> liftIO $ T.IO.putStrLn $ t
+
+runList :: Config -> LoggerIO ()
+runList cfg = do
+    dbPath <- getDatabasePath cfg
+    lst <- withSQL dbPath $ do 
+        createTables
+        listTargetFiles
+    liftIO $ T.IO.putStrLn $ T.unlines $ map T.pack lst
 
 runInsert :: Config -> [FilePath] -> LoggerIO ()
 runInsert cfg files = do
-    dbPath <- case configEntangled cfg >>= database of
-        Nothing -> do
-            logError "database not configured"
-            liftIO exitFailure
-        Just db -> return $ T.unpack db
-    liftIO $ createDirectoryIfMissing True (takeDirectory dbPath)
+    dbPath <- getDatabasePath cfg
     logMessage $ "inserting files: " <> tshow files
-    withSQL dbPath $ do
-        conn <- getConnection
-        liftIO $ execute_ conn "pragma synchronous = off"
-        liftIO $ execute_ conn "pragma journal_mode = memory"
-        createTables >> mapM_ readDoc files
+    withSQL dbPath $ createTables >> mapM_ readDoc files
     where readDoc f = do
             doc <- runReaderT (liftIO (T.IO.readFile f) >>= parseMarkdown f) cfg
             case doc of

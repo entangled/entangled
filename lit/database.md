@@ -96,6 +96,9 @@ schema.svg: <<file|schema>>
 In `SQLite.Simple` the above schema becomes
 
 ``` {.sqlite file=schema.sql}
+pragma synchronous = off;
+pragma journal_mode = memory;
+
 <<schema>>
 ```
 
@@ -269,13 +272,10 @@ listSourceFiles = do
 ### References
 
 ``` {.haskell #database-queries}
-queryReferenceMap :: ( MonadReader Config m
-                     , MonadSQL m )
-                  => m ReferenceMap
-queryReferenceMap = do
+queryReferenceMap :: Config -> SQL ReferenceMap
+queryReferenceMap config = do
         conn <- getConnection
-        config <- ask
-        rows <- liftIO (query_ conn "select (`name`, `ordinal`, `source`, `language`) from `codes`" :: IO [(Text, Int, Text, Text)])
+        rows <- liftIO (query_ conn "select `name`, `ordinal`, `source`, `language` from `codes`" :: IO [(Text, Int, Text, Text)])
         M.fromList <$> mapM (refpair config) rows
     where refpair config (name, ordinal, source, lang) =
             case (languageFromName config lang) of
