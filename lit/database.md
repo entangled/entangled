@@ -244,12 +244,11 @@ Other performance related post: https://stackoverflow.com/questions/1711631/impr
 
 ``` {.haskell #database-update}
 updateTarget :: [ReferencePair] -> SQL () 
-updateTarget refs = do
-    conn <- getConnection
-    let update (ReferenceId (ReferenceName name) count, CodeBlock{codeSource})
-            = execute conn "update `codes` set `source` = ? where `name` is ? and `ordinal` is ?"
-                  (codeSource, name, count)
-    liftIO $ mapM_ update refs
+updateTarget refs = withTransactionM $ mapM_ update refs
+    where update (ReferenceId (ReferenceName name) count, CodeBlock{codeSource}) = do
+              conn <- getConnection
+              liftIO $ execute conn "update `codes` set `source` = ? where `name` is ? and `ordinal` is ?"
+                               (codeSource, name, count)
 ```
 
 ## Queries
@@ -288,7 +287,10 @@ stitchDocument rel_path = do
     docId <- getDocumentId rel_path >>= \case
         Nothing -> throwM $ StitchError $ "File `" <> T.pack rel_path <> "` not in database."
         Just x  -> return x
-    result <- liftIO (query conn "select coalesce(`plain`,`codes`.`source`) from `content` left outer join `codes` on (`codeName`,`codeOrdinal`)=(`codes`.`name`,`codes`.`ordinal`) where `content`.`document` is ?" (Only docId) :: IO [Only Text])
+    result <- liftIO (query conn "select coalesce(`plain`,`codes`.`source`) from `content` \
+                                 \  left outer join `codes` \
+                                 \    on (`codeName`,`codeOrdinal`)=(`codes`.`name`,`codes`.`ordinal`) \
+                                 \  where `content`.`document` is ?" (Only docId) :: IO [Only Text])
     return $ unlines' $ map fromOnly result
 ```
 

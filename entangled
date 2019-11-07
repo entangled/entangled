@@ -1,0 +1,4 @@
+#!/bin/bash
+
+exec cabal run -v0 entangled -- $*
+

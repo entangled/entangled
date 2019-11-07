@@ -1,5 +1,7 @@
 # Main program
 
+The main program runs the daemon, but also provides a number of commands to inspect and manipulate the database.
+
 ``` {.haskell #main-imports}
 <<import-text>>
 import qualified Data.Text.IO as T.IO
@@ -14,6 +16,8 @@ import System.FilePath
 
 ## Encoding
 
+On linux consoles we use unicode bullet points (`•`). On Windows, those will just be asterisks (`*`). To facilitate this, we have to enable UTF-8 encoding.
+
 ``` {.haskell #main-imports}
 import GHC.IO.Encoding
 ```
@@ -24,9 +28,13 @@ setLocaleEncoding utf8
 
 ## Options
 
+Options are parsed using `optparse-applicative`.
+
 ``` {.haskell #main-imports}
 import Options.Applicative
 ```
+
+All true options are left to the sub-commands. We're leaving `<<sub-commands>>` to be expanded.
 
 ``` {.haskell #main-options}
 data Args = Args
@@ -35,8 +43,12 @@ data Args = Args
 
 data SubCommand
     = NoCommand
-    <<subcommand-options>>
+    <<sub-commands>>
+```
 
+The same goes for the sub-command parsers, which are collected in `<<sub-parsers>>`.
+
+``` {.haskell #main-options}
 parseNoCommand :: Parser SubCommand
 parseNoCommand = pure NoCommand
 
@@ -44,18 +56,37 @@ parseArgs :: Parser Args
 parseArgs = Args
     <$> switch (long "version" <> short 'v' <> help "Show version information.")
     <*> ( subparser ( mempty
-          <<subparsers>>
+          <<sub-parsers>>
         ) <|> parseNoCommand )
 ```
 
+And the runners.
+
+``` {.haskell #main-imports}
+import Config
+```
+
+``` {.haskell #main-run}
+run :: Args -> IO ()
+run Args{..}
+    | versionFlag       = putStrLn "enTangleD 1.0.0"
+    | otherwise         = do
+        config <- configStack
+        case subCommand of
+            NoCommand -> return ()
+            <<sub-runners>>
+```
+
+This way we can add sub-commands independently in the following sections.
+
 ### Starting the daemon
 
-``` {.haskell #subcommand-options}
+``` {.haskell #sub-commands}
 | CommandDaemon DaemonArgs
 ```
 
-``` {.haskell #subparsers}
-<>  command "daemon" (info parseDaemonArgs ( fullDesc )) 
+``` {.haskell #sub-parsers}
+<>  command "daemon" (info parseDaemonArgs ( progDesc "Run the entangled daemon." )) 
 ```
 
 ``` {.haskell #main-options}
@@ -69,14 +100,37 @@ parseDaemonArgs = CommandDaemon <$> DaemonArgs
     <**> helper
 ```
 
+``` {.haskell #sub-runners}
+CommandDaemon a -> putStrLn $ show config
+```
+
+### Printing the config
+
+``` {.haskell #main-imports}
+import qualified Toml
+```
+
+``` {.haskell #sub-commands}
+| CommandConfig
+```
+
+``` {.haskell #sub-parsers}
+<> command "config" (info (pure CommandConfig <**> helper) 
+                          (progDesc "Print the default configuration."))
+```
+
+``` {.haskell #sub-runners}
+CommandConfig -> T.IO.putStrLn $ Toml.encode configCodec config
+```
+
 ### Inserting files to the database
 
-``` {.haskell #subcommand-options}
+``` {.haskell #sub-commands}
 | CommandInsert InsertArgs
 ```
 
-``` {.haskell #subparsers}
-<> command "insert" (info parseInsertArgs ( fullDesc ))
+``` {.haskell #sub-parsers}
+<> command "insert" (info parseInsertArgs ( progDesc "Insert markdown files into database." ))
 ```
 
 ``` {.haskell #main-options}
@@ -89,14 +143,18 @@ parseInsertArgs = CommandInsert <$> InsertArgs
     <**> helper
 ```
 
+``` {.haskell #sub-runners}
+CommandInsert a -> printLogger $ runInsert config (insertFiles a)
+```
+
 ### Tangling a single reference
 
-``` {.haskell #subcommand-options}
+``` {.haskell #sub-commands}
 | CommandTangle TangleArgs
 ```
 
-``` {.haskell #subparsers}
-<> command "tangle" (info (CommandTangle <$> parseTangleArgs) ( fullDesc ))
+``` {.haskell #sub-parsers}
+<> command "tangle" (info (CommandTangle <$> parseTangleArgs) ( progDesc "Retrieve tangled code." ))
 ```
 
 ``` {.haskell #main-options}
@@ -117,14 +175,18 @@ parseTangleArgs = TangleArgs
     <**> helper
 ```
 
+``` {.haskell #sub-runners}
+CommandTangle a -> printLogger $ runTangle config a
+```
+
 ### Stitching a markdown source
 
-``` {.haskell #subcommand-options}
+``` {.haskell #sub-commands}
 | CommandStitch StitchArgs
 ```
 
-``` {.haskell #subparsers}
-<> command "stitch" (info (CommandStitch <$> parseStitchArgs) ( fullDesc ))
+``` {.haskell #sub-parsers}
+<> command "stitch" (info (CommandStitch <$> parseStitchArgs) ( progDesc "Retrieve stitched markdown." ))
 ```
 
 ``` {.haskell #main-options}
@@ -138,14 +200,22 @@ parseStitchArgs = StitchArgs
     <**> helper
 ```
 
+``` {.haskell #sub-runners}
+CommandStitch a -> printLogger $ runStitch config a
+```
+
 ### Listing all target files
 
-``` {.haskell #subcommand-options}
+``` {.haskell #sub-commands}
 | CommandList
 ```
 
-``` {.haskell #subparsers}
-<> command "list" (info (pure CommandList <**> helper) ( fullDesc ))
+``` {.haskell #sub-parsers}
+<> command "list" (info (pure CommandList <**> helper) ( progDesc "List generated code files." ))
+```
+
+``` {.haskell #sub-runners}
+CommandList -> printLogger $ runList config
 ```
 
 ## Main
@@ -157,10 +227,6 @@ module Main where
 
 import System.Exit
 import Document
-import Database.SQLite.Simple
-import Database
-import Logging
-import Config
 import Tangle (parseMarkdown, expandedCode, annotateNaked)
 import TextUtil
 import Comment
@@ -177,44 +243,14 @@ main = do
             <> header   "enTangleD -- daemonised literate programming"
             )
 
-run :: Args -> IO ()
-run Args{..}
-    | versionFlag       = putStrLn "enTangleD 1.0.0"
-    | otherwise         = do
-        config <- configStack
-        case subCommand of
-            CommandTangle a -> printLogger $ runTangle config a
-            CommandDaemon a -> runSession config (inputFiles a)
-            CommandInsert a -> printLogger $ runInsert config (insertFiles a)
-            CommandStitch a -> printLogger $ runStitch config a
-            CommandList -> printLogger $ runList config
-            NoCommand -> return ()
-    where runSession config files = putStrLn $ show config
-
-<<run-insert>>
+<<main-run>>
 ```
 
-## Insert
+## Generics
 
-Inserts files into the database.
+### Retrieve path to database
 
-``` {.haskell #run-insert}
-schema :: IO [Query]
-schema = do
-    qs <-  T.splitOn ";" <$> T.IO.readFile "schema.sql"
-    return $ map Query (init qs)
-
-createTables :: SQL ()
-createTables = do
-    conn <- getConnection
-    liftIO $ schema >>= mapM_ (execute_ conn)
-
-newtype LoggerIO a = LoggerIO { printLogger :: (IO a) }
-    deriving ( Applicative, Functor, Monad, MonadIO )
-
-instance MonadLogger LoggerIO where
-    logEntry level x = liftIO $ T.IO.putStrLn $ tshow level <> ": " <> x
-
+``` {.haskell #main-run}
 getDatabasePath :: Config -> LoggerIO FilePath
 getDatabasePath cfg = do
     dbPath <- case configEntangled cfg >>= database of
@@ -224,7 +260,44 @@ getDatabasePath cfg = do
         Just db -> return $ T.unpack db
     liftIO $ createDirectoryIfMissing True (takeDirectory dbPath)
     return dbPath
+```
 
+### Create the empty database
+
+``` {.haskell #main-imports}
+import Database
+import Database.SQLite.Simple
+```
+
+``` {.haskell #main-run}
+schema :: IO [Query]
+schema = do
+    qs <-  T.splitOn ";" <$> T.IO.readFile "schema.sql"
+    return $ map Query (init qs)
+
+createTables :: SQL ()
+createTables = do
+    conn <- getConnection
+    liftIO $ schema >>= mapM_ (execute_ conn)
+```
+
+### Simple IO logger
+
+``` {.haskell #main-imports}
+import Logging
+```
+
+``` {.haskell #main-run}
+newtype LoggerIO a = LoggerIO { printLogger :: (IO a) }
+    deriving ( Applicative, Functor, Monad, MonadIO )
+
+instance MonadLogger LoggerIO where
+    logEntry level x = liftIO $ T.IO.putStrLn $ tshow level <> ": " <> x
+```
+
+## Tangle
+
+``` {.haskell #main-run}
 runTangle :: Config -> TangleArgs -> LoggerIO ()
 runTangle cfg TangleArgs{..} = do
     dbPath <- getDatabasePath cfg
@@ -244,7 +317,11 @@ runTangle cfg TangleArgs{..} = do
                 case ref' of
                     Nothing  -> logError $ "Target `" <> T.pack f <> "` not found."
                     Just ref -> tangleRef ref
+```
 
+## Stitch
+
+``` {.haskell #main-run}
 runStitch :: Config -> StitchArgs -> LoggerIO ()
 runStitch config StitchArgs{..} = do 
     dbPath <- getDatabasePath config
@@ -252,7 +329,11 @@ runStitch config StitchArgs{..} = do
         createTables
         stitchDocument stitchTarget
     liftIO $ T.IO.putStrLn text
+```
 
+## List
+
+``` {.haskell #main-run}
 runList :: Config -> LoggerIO ()
 runList cfg = do
     dbPath <- getDatabasePath cfg
@@ -260,7 +341,11 @@ runList cfg = do
         createTables
         listTargetFiles
     liftIO $ T.IO.putStrLn $ T.unlines $ map T.pack lst
+```
 
+## Insert
+
+``` {.haskell #main-run}
 runInsert :: Config -> [FilePath] -> LoggerIO ()
 runInsert cfg files = do
     dbPath <- getDatabasePath cfg

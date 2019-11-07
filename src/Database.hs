@@ -133,12 +133,11 @@ insertDocument rel_path Document{..} = do
 -- ------ end
 -- ------ begin <<database-update>>[1]
 updateTarget :: [ReferencePair] -> SQL () 
-updateTarget refs = do
-    conn <- getConnection
-    let update (ReferenceId (ReferenceName name) count, CodeBlock{codeSource})
-            = execute conn "update `codes` set `source` = ? where `name` is ? and `ordinal` is ?"
-                  (codeSource, name, count)
-    liftIO $ mapM_ update refs
+updateTarget refs = withTransactionM $ mapM_ update refs
+    where update (ReferenceId (ReferenceName name) count, CodeBlock{codeSource}) = do
+              conn <- getConnection
+              liftIO $ execute conn "update `codes` set `source` = ? where `name` is ? and `ordinal` is ?"
+                               (codeSource, name, count)
 -- ------ end
 -- ------ begin <<database-queries>>[0]
 listTargetFiles :: SQL [FilePath]
@@ -171,7 +170,10 @@ stitchDocument rel_path = do
     docId <- getDocumentId rel_path >>= \case
         Nothing -> throwM $ StitchError $ "File `" <> T.pack rel_path <> "` not in database."
         Just x  -> return x
-    result <- liftIO (query conn "select coalesce(`plain`,`codes`.`source`) from `content` left outer join `codes` on (`codeName`,`codeOrdinal`)=(`codes`.`name`,`codes`.`ordinal`) where `content`.`document` is ?" (Only docId) :: IO [Only Text])
+    result <- liftIO (query conn "select coalesce(`plain`,`codes`.`source`) from `content` \
+                                 \  left outer join `codes` \
+                                 \    on (`codeName`,`codeOrdinal`)=(`codes`.`name`,`codes`.`ordinal`) \
+                                 \  where `content`.`document` is ?" (Only docId) :: IO [Only Text])
     return $ unlines' $ map fromOnly result
 -- ------ end
 -- ------ begin <<database-queries>>[4]

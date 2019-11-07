@@ -19,17 +19,20 @@ We'll use `Lens` with template Haskell for convenience. That being said, I'm not
 {-# LANGUAGE TemplateHaskell #-}
 module Daemon where
 
+import Prelude hiding (writeFile, readFile)
+
 <<daemon-imports>>
 <<daemon-events>>
+<<daemon-io-action>>
 <<daemon-session>>
 <<daemon-user-io>>
--- <<daemon-loading>>
+<<daemon-loading>>
+<<daemon-writing>>
 <<daemon-watches>>
 <<daemon-main-loop>>
 ```
 
 ``` {.haskell #daemon-imports}
-import Prelude hiding (readFile)
 <<import-text>>
 import qualified Data.Text.IO as T.IO 
 <<import-map>>
@@ -63,17 +66,35 @@ data Event
     deriving (Show)
 ```
 
+### Aggregate IO
+
+``` {.haskell #daemon-io-action}
+data IOAction = IOAction
+  { action :: Maybe (IO ())
+  , description :: Doc
+  , needConfirm :: Bool }
+
+instance Semigroup IOAction where
+    (IOAction al dl cl) <> (IOAction ar dr cr)
+      = IOAction (al <> ar) (dl <> dr) (cl || cr)
+
+instance Monoid IOAction where
+    mempty = IOAction mempty mempty False
+```
+
 ### Session
 
 ``` {.haskell #daemon-imports}
+import Database.SQLite.Simple
+
 import Document
-import Config (Config(..))
+import Config
 import Database
 import Logging
-import Database.SQLite.Simple
-import Tangle (parseMarkdown)
+import Tangle (parseMarkdown, expandedCode)
+import Comment
 import Stitch (stitch)
--- import Console (LogLevel(..))
+import Console
 
 import Control.Concurrent.Chan
 import Control.Concurrent
@@ -101,9 +122,20 @@ db x = do
     conn <- use sqlite
     runSQL conn x
 
-newtype Daemon a = Daemon { unDaemon :: RWST Config [Text] Session IO a }
+newtype Daemon a = Daemon { unDaemon :: RWST Config IOAction Session IO a }
     deriving ( Applicative, Functor, Monad, MonadIO, MonadState Session
-             , MonadReader Config )
+             , MonadReader Config, MonadWriter IOAction )
+
+removeIfExists :: FilePath -> IOAction
+removeIfExists f = IOAction (Just $ do fileExists <- doesFileExist f
+                                       when fileExists $ removeFile f)
+                            (msgDelete f) False
+
+instance MonadFileIO Daemon where
+    writeFile path text = tell $ IOAction (Just (T.IO.writeFile path text))
+                                          (msgOverwrite path) False
+    readFile path = liftIO $ T.IO.readFile path
+    deleteFile path = tell $ removeIfExists path
 
 instance MonadLogger Daemon where
     logEntry level msg = liftIO $ T.IO.putStrLn msg
@@ -137,11 +169,9 @@ import System.Directory
 There is a limited set of IO file system actions that result from a tangle or stitch. We define a little language using a type class.
 
 ``` {.haskell #daemon-user-io}
-class Monad m => MonadUserIO m where
-    overwrite :: FilePath -> Text -> m ()
-    create :: FilePath -> Text -> m ()
-    delete :: FilePath -> m ()
-    notify :: LogLevel -> Text -> m ()
+class Monad m => MonadFileIO m where
+    writeFile :: FilePath -> Text -> m ()
+    deleteFile :: FilePath -> m ()
     readFile :: FilePath -> m Text
 ```
 
@@ -150,7 +180,7 @@ These are IO actions that need logging, possible confirmation by the user and ex
 ## Watching
 
 ``` {.haskell #daemon-imports}
-import Data.List (nub)
+import Data.List (nub, (\\))
 import Control.Monad (mapM)
 ```
 
@@ -215,50 +245,65 @@ closeWatch = do
 ## Loading
 
 ``` {.haskell #daemon-loading}
--- loadSourceFile :: ( MonadUserIO m
---                   , MonadReader Config m
---                   , MonadState Session m
---                   , MonadIO m )
---                => FilePath -> m ()
--- loadSourceFile abs_path = do
---     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
---     doc'     <- readFile abs_path >>= parseMarkdown rel_path
---     case doc' of
---         Left err ->
---             notify Error $ "Error loading '" <> T.pack rel_path <> "': " <> tshow err
---         Right doc@(Document refs content files) -> do
---             modify (over sourceData (M.insert abs_path (documentContent doc)))
+loadSourceFile :: ( MonadFileIO m, MonadLogger m
+                  , MonadReader Config m
+                  , MonadState Session m
+                  , MonadIO m )
+               => FilePath -> m ()
+loadSourceFile abs_path = do
+    rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
+    doc'     <- readFile abs_path >>= parseMarkdown rel_path
+    case doc' of
+        Left err ->
+            logError $ "Error loading '" <> T.pack rel_path <> "': " <> tshow err
+        Right doc ->
+            db $ insertDocument rel_path doc
 ```
 
 ``` {.haskell #daemon-loading}
--- loadTargetFile :: ( MonadUserIO m
---                   , MonadReader Config m
---                   , MonadState Session m
---                   , MonadIO m )
---                => FilePath -> m ()
--- loadTargetFile abs_path = do
---     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
---     refs' <- readFile abs_path >>= stitch rel_path
---     case refs' of
---         Left err ->
---             notify Error $ "Error loading '" <> T.pack rel_path <> "':" <> tshow err
---         Right refs ->
---             updateReferences refs
--- 
--- allReferences :: ( MonadState Session m )
---               => m ReferenceMap
--- allReferences = M.unions <$> use (over sourceFiles (map references . M.values))
--- 
--- updateReferenceMap :: ( MonadState Session m
---                       , MonadUserIO m )
---                    => [ReferencePair] -> m ()
--- updateReferenceMap =
---     either (notify Error . tshow)
---            (assign allReferences)
---            <$> use allReferences >>= foldM updateReference
---     where updateReference refs (ref, code)
---               | ref `M.member` refs = Right $ M.insert ref code refs
---               | otherwise = Left $ StitchError "Unknown reference '" <> tshow ref <> "'"
+loadTargetFile :: ( MonadFileIO m, MonadLogger m
+                  , MonadReader Config m
+                  , MonadState Session m
+                  , MonadIO m )
+               => FilePath -> m ()
+loadTargetFile abs_path = do
+    rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
+    refs' <- readFile abs_path >>= stitch rel_path
+    case refs' of
+        Left err ->
+            logError $ "Error loading '" <> T.pack rel_path <> "':" <> tshow err
+        Right refs ->
+            db $ updateTarget refs
+```
+
+## Writing
+
+``` {.haskell #daemon-imports}
+import qualified Data.Map.Lazy as LM
+```
+
+``` {.haskell #daemon-writing}
+writeTargetFile :: FilePath -> Daemon ()
+writeTargetFile rel_path = do
+    cfg <- ask
+    refs <- db $ queryReferenceMap cfg
+    let codes = expandedCode annotateComment refs
+        tangleRef tgt = case codes LM.!? tgt of
+            Nothing        -> logError $ "Reference `" <> tshow tgt <> "` not found."
+            Just (Left e)  -> logError $ tshow e
+            Just (Right t) -> writeFile rel_path t
+
+    tgt' <- db $ queryTargetRef rel_path
+    case tgt' of
+        Nothing  -> logError $ "Target `" <> T.pack rel_path <> "` not found."
+        Just tgt -> tangleRef tgt
+```
+
+``` {.haskell #daemon-writing}
+writeSourceFile :: FilePath -> Daemon ()
+writeSourceFile rel_path = do
+    content <- db $ stitchDocument rel_path
+    writeFile rel_path content
 ```
 
 ## Main loop
@@ -282,11 +327,24 @@ After the first event we need to wait a bit, there may be more comming.
 ``` {.haskell #main-loop-cases}
 mainLoop (WriteSource abs_path : xs) = do
     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
-    -- wait
     setDaemonState Tangling
-    -- doc <- fromJust <$> getDocument abs_path    -- TODO: handle errors
     old_tgts <- db listTargetFiles
-    return ()
-mainLoop (WriteTarget abs_path : xs) = return () 
+    loadSourceFile abs_path
+    new_tgts <- db listTargetFiles
+    mapM_ deleteFile $ old_tgts \\ new_tgts
+    mapM_ writeTargetFile new_tgts
+    setDaemonState Idle
+
+mainLoop (WriteTarget abs_path : xs) = do
+    rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
+    setDaemonState Stitching
+    loadTargetFile abs_path
+    srcs <- db listSourceFiles
+    mapM_ writeSourceFile srcs
+    setDaemonState Tangling
+    tgts <- db listTargetFiles
+    mapM_ writeTargetFile tgts
+    setDaemonState Idle
+
 mainLoop (_ : xs) = return () 
 ```

@@ -31,10 +31,10 @@ import qualified System.Console.Terminal.Size as Terminal
 import qualified Data.Text.Prettyprint.Doc.Render.Terminal as ANSI
 import qualified System.Info
 import Data.Time
+import Logging (LogLevel(..))
 
 -- ==== Pretty Printing document tree ==== --
 
-data LogLevel = Error | Warning | Message deriving (Show)
 data FileAction = Read | OverWrite | Delete | Create deriving (Show)
 
 data Annotation
