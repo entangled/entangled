@@ -126,17 +126,6 @@ newtype Daemon a = Daemon { unDaemon :: RWST Config IOAction Session IO a }
     deriving ( Applicative, Functor, Monad, MonadIO, MonadState Session
              , MonadReader Config, MonadWriter IOAction )
 
-removeIfExists :: FilePath -> IOAction
-removeIfExists f = IOAction (Just $ do fileExists <- doesFileExist f
-                                       when fileExists $ removeFile f)
-                            (msgDelete f) False
-
-instance MonadFileIO Daemon where
-    writeFile path text = tell $ IOAction (Just (T.IO.writeFile path text))
-                                          (msgOverwrite path) False
-    readFile path = liftIO $ T.IO.readFile path
-    deleteFile path = tell $ removeIfExists path
-
 instance MonadLogger Daemon where
     logEntry level msg = liftIO $ T.IO.putStrLn msg
 ```
@@ -173,6 +162,37 @@ class Monad m => MonadFileIO m where
     writeFile :: FilePath -> Text -> m ()
     deleteFile :: FilePath -> m ()
     readFile :: FilePath -> m Text
+
+tryReadFile :: MonadIO m => FilePath -> m (Maybe Text)
+tryReadFile f = liftIO $ do
+    exists <- doesFileExist f
+    if exists
+        then Just <$> T.IO.readFile f
+        else return Nothing
+
+changeFile :: (MonadIO m) => FilePath -> Text -> m IOAction
+changeFile filename text = do
+    rel_path <- liftIO $ makeRelativeToCurrentDirectory filename
+    liftIO $ createDirectoryIfMissing True (takeDirectory filename)
+    oldText <- tryReadFile filename
+    case oldText of
+        Just ot -> if ot /= text
+            then return $ IOAction (Just $ T.IO.writeFile filename text)
+                                   (msgOverwrite rel_path) False
+            else return mempty
+        Nothing -> return $ IOAction (Just $ T.IO.writeFile filename text)
+                                     (msgCreate rel_path) False
+
+removeIfExists :: FilePath -> IOAction
+removeIfExists f =
+    IOAction (Just $ do fileExists <- doesFileExist f
+                        when fileExists $ removeFile f)
+             (msgDelete f) False
+
+instance MonadFileIO Daemon where
+    writeFile path text = tell =<< changeFile path text
+    readFile path = liftIO $ T.IO.readFile path
+    deleteFile path = tell $ removeIfExists path
 ```
 
 These are IO actions that need logging, possible confirmation by the user and execution. Also, using this we can do some mock testing.
@@ -311,10 +331,7 @@ writeSourceFile rel_path = do
 The `mainLoop` is fed events and handles them.
 
 ``` {.haskell #daemon-main-loop}
-class ( MonadIO m, MonadReader Config m, MonadState Session m )
-      => MonadEntangled m
-
-mainLoop :: [Event] -> Daemon ()
+mainLoop :: Event -> Daemon ()
 <<main-loop-cases>>
 ```
 
@@ -325,7 +342,7 @@ mainLoop [] = return ()
 After the first event we need to wait a bit, there may be more comming.
 
 ``` {.haskell #main-loop-cases}
-mainLoop (WriteSource abs_path : xs) = do
+mainLoop (WriteSource abs_path) = do
     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
     setDaemonState Tangling
     old_tgts <- db listTargetFiles
@@ -335,7 +352,7 @@ mainLoop (WriteSource abs_path : xs) = do
     mapM_ writeTargetFile new_tgts
     setDaemonState Idle
 
-mainLoop (WriteTarget abs_path : xs) = do
+mainLoop (WriteTarget abs_path) = do
     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
     setDaemonState Stitching
     loadTargetFile abs_path
@@ -346,5 +363,48 @@ mainLoop (WriteTarget abs_path : xs) = do
     mapM_ writeTargetFile tgts
     setDaemonState Idle
 
-mainLoop (_ : xs) = return () 
+mainLoop _ = return () 
+```
+
+## Initialisation
+
+``` {.haskell #daemon-start}
+initSession :: Daemon ()
+initSession = do
+    abs_paths <- asks getInputFiles
+    rel_paths <- liftIO $ mapM makeRelativeToCurrentDirectory abs_paths
+    printMsg banner
+    
+    tell $ IOAction
+            { action = Just mempty
+            , description = (P.align $ P.vsep
+                             $ map (bullet
+                                     . (P.pretty ("Monitoring " :: Text) <>)
+                                     . fileRead)
+                                   rel_paths) <> P.line
+            , needConfirm = False }
+
+    mapM_ loadSourceFile abs_paths 
+    tgts <- db listTargetFiles
+    mapM_ writeTargetFile tgts
+
+foldx :: (Monad m) => (e -> s -> m s) -> [e] -> s -> m ()
+foldx _ [] _ = return ()
+foldx f (e:es) s = (f e s) >= (foldx f es)
+
+runSession :: Config -> IO ()
+runSession config = do
+    hSetBuffering stdout LineBuffering
+    fsnotify <- FSNotify.startManager
+    channel <- newChan
+    daemon_state <- newMVar Idle
+    db_path <- getDatabasePath config
+    liftIO $ withConnection (\conn -> do
+        let session = Session [] fsnotify channel daemon_state conn
+        _, session', action <- runRWST (unDaemon initSession) config session
+        events <- getChanContents channel
+        foldx (\e s -> do
+                  _, s', a <- runRWST (unDaemon $ mainLoop e) config s
+                  run a
+                  return s') events state')
 ```

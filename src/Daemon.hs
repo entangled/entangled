@@ -104,17 +104,6 @@ newtype Daemon a = Daemon { unDaemon :: RWST Config IOAction Session IO a }
     deriving ( Applicative, Functor, Monad, MonadIO, MonadState Session
              , MonadReader Config, MonadWriter IOAction )
 
-removeIfExists :: FilePath -> IOAction
-removeIfExists f = IOAction (Just $ do fileExists <- doesFileExist f
-                                       when fileExists $ removeFile f)
-                            (msgDelete f) False
-
-instance MonadFileIO Daemon where
-    writeFile path text = tell $ IOAction (Just (T.IO.writeFile path text))
-                                          (msgOverwrite path) False
-    readFile path = liftIO $ T.IO.readFile path
-    deleteFile path = tell $ removeIfExists path
-
 instance MonadLogger Daemon where
     logEntry level msg = liftIO $ T.IO.putStrLn msg
 -- ------ end
@@ -131,6 +120,37 @@ class Monad m => MonadFileIO m where
     writeFile :: FilePath -> Text -> m ()
     deleteFile :: FilePath -> m ()
     readFile :: FilePath -> m Text
+
+tryReadFile :: MonadIO m => FilePath -> m (Maybe Text)
+tryReadFile f = liftIO $ do
+    exists <- doesFileExist f
+    if exists
+        then Just <$> T.IO.readFile f
+        else return Nothing
+
+changeFile :: (MonadIO m) => FilePath -> Text -> m IOAction
+changeFile filename text = do
+    rel_path <- liftIO $ makeRelativeToCurrentDirectory filename
+    liftIO $ createDirectoryIfMissing True (takeDirectory filename)
+    oldText <- tryReadFile filename
+    case oldText of
+        Just ot -> if ot /= text
+            then return $ IOAction (Just $ T.IO.writeFile filename text)
+                                   (msgOverwrite rel_path) False
+            else return mempty
+        Nothing -> return $ IOAction (Just $ T.IO.writeFile filename text)
+                                     (msgCreate rel_path) False
+
+removeIfExists :: FilePath -> IOAction
+removeIfExists f =
+    IOAction (Just $ do fileExists <- doesFileExist f
+                        when fileExists $ removeFile f)
+             (msgDelete f) False
+
+instance MonadFileIO Daemon where
+    writeFile path text = tell =<< changeFile path text
+    readFile path = liftIO $ T.IO.readFile path
+    deleteFile path = tell $ removeIfExists path
 -- ------ end
 -- ------ begin <<daemon-loading>>[0]
 loadSourceFile :: ( MonadFileIO m, MonadLogger m
@@ -172,7 +192,7 @@ writeTargetFile rel_path = do
             Nothing        -> logError $ "Reference `" <> tshow tgt <> "` not found."
             Just (Left e)  -> logError $ tshow e
             Just (Right t) -> writeFile rel_path t
-    
+
     tgt' <- db $ queryTargetRef rel_path
     case tgt' of
         Nothing  -> logError $ "Target `" <> T.pack rel_path <> "` not found."
@@ -231,15 +251,12 @@ closeWatch = do
     logMessage "suspended watches"
 -- ------ end
 -- ------ begin <<daemon-main-loop>>[0]
-class ( MonadIO m, MonadReader Config m, MonadState Session m )
-      => MonadEntangled m
-
-mainLoop :: [Event] -> Daemon ()
+mainLoop :: Event -> Daemon ()
 -- ------ begin <<main-loop-cases>>[0]
 mainLoop [] = return ()
 -- ------ end
 -- ------ begin <<main-loop-cases>>[1]
-mainLoop (WriteSource abs_path : xs) = do
+mainLoop (WriteSource abs_path) = do
     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
     setDaemonState Tangling
     old_tgts <- db listTargetFiles
@@ -249,7 +266,7 @@ mainLoop (WriteSource abs_path : xs) = do
     mapM_ writeTargetFile new_tgts
     setDaemonState Idle
 
-mainLoop (WriteTarget abs_path : xs) = do
+mainLoop (WriteTarget abs_path) = do
     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
     setDaemonState Stitching
     loadTargetFile abs_path
@@ -260,7 +277,7 @@ mainLoop (WriteTarget abs_path : xs) = do
     mapM_ writeTargetFile tgts
     setDaemonState Idle
 
-mainLoop (_ : xs) = return () 
+mainLoop _ = return () 
 -- ------ end
 -- ------ end
 -- ------ end

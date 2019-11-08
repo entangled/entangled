@@ -17,6 +17,9 @@ import Control.Applicative ((<|>))
 <<config-defaults>>
 <<config-input>>
 <<config-reader>>
+
+getInputFiles :: Config -> [FilePath]
+getInputFiles _ = []
 ```
 
 Configuration can be stored in `${XDG_CONFIG_HOME}/entangled/config.toml`. Also the local directory or its parents may contain a `.entangled.toml` file. These override settings in the global configuration.

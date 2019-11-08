@@ -130,4 +130,7 @@ languageFromName cfg x
     = find ((== x) . languageName)
     $ configLanguages cfg
 -- ------ end
+
+getInputFiles :: Config -> [FilePath]
+getInputFiles _ = []
 -- ------ end
