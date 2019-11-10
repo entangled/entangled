@@ -1,22 +1,98 @@
-body {
-    font-family: 'Dosis', sans-serif;
+body
+{
+    margin:		0 auto 0 250pt;
+    max-width:	600pt;
+    background: white;
+    padding:	0 10pt 0 0;
+    /* font-family: "Cantarell", "Verdana", sans-serif; */
+    font-family: "Akkurat Light", arial;
     font-size: 14pt;
-    background: #efefef;
+    counter-reset: h1;
 }
 
-h1, h2, h3 {
-    color: #000088;
+p {
+    text-align: justify;
 }
 
-blockquote {
-    background: #ddd;
-    padding: 8pt 20pt 8pt 20pt;
+a {
+    color: rgb(102, 41, 41);
+    text-decoration: none;
+}
+
+.TODO {
+    background: pink;
+    border: solid thin black;
+    margin: 5pt 30pt 5pt 30pt;
+    padding: 3pt;
+    box-shadow: 8pt 8pt 10pt 0pt #aaa;
+}
+
+.TODO :before {
+    content: "👷 TODO: ";
+    font-weight: bold;
+}
+
+h2 {
+    color: #00aeef;
+    counter-reset: h2;
+}
+
+h3 {
+    counter-reset: h3;
+}
+
+h2:before {
+    content: counter(h1) ".\0000a0\0000a0";
+    counter-increment: h1;
+}
+
+h3:before {
+    content: counter(h1) "." counter(h2) ".\0000a0\0000a0";
+    counter-increment: h2;
+}
+
+h4:before {
+    content: counter(h1) "." counter(h2) "." counter(h3) ".\0000a0\0000a0";
+    counter-increment: h3;
+}
+
+#TOC
+{
+    background-color: #00aeef;
+    background-image:url('nlesc-logo.svg');
+    background-repeat: no-repeat;
+    background-position: center 20pt;
+    font-family: "Akkurat", arial;
+    font-size: smaller;
+    position: fixed;
+    top: 0pt;
+    left: 0pt;
+    bottom: 0pt;
+    border-right: solid thin rgb(255, 255, 255);
+    padding: 20pt;
+    padding-right: 25pt;
+    padding-top: 50pt;
+    width: 150pt;
+    color: #FFF;
+    border-right: thin solid black;
+}
+
+#TOC a {
+    color: #eee;
+}
+
+#TOC ul {
+    padding: 3pt 0 3pt 10pt;
+}
+
+.noweb {
+    font-style: italic;
+    font-size: smaller;
 }
 
 code
 {
-    font-family: Courier, monospace;
-    font-size: 12pt;
+    font-family: "Inconsolata", monospace;
 }
 
 .sourceCode, .elm
@@ -27,10 +103,9 @@ code
     background: #eff2f2;
     padding: 10pt;
 
-    width: 90%;
-    /* width: 40em; */
+    width: 40em;
     position: relative;
-    left: 5pt;
+    left: 25pt;
 }
 
 .elm pre, .sourceCode pre, .sourceCode code
@@ -47,17 +122,9 @@ figure
     border: solid 1px #aaa;
     border-radius: 5pt;
     padding: 10pt;
-    /* background: white; */
+    background: white;
     box-shadow: 8pt 8pt 10pt 0pt #aaa;
     text-align: center;
-}
-
-#slide-show figure {
-   border-radius: 0;
-   padding: 0;
-   background: #282828;
-   color: white;
-   margin: 0;
 }
 
 figcaption
@@ -72,266 +139,13 @@ figure img
     margin: 0 auto 0 auto;
 }
 
-#logobar {
-    height: 20pt;
-}
-
-#logobar img {
-    height: 20pt;
-    vertical-align: middle;
-}
-
-.phonetic {
-    font-family: serif;
-    font-size: 12pt;
-}
-
-#examples-div .example {
-    margin: 0 20pt 0 20pt;
-}
-
-#examples-div h2 {
+blockquote {
+    background: #eff2f2;
     color: black;
+    padding: 10pt 30pt;
+    font-family: Akkurat;
+    border: thin solid black;
+    border-radius: 10pt;
+    /* box-shadow: 10pt 10pt #00aeef;*/
 }
 
-#examples-div h2:before {
-    content: "";
-    counter-increment: none;
-}
-
-#examples-div img {
-    margin: 0 0 10pt 0;
-    padding: 0;
-    width: 100%;
-    border-radius: 5pt 5pt 0 0;
-}
-
-#examples-div .example p {
-    text-align: left;
-    margin: 0pt;
-    padding: 10pt;
-    color: black;
-}
-
-#examples-div .example {
-    padding: 0;
-    margin-bottom: 15pt;
-    border-radius: 8pt;
-    background: #c4c8cf;
-    box-shadow: 5pt 5pt 8pt 0pt #00000033;
-}
-
-#examples-div a
-{
-    text-decoration: underline;
-    font-size: 14pt;
-    color: #333399;
-}
-
-
-/* Slideshow container */
-.slideshow-container {
-  max-width: 1024px;
-  position: relative;
-  margin: auto;
-  background: #555555;
-}
-
-/* Hide the images by default */
-.slide {
-  display: none;
-}
-
-.nav {
-  position: relative;
-  top: -50%;
-}
-
-/* Next & previous buttons */
-.prev, .next {
-  cursor: pointer;
-  width: auto;
-  position: absolute;
-  bottom: 0;
-  margin: 5pt;
-  padding: 2pt 5pt 5pt 5pt;
-  color: white;
-  font-weight: bold;
-  font-size: 18px;
-  transition: 0.6s ease;
-  border-radius: 5pt;
-  user-select: none;
-}
-
-/* Position the "next button" to the right */
-.next {
-  right: 0;
-}
-
-/* On hover, add a black background color with a little bit see-through */
-.prev:hover, .next:hover {
-  background: #555555;
-}
-
-/* Fading animation */
-.fade {
-  animation-name: fade;
-  animation-duration: 1.5s;
-}
-
-/* The dots/bullets/indicators */
-.dot {
-  cursor: pointer;
-  height: 15px;
-  width: 15px;
-  margin: 10pt 2pt;
-  background-color: #bbb;
-  border-radius: 50%;
-  display: inline-block;
-  transition: background-color 0.6s ease;
-}
-
-.active, .dot:hover {
-  background-color: #717171;
-}
-
-#slide-show figcaption {
-   margin: 5pt 10pt 10pt 30pt;
-   font-size: 12pt;
-}
-
-/* Caption text */
-/*#slide-show figcaption {*/
-  /*color: #f2f2f2;*/
-  /*font-size: 15px;*/
-  /*padding: 8px 12px;*/
-  /*position: absolute;*/
-  /*bottom: 8px;*/
-  /*width: 100%;*/
-  /*text-align: center;*/
-/*}*/
-
-@keyframes fade {
-  from {opacity: .4}
-  to {opacity: 1}
-}
-
-@media only screen and (min-width: 768px) {
-#TOC {
-    position: fixed;
-    visibility: hidden;
-}
-
-    body
-    {
-        margin:		0 30% 0 50pt;
-        max-width:	600pt;
-        background: #efefef;
-        padding:	0 10pt 0 0;
-        font-family: 'Dosis', sans-serif;
-        /* font-family: "Bitstream Charter", serif; */
-        font-size: 14pt;
-        counter-reset: h1;
-    }
-
-    p {
-        text-align: justify;
-    }
-
-    a {
-        color: rgb(102, 41, 41);
-        /* text-decoration: none; */
-    }
-
-    .TODO {
-        background: pink;
-        border: solid thin black;
-        margin: 5pt 30pt 5pt 30pt;
-        padding: 3pt;
-        box-shadow: 8pt 8pt 10pt 0pt #aaa;
-    }
-
-    .TODO :before {
-        content: "👷 TODO: ";
-        font-weight: bold;
-    }
-
-    .sourceCode, .elm
-    {
-        font-size: 10pt;
-        border: solid thin #aaa;
-        border-radius: 5pt;
-        background: #eff2f2;
-        padding: 10pt;
-
-        width: 40em;
-        position: relative;
-        left: 25pt;
-    }
-
-
-    /* h2 {
-        counter-reset: h2;
-    }
-
-    h3 {
-        counter-reset: h3;
-    }
-
-    h2:before {
-        content: counter(h1) ".\0000a0\0000a0";
-        counter-increment: h1;
-    }
-
-    h3:before {
-        content: counter(h1) "." counter(h2) ".\0000a0\0000a0";
-        counter-increment: h2;
-    }
-
-    h4:before {
-        content: counter(h1) "." counter(h2) "." counter(h3) ".\0000a0\0000a0";
-        counter-increment: h3;
-    } 
-
-    #TOC
-    {
-        visibility: visible;
-        font-size: 12pt;
-        position: fixed;
-        top: 0pt;
-        left: 0pt;
-        bottom: 0pt;
-        background: rgb(0, 0, 0);
-        border-right: solid thin rgb(255, 255, 255);
-        padding: 20pt;
-        padding-right: 25pt;
-        width: 150pt;
-        color: #FFF;
-    } */
-
-    #TOC a {
-        color: #eee;
-        text-decoration: none;
-    }
-
-    #TOC ul {
-        padding: 3pt 0 3pt 10pt;
-    }
-
-    #examples-div
-    {
-        overflow-y: auto;
-        position: fixed;
-        top: 0pt;
-        right: 0pt;
-        bottom: 0pt;
-        width: 25%;
-        padding: 0 10pt 0 10pt;
-        font-size: 12pt;
-        background: #dddddd;
-    }
-
-    #examples-div h2 {
-        text-align: right;
-    }
-}

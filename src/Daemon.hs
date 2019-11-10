@@ -1,6 +1,5 @@
 -- ------ language="Haskell" file="src/Daemon.hs"
 -- ------ begin <<daemon>>[0]
-{-# LANGUAGE TemplateHaskell #-}
 module Daemon where
 
 import Prelude hiding (writeFile, readFile)
@@ -16,12 +15,16 @@ import qualified Data.Map.Strict as M
 import Data.Map.Strict (Map)
 -- ------ end
 import TextUtil (tshow)
-import Lens.Micro.Platform
 -- ------ end
 -- ------ begin <<daemon-imports>>[1]
 import qualified System.FSNotify as FSNotify
 -- ------ end
 -- ------ begin <<daemon-imports>>[2]
+import qualified Data.Text.Prettyprint.Doc as P
+import Console (Doc)
+import qualified Console
+-- ------ end
+-- ------ begin <<daemon-imports>>[3]
 import Database.SQLite.Simple
 
 import Document
@@ -31,7 +34,6 @@ import Logging
 import Tangle (parseMarkdown, expandedCode)
 import Comment
 import Stitch (stitch)
-import Console
 
 import Control.Concurrent.Chan
 import Control.Concurrent
@@ -41,7 +43,7 @@ import Control.Monad.RWS
 import Control.Monad.IO.Class
 import Control.Monad.Writer
 -- ------ end
--- ------ begin <<daemon-imports>>[3]
+-- ------ begin <<daemon-imports>>[4]
 import System.FilePath (takeDirectory, equalFilePath)
 import System.Directory 
     ( canonicalizePath
@@ -50,12 +52,15 @@ import System.Directory
     , createDirectoryIfMissing
     , makeRelativeToCurrentDirectory )
 -- ------ end
--- ------ begin <<daemon-imports>>[4]
+-- ------ begin <<daemon-imports>>[5]
 import Data.List (nub, (\\))
 import Control.Monad (mapM)
 -- ------ end
--- ------ begin <<daemon-imports>>[5]
+-- ------ begin <<daemon-imports>>[6]
 import qualified Data.Map.Lazy as LM
+-- ------ end
+-- ------ begin <<daemon-imports>>[7]
+import System.IO (stdout, hFlush)
 -- ------ end
 -- ------ begin <<daemon-events>>[0]
 data DaemonState
@@ -70,49 +75,74 @@ data Event
     | DebugEvent Text
     deriving (Show)
 -- ------ end
--- ------ begin <<daemon-io-action>>[0]
-data IOAction = IOAction
+-- ------ begin <<daemon-transaction>>[0]
+data Transaction = Transaction
   { action :: Maybe (IO ())
   , description :: Doc
   , needConfirm :: Bool }
+-- ------ end
+-- ------ begin <<daemon-transaction>>[1]
+instance Semigroup Transaction where
+    (Transaction al dl cl) <> (Transaction ar dr cr)
+      = Transaction (al <> ar) (dl <> dr) (cl || cr)
 
-instance Semigroup IOAction where
-    (IOAction al dl cl) <> (IOAction ar dr cr)
-      = IOAction (al <> ar) (dl <> dr) (cl || cr)
+instance Monoid Transaction where
+    mempty = Transaction mempty mempty False
+-- ------ end
+-- ------ begin <<daemon-transaction>>[2]
+plan :: IO () -> Transaction
+plan action = Transaction (Just action) mempty False
 
-instance Monoid IOAction where
-    mempty = IOAction mempty mempty False
+doc :: Doc -> Transaction
+doc x = Transaction Nothing x False
+
+msg :: P.Pretty a => LogLevel -> a -> Transaction
+msg level doc = Transaction Nothing (Console.msg level doc) False
+
+confirm :: Transaction
+confirm = Transaction mempty mempty True
+-- ------ end
+-- ------ begin <<daemon-transaction>>[3]
+run :: Transaction -> IO ()
+run (Transaction Nothing d _) = Console.putTerminal d
+run (Transaction (Just x) d c) = do
+    Console.putTerminal d
+    if c then do
+        T.IO.putStr "confirm? (y/n) "
+        hFlush stdout
+        reply <- getLine
+        T.IO.putStrLn ""
+        when (reply == "y") x
+    else x
 -- ------ end
 -- ------ begin <<daemon-session>>[0]
 data Session = Session
-    { _watches       :: [FSNotify.StopListening]
-    , _manager       :: FSNotify.WatchManager
-    , _eventChannel  :: Chan Event
-    , _daemonState   :: MVar DaemonState
-    , _sqlite        :: Connection
+    { watches       :: [FSNotify.StopListening]
+    , manager       :: FSNotify.WatchManager
+    , eventChannel  :: Chan Event
+    , daemonState   :: MVar DaemonState
+    , sqlite        :: Connection
     }
-
-makeLenses ''Session
 
 db :: ( MonadIO m, MonadState Session m, MonadLogger m )
    => SQL a -> m a
 db x = do
-    conn <- use sqlite
+    conn <- gets sqlite
     runSQL conn x
 
-newtype Daemon a = Daemon { unDaemon :: RWST Config IOAction Session IO a }
+newtype Daemon a = Daemon { unDaemon :: RWST Config Transaction Session IO a }
     deriving ( Applicative, Functor, Monad, MonadIO, MonadState Session
-             , MonadReader Config, MonadWriter IOAction )
+             , MonadReader Config, MonadWriter Transaction )
 
 instance MonadLogger Daemon where
-    logEntry level msg = liftIO $ T.IO.putStrLn msg
+    logEntry level x = tell (msg level x)
 -- ------ end
 -- ------ begin <<daemon-session>>[1]
 setDaemonState :: ( MonadIO m
                   , MonadState Session m )
                => DaemonState -> m ()
 setDaemonState s = do
-    state <- use daemonState
+    state <- gets daemonState
     liftIO $ modifyMVar_ state (const $ return s)
 -- ------ end
 -- ------ begin <<daemon-user-io>>[0]
@@ -128,24 +158,25 @@ tryReadFile f = liftIO $ do
         then Just <$> T.IO.readFile f
         else return Nothing
 
-changeFile :: (MonadIO m) => FilePath -> Text -> m IOAction
+changeFile :: (MonadIO m) => FilePath -> Text -> m Transaction
 changeFile filename text = do
     rel_path <- liftIO $ makeRelativeToCurrentDirectory filename
     liftIO $ createDirectoryIfMissing True (takeDirectory filename)
     oldText <- tryReadFile filename
     case oldText of
         Just ot -> if ot /= text
-            then return $ IOAction (Just $ T.IO.writeFile filename text)
-                                   (msgOverwrite rel_path) False
+            then return $ Transaction (Just $ T.IO.writeFile filename text)
+                                   (Console.msgOverwrite rel_path) False
             else return mempty
-        Nothing -> return $ IOAction (Just $ T.IO.writeFile filename text)
-                                     (msgCreate rel_path) False
+        Nothing -> return $ Transaction (Just $ T.IO.writeFile filename text)
+                                     (Console.msgCreate rel_path) False
 
-removeIfExists :: FilePath -> IOAction
+removeIfExists :: FilePath -> Transaction
 removeIfExists f =
-    IOAction (Just $ do fileExists <- doesFileExist f
-                        when fileExists $ removeFile f)
-             (msgDelete f) False
+    plan (do
+        fileExists <- doesFileExist f
+        when fileExists $ removeFile f)
+    <> doc (Console.msgDelete f)
 
 instance MonadFileIO Daemon where
     writeFile path text = tell =<< changeFile path text
@@ -228,53 +259,58 @@ setWatch :: Daemon ()
 setWatch = do
     srcs <- db listSourceFiles >>= (liftIO . mapM canonicalizePath)
     tgts <- db listTargetFiles >>= (liftIO . mapM canonicalizePath)
-    fsnotify <- use manager
-    channel  <- use eventChannel
+    fsnotify <- gets manager
+    channel  <- gets eventChannel
 
     let abs_dirs = nub $ map takeDirectory (srcs <> tgts)
     rel_dirs <- liftIO $ mapM makeRelativeToCurrentDirectory abs_dirs
 
-    state <- use daemonState
+    state <- gets daemonState
     stopActions <- liftIO $ mapM
         (\dir -> FSNotify.watchDir fsnotify dir (const True)
                                    (passEvent state channel srcs tgts))
         abs_dirs
-    assign watches stopActions
+    modify (\s -> s{ watches=stopActions })
 
     logMessage $ "watching: " <> tshow rel_dirs
 -- ------ end
 -- ------ begin <<daemon-watches>>[2]
 closeWatch :: Daemon ()
 closeWatch = do
-    stopActions <- use watches
+    stopActions <- gets watches
     liftIO $ sequence_ stopActions
     logMessage "suspended watches"
 -- ------ end
 -- ------ begin <<daemon-main-loop>>[0]
+wait :: Daemon ()
+wait = liftIO $ threadDelay 100000
+
 mainLoop :: Event -> Daemon ()
 -- ------ begin <<main-loop-cases>>[0]
-mainLoop [] = return ()
--- ------ end
--- ------ begin <<main-loop-cases>>[1]
 mainLoop (WriteSource abs_path) = do
     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
     setDaemonState Tangling
+    wait
     old_tgts <- db listTargetFiles
     loadSourceFile abs_path
     new_tgts <- db listTargetFiles
     mapM_ deleteFile $ old_tgts \\ new_tgts
     mapM_ writeTargetFile new_tgts
+    wait
     setDaemonState Idle
 
 mainLoop (WriteTarget abs_path) = do
     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
     setDaemonState Stitching
+    wait
     loadTargetFile abs_path
     srcs <- db listSourceFiles
     mapM_ writeSourceFile srcs
+    wait
     setDaemonState Tangling
     tgts <- db listTargetFiles
     mapM_ writeTargetFile tgts
+    wait
     setDaemonState Idle
 
 mainLoop _ = return () 

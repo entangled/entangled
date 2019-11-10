@@ -13,17 +13,14 @@ The Entangled daemon does the following:
 
 ## Strategy
 
-We'll use `Lens` with template Haskell for convenience. That being said, I'm not a fan of the more cryptic unreadable junk that's possible with `lens`. Where possible I use the wordy functions over the alien gibberish in operator form.
-
 ``` {.haskell #daemon}
-{-# LANGUAGE TemplateHaskell #-}
 module Daemon where
 
 import Prelude hiding (writeFile, readFile)
 
 <<daemon-imports>>
 <<daemon-events>>
-<<daemon-io-action>>
+<<daemon-transaction>>
 <<daemon-session>>
 <<daemon-user-io>>
 <<daemon-loading>>
@@ -37,7 +34,6 @@ import Prelude hiding (writeFile, readFile)
 import qualified Data.Text.IO as T.IO 
 <<import-map>>
 import TextUtil (tshow)
-import Lens.Micro.Platform
 ```
 
 Using lenses we build a `Session` record. In combination with the `State` monad (and a `Reader Config`, and `IO`) we can manage the Entangled Daemon.
@@ -66,20 +62,64 @@ data Event
     deriving (Show)
 ```
 
-### Aggregate IO
+### Transactions
 
-``` {.haskell #daemon-io-action}
-data IOAction = IOAction
+When an event happened we need to respond, usually by writing out several files. Since `IO` is a `Monoid`, we can append `IO` actions and keep track of describing the gathered events in a `Transaction`. There are some things that we may need to ask the user permission for, like overwriting files in dubious circumstances. Messaging is done through pretty-printed `Doc`.
+
+``` {.haskell #daemon-imports}
+import qualified Data.Text.Prettyprint.Doc as P
+import Console (Doc)
+import qualified Console
+```
+
+``` {.haskell #daemon-transaction}
+data Transaction = Transaction
   { action :: Maybe (IO ())
   , description :: Doc
   , needConfirm :: Bool }
+```
 
-instance Semigroup IOAction where
-    (IOAction al dl cl) <> (IOAction ar dr cr)
-      = IOAction (al <> ar) (dl <> dr) (cl || cr)
+The `action` is wrapped in a `Maybe` so that we can tell if the `Transaction` does anything. A `Transaction` is a `Monoid`.
 
-instance Monoid IOAction where
-    mempty = IOAction mempty mempty False
+``` {.haskell #daemon-transaction}
+instance Semigroup Transaction where
+    (Transaction al dl cl) <> (Transaction ar dr cr)
+      = Transaction (al <> ar) (dl <> dr) (cl || cr)
+
+instance Monoid Transaction where
+    mempty = Transaction mempty mempty False
+```
+
+We can build `Transaction`s by appending elemental parts.
+
+``` {.haskell #daemon-transaction}
+plan :: IO () -> Transaction
+plan action = Transaction (Just action) mempty False
+
+doc :: Doc -> Transaction
+doc x = Transaction Nothing x False
+
+msg :: P.Pretty a => LogLevel -> a -> Transaction
+msg level doc = Transaction Nothing (Console.msg level doc) False
+
+confirm :: Transaction
+confirm = Transaction mempty mempty True
+```
+
+In most of the program logic, `Transaction` will be available in terms of a `MonadWriter`.
+
+``` {.haskell #daemon-transaction}
+run :: Transaction -> IO ()
+run (Transaction Nothing d _) = Console.putTerminal d
+run (Transaction (Just x) d c) = do
+    Console.putTerminal d
+    if c then do
+        T.IO.putStr "confirm? (y/n) "
+        hFlush stdout
+        reply <- getLine
+        T.IO.putStrLn ""
+        when (reply == "y") x
+    else x
 ```
 
 ### Session
@@ -94,7 +134,6 @@ import Logging
 import Tangle (parseMarkdown, expandedCode)
 import Comment
 import Stitch (stitch)
-import Console
 
 import Control.Concurrent.Chan
 import Control.Concurrent
@@ -107,27 +146,25 @@ import Control.Monad.Writer
 
 ``` {.haskell #daemon-session}
 data Session = Session
-    { _watches       :: [FSNotify.StopListening]
-    , _manager       :: FSNotify.WatchManager
-    , _eventChannel  :: Chan Event
-    , _daemonState   :: MVar DaemonState
-    , _sqlite        :: Connection
+    { watches       :: [FSNotify.StopListening]
+    , manager       :: FSNotify.WatchManager
+    , eventChannel  :: Chan Event
+    , daemonState   :: MVar DaemonState
+    , sqlite        :: Connection
     }
-
-makeLenses ''Session
 
 db :: ( MonadIO m, MonadState Session m, MonadLogger m )
    => SQL a -> m a
 db x = do
-    conn <- use sqlite
+    conn <- gets sqlite
     runSQL conn x
 
-newtype Daemon a = Daemon { unDaemon :: RWST Config IOAction Session IO a }
+newtype Daemon a = Daemon { unDaemon :: RWST Config Transaction Session IO a }
     deriving ( Applicative, Functor, Monad, MonadIO, MonadState Session
-             , MonadReader Config, MonadWriter IOAction )
+             , MonadReader Config, MonadWriter Transaction )
 
 instance MonadLogger Daemon where
-    logEntry level msg = liftIO $ T.IO.putStrLn msg
+    logEntry level x = tell (msg level x)
 ```
 
 Every time an event happens we send it to `_eventChannel`. When we tangle we change the `_daemonState` to `Tangling`. Write events to target files are then not triggering a stitch. The other way around, if the daemon is in `Stitching` state, write events to the markdown source do not trigger a tangle. Because these events will arrive asynchronously, we use an `MVar` to change the state.
@@ -139,7 +176,7 @@ setDaemonState :: ( MonadIO m
                   , MonadState Session m )
                => DaemonState -> m ()
 setDaemonState s = do
-    state <- use daemonState
+    state <- gets daemonState
     liftIO $ modifyMVar_ state (const $ return s)
 ```
 
@@ -170,24 +207,25 @@ tryReadFile f = liftIO $ do
         then Just <$> T.IO.readFile f
         else return Nothing
 
-changeFile :: (MonadIO m) => FilePath -> Text -> m IOAction
+changeFile :: (MonadIO m) => FilePath -> Text -> m Transaction
 changeFile filename text = do
     rel_path <- liftIO $ makeRelativeToCurrentDirectory filename
     liftIO $ createDirectoryIfMissing True (takeDirectory filename)
     oldText <- tryReadFile filename
     case oldText of
         Just ot -> if ot /= text
-            then return $ IOAction (Just $ T.IO.writeFile filename text)
-                                   (msgOverwrite rel_path) False
+            then return $ Transaction (Just $ T.IO.writeFile filename text)
+                                   (Console.msgOverwrite rel_path) False
             else return mempty
-        Nothing -> return $ IOAction (Just $ T.IO.writeFile filename text)
-                                     (msgCreate rel_path) False
+        Nothing -> return $ Transaction (Just $ T.IO.writeFile filename text)
+                                     (Console.msgCreate rel_path) False
 
-removeIfExists :: FilePath -> IOAction
+removeIfExists :: FilePath -> Transaction
 removeIfExists f =
-    IOAction (Just $ do fileExists <- doesFileExist f
-                        when fileExists $ removeFile f)
-             (msgDelete f) False
+    plan (do
+        fileExists <- doesFileExist f
+        when fileExists $ removeFile f)
+    <> doc (Console.msgDelete f)
 
 instance MonadFileIO Daemon where
     writeFile path text = tell =<< changeFile path text
@@ -238,18 +276,18 @@ setWatch :: Daemon ()
 setWatch = do
     srcs <- db listSourceFiles >>= (liftIO . mapM canonicalizePath)
     tgts <- db listTargetFiles >>= (liftIO . mapM canonicalizePath)
-    fsnotify <- use manager
-    channel  <- use eventChannel
+    fsnotify <- gets manager
+    channel  <- gets eventChannel
 
     let abs_dirs = nub $ map takeDirectory (srcs <> tgts)
     rel_dirs <- liftIO $ mapM makeRelativeToCurrentDirectory abs_dirs
 
-    state <- use daemonState
+    state <- gets daemonState
     stopActions <- liftIO $ mapM
         (\dir -> FSNotify.watchDir fsnotify dir (const True)
                                    (passEvent state channel srcs tgts))
         abs_dirs
-    assign watches stopActions
+    modify (\s -> s{ watches=stopActions })
 
     logMessage $ "watching: " <> tshow rel_dirs
 ```
@@ -257,7 +295,7 @@ setWatch = do
 ``` {.haskell #daemon-watches}
 closeWatch :: Daemon ()
 closeWatch = do
-    stopActions <- use watches
+    stopActions <- gets watches
     liftIO $ sequence_ stopActions
     logMessage "suspended watches"
 ```
@@ -328,15 +366,18 @@ writeSourceFile rel_path = do
 
 ## Main loop
 
+``` {.haskell #daemon-imports}
+import System.IO (stdout, hFlush)
+```
+
 The `mainLoop` is fed events and handles them.
 
 ``` {.haskell #daemon-main-loop}
+wait :: Daemon ()
+wait = liftIO $ threadDelay 100000
+
 mainLoop :: Event -> Daemon ()
 <<main-loop-cases>>
-```
-
-``` {.haskell #main-loop-cases}
-mainLoop [] = return ()
 ```
 
 After the first event we need to wait a bit, there may be more comming.
@@ -345,22 +386,27 @@ After the first event we need to wait a bit, there may be more comming.
 mainLoop (WriteSource abs_path) = do
     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
     setDaemonState Tangling
+    wait
     old_tgts <- db listTargetFiles
     loadSourceFile abs_path
     new_tgts <- db listTargetFiles
     mapM_ deleteFile $ old_tgts \\ new_tgts
     mapM_ writeTargetFile new_tgts
+    wait
     setDaemonState Idle
 
 mainLoop (WriteTarget abs_path) = do
     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
     setDaemonState Stitching
+    wait
     loadTargetFile abs_path
     srcs <- db listSourceFiles
     mapM_ writeSourceFile srcs
+    wait
     setDaemonState Tangling
     tgts <- db listTargetFiles
     mapM_ writeTargetFile tgts
+    wait
     setDaemonState Idle
 
 mainLoop _ = return () 
@@ -373,16 +419,15 @@ initSession :: Daemon ()
 initSession = do
     abs_paths <- asks getInputFiles
     rel_paths <- liftIO $ mapM makeRelativeToCurrentDirectory abs_paths
-    printMsg banner
-    
-    tell $ IOAction
-            { action = Just mempty
-            , description = (P.align $ P.vsep
-                             $ map (bullet
-                                     . (P.pretty ("Monitoring " :: Text) <>)
-                                     . fileRead)
-                                   rel_paths) <> P.line
-            , needConfirm = False }
+
+    Console.printMsg banner
+    tell $ message Message
+         $ P.align $ P.vsep
+                   $ map (Console.bullet
+                         . (P.pretty ("Monitoring " :: Text) <>)
+                         . Console.fileRead)
+                           rel_paths
+                   <> P.line
 
     mapM_ loadSourceFile abs_paths 
     tgts <- db listTargetFiles
