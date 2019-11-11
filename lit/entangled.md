@@ -198,13 +198,22 @@ import Data.Void
 
 ## Errors
 
-``` {.haskell #entangled-error}
+``` {.haskell file=src/Errors.hs}
+module Errors where
+
+import Control.Exception
+import Data.Typeable
+import TextUtil
+
+<<import-text>>
+
 data EntangledError
     = TangleError Text
     | StitchError Text
     | CyclicReference Text
     | UnknownLanguageClass Text
     | DatabaseError Text
+    | SystemError Text
     | MissingLanguageClass
     | UnknownError
     deriving (Show, Ord, Eq, Typeable)

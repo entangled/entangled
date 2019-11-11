@@ -40,6 +40,7 @@ common deps
     , extra >=1.6 && <2
     , filepath >=1.4 && <2
     , fsnotify >=0.3 && <0.4
+    , Glob >=0.10 && <0.11
     , megaparsec >=7.0 && <8
     , mtl >=2.2 && <3
     , prettyprinter >=1.2 && <2
@@ -71,6 +72,7 @@ library
       TextUtil
       Daemon
       Database
+      Errors
   other-modules:
       Paths_entangled
   autogen-modules:

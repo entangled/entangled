@@ -1,5 +1,7 @@
 -- ------ language="Haskell" file="src/Document.hs"
-module Document where
+module Document
+    ( module Document
+    , module Errors ) where
 
 -- ------ begin <<import-text>>[0]
 import qualified Data.Text as T
@@ -20,26 +22,7 @@ import Control.Monad.Catch
 
 import Config (Language)
 import TextUtil (tshow)
-
--- ------ begin <<entangled-error>>[0]
-data EntangledError
-    = TangleError Text
-    | StitchError Text
-    | CyclicReference Text
-    | UnknownLanguageClass Text
-    | DatabaseError Text
-    | MissingLanguageClass
-    | UnknownError
-    deriving (Show, Ord, Eq, Typeable)
-
-toEntangledError :: (Show e)
-                 => (Text -> EntangledError) -> Either e a
-                 -> Either EntangledError a
-toEntangledError _ (Right x) = Right x
-toEntangledError f (Left x) = Left $ f $ tshow x
-
-instance Exception EntangledError
--- ------ end
+import Errors
 
 -- ------ begin <<document-structure>>[0]
 newtype ReferenceName = ReferenceName

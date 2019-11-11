@@ -12,6 +12,7 @@ import qualified Data.Map.Lazy as LM
 import Control.Monad.IO.Class
 import Control.Monad.Reader
 import Control.Monad.Writer
+import Control.Monad.Catch
 import System.Directory
 import System.FilePath
 -- ------ end
@@ -25,13 +26,16 @@ import Options.Applicative
 import Config
 -- ------ end
 -- ------ begin <<main-imports>>[4]
-import qualified Toml
+import Daemon
 -- ------ end
 -- ------ begin <<main-imports>>[5]
+import qualified Toml
+-- ------ end
+-- ------ begin <<main-imports>>[6]
 import Database
 import Database.SQLite.Simple
 -- ------ end
--- ------ begin <<main-imports>>[6]
+-- ------ begin <<main-imports>>[7]
 import Logging
 -- ------ end
 
@@ -164,7 +168,7 @@ run Args{..}
         case subCommand of
             NoCommand -> return ()
             -- ------ begin <<sub-runners>>[0]
-            CommandDaemon a -> putStrLn $ show config
+            CommandDaemon a -> runSession config
             -- ------ end
             -- ------ begin <<sub-runners>>[1]
             CommandConfig -> T.IO.putStrLn $ Toml.encode configCodec config
@@ -183,17 +187,6 @@ run Args{..}
             -- ------ end
 -- ------ end
 -- ------ begin <<main-run>>[1]
-getDatabasePath :: Config -> LoggerIO FilePath
-getDatabasePath cfg = do
-    dbPath <- case configEntangled cfg >>= database of
-        Nothing -> do
-            logError "database not configured"
-            liftIO exitFailure
-        Just db -> return $ T.unpack db
-    liftIO $ createDirectoryIfMissing True (takeDirectory dbPath)
-    return dbPath
--- ------ end
--- ------ begin <<main-run>>[2]
 schema :: IO [Query]
 schema = do
     qs <-  T.splitOn ";" <$> T.IO.readFile "schema.sql"
@@ -204,14 +197,14 @@ createTables = do
     conn <- getConnection
     liftIO $ schema >>= mapM_ (execute_ conn)
 -- ------ end
--- ------ begin <<main-run>>[3]
+-- ------ begin <<main-run>>[2]
 newtype LoggerIO a = LoggerIO { printLogger :: (IO a) }
-    deriving ( Applicative, Functor, Monad, MonadIO )
+    deriving ( Applicative, Functor, Monad, MonadIO, MonadThrow )
 
 instance MonadLogger LoggerIO where
     logEntry level x = liftIO $ T.IO.putStrLn $ tshow level <> ": " <> x
 -- ------ end
--- ------ begin <<main-run>>[4]
+-- ------ begin <<main-run>>[3]
 runTangle :: Config -> TangleArgs -> LoggerIO ()
 runTangle cfg TangleArgs{..} = do
     dbPath <- getDatabasePath cfg
@@ -232,7 +225,7 @@ runTangle cfg TangleArgs{..} = do
                     Nothing  -> logError $ "Target `" <> T.pack f <> "` not found."
                     Just ref -> tangleRef ref
 -- ------ end
--- ------ begin <<main-run>>[5]
+-- ------ begin <<main-run>>[4]
 runStitch :: Config -> StitchArgs -> LoggerIO ()
 runStitch config StitchArgs{..} = do 
     dbPath <- getDatabasePath config
@@ -241,7 +234,7 @@ runStitch config StitchArgs{..} = do
         stitchDocument stitchTarget
     liftIO $ T.IO.putStrLn text
 -- ------ end
--- ------ begin <<main-run>>[6]
+-- ------ begin <<main-run>>[5]
 runList :: Config -> LoggerIO ()
 runList cfg = do
     dbPath <- getDatabasePath cfg
@@ -250,7 +243,7 @@ runList cfg = do
         listTargetFiles
     liftIO $ T.IO.putStrLn $ T.unlines $ map T.pack lst
 -- ------ end
--- ------ begin <<main-run>>[7]
+-- ------ begin <<main-run>>[6]
 runInsert :: Config -> [FilePath] -> LoggerIO ()
 runInsert cfg files = do
     dbPath <- getDatabasePath cfg

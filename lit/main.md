@@ -10,6 +10,7 @@ import qualified Data.Map.Lazy as LM
 import Control.Monad.IO.Class
 import Control.Monad.Reader
 import Control.Monad.Writer
+import Control.Monad.Catch
 import System.Directory
 import System.FilePath
 ```
@@ -81,6 +82,10 @@ This way we can add sub-commands independently in the following sections.
 
 ### Starting the daemon
 
+``` {.haskell #main-imports}
+import Daemon
+```
+
 ``` {.haskell #sub-commands}
 | CommandDaemon DaemonArgs
 ```
@@ -101,7 +106,7 @@ parseDaemonArgs = CommandDaemon <$> DaemonArgs
 ```
 
 ``` {.haskell #sub-runners}
-CommandDaemon a -> putStrLn $ show config
+CommandDaemon a -> runSession config
 ```
 
 ### Printing the config
@@ -248,20 +253,6 @@ main = do
 
 ## Generics
 
-### Retrieve path to database
-
-``` {.haskell #main-run}
-getDatabasePath :: Config -> LoggerIO FilePath
-getDatabasePath cfg = do
-    dbPath <- case configEntangled cfg >>= database of
-        Nothing -> do
-            logError "database not configured"
-            liftIO exitFailure
-        Just db -> return $ T.unpack db
-    liftIO $ createDirectoryIfMissing True (takeDirectory dbPath)
-    return dbPath
-```
-
 ### Create the empty database
 
 ``` {.haskell #main-imports}
@@ -289,7 +280,7 @@ import Logging
 
 ``` {.haskell #main-run}
 newtype LoggerIO a = LoggerIO { printLogger :: (IO a) }
-    deriving ( Applicative, Functor, Monad, MonadIO )
+    deriving ( Applicative, Functor, Monad, MonadIO, MonadThrow )
 
 instance MonadLogger LoggerIO where
     logEntry level x = liftIO $ T.IO.putStrLn $ tshow level <> ": " <> x

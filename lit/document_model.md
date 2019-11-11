@@ -1,7 +1,9 @@
 # Document structure
 
 ``` {.haskell file=src/Document.hs}
-module Document where
+module Document
+    ( module Document
+    , module Errors ) where
 
 <<import-text>>
 <<import-map>>
@@ -13,8 +15,7 @@ import Control.Monad.Catch
 
 import Config (Language)
 import TextUtil (tshow)
-
-<<entangled-error>>
+import Errors
 
 <<document-structure>>
 ```

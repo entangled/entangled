@@ -1,7 +1,11 @@
 -- ------ language="Haskell" file="src/Config.hs"
 module Config where
 
+import Logging
+import Errors
+
 import Data.Text (Text)
+import qualified Data.Text as T
 -- ------ begin <<import-set>>[0]
 import qualified Data.Set as S
 import Data.Set (Set)
@@ -11,6 +15,12 @@ import Toml (TomlCodec, (.=))
 import Data.Function (on)
 import Data.List (find)
 import Control.Applicative ((<|>))
+import Control.Monad.Extra (concatMapM)
+import Control.Monad.IO.Class
+import Control.Monad.Catch
+import System.FilePath.Glob (glob)
+import System.Directory 
+import System.FilePath (takeDirectory)
 
 -- ------ begin <<config-types>>[0]
 data Entangled = Entangled
@@ -131,6 +141,16 @@ languageFromName cfg x
     $ configLanguages cfg
 -- ------ end
 
-getInputFiles :: Config -> [FilePath]
-getInputFiles _ = []
+getDatabasePath :: (MonadIO m, MonadThrow m) => Config -> m FilePath
+getDatabasePath cfg = do
+    dbPath <- case configEntangled cfg >>= database of
+        Nothing -> throwM $ SystemError $ "database not configured"
+        Just db -> return $ T.unpack db
+    liftIO $ createDirectoryIfMissing True (takeDirectory dbPath)
+    return dbPath
+
+getInputFiles :: (MonadIO m) => Config -> m [FilePath]
+getInputFiles cfg = liftIO $ maybe mempty
+        (concatMapM (glob . T.unpack))
+        (watchList =<< configEntangled cfg)
 -- ------ end

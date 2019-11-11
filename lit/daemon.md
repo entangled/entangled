@@ -27,6 +27,7 @@ import Prelude hiding (writeFile, readFile)
 <<daemon-writing>>
 <<daemon-watches>>
 <<daemon-main-loop>>
+<<daemon-start>>
 ```
 
 ``` {.haskell #daemon-imports}
@@ -109,9 +110,9 @@ confirm = Transaction mempty mempty True
 In most of the program logic, `Transaction` will be available in terms of a `MonadWriter`.
 
 ``` {.haskell #daemon-transaction}
-run :: Transaction -> IO ()
-run (Transaction Nothing d _) = Console.putTerminal d
-run (Transaction (Just x) d c) = do
+runTransaction :: Transaction -> IO ()
+runTransaction (Transaction Nothing d _) = Console.putTerminal d
+runTransaction (Transaction (Just x) d c) = do
     Console.putTerminal d
     if c then do
         T.IO.putStr "confirm? (y/n) "
@@ -367,7 +368,7 @@ writeSourceFile rel_path = do
 ## Main loop
 
 ``` {.haskell #daemon-imports}
-import System.IO (stdout, hFlush)
+import System.IO (stdout, hFlush, hSetBuffering, BufferMode(..))
 ```
 
 The `mainLoop` is fed events and handles them.
@@ -415,19 +416,23 @@ mainLoop _ = return ()
 ## Initialisation
 
 ``` {.haskell #daemon-start}
+printMsg :: Doc -> Daemon ()
+printMsg = liftIO . Console.putTerminal
+
 initSession :: Daemon ()
 initSession = do
-    abs_paths <- asks getInputFiles
+    config <- ask
+    abs_paths <- liftIO $ getInputFiles config
     rel_paths <- liftIO $ mapM makeRelativeToCurrentDirectory abs_paths
 
-    Console.printMsg banner
-    tell $ message Message
-         $ P.align $ P.vsep
+    printMsg Console.banner
+    tell $ doc
+         $ (P.align $ P.vsep
                    $ map (Console.bullet
                          . (P.pretty ("Monitoring " :: Text) <>)
                          . Console.fileRead)
-                           rel_paths
-                   <> P.line
+                           rel_paths)
+            <> P.line
 
     mapM_ loadSourceFile abs_paths 
     tgts <- db listTargetFiles
@@ -435,7 +440,7 @@ initSession = do
 
 foldx :: (Monad m) => (e -> s -> m s) -> [e] -> s -> m ()
 foldx _ [] _ = return ()
-foldx f (e:es) s = (f e s) >= (foldx f es)
+foldx f (e:es) s = (f e s) >>= (foldx f es)
 
 runSession :: Config -> IO ()
 runSession config = do
@@ -444,12 +449,14 @@ runSession config = do
     channel <- newChan
     daemon_state <- newMVar Idle
     db_path <- getDatabasePath config
-    liftIO $ withConnection (\conn -> do
-        let session = Session [] fsnotify channel daemon_state conn
-        _, session', action <- runRWST (unDaemon initSession) config session
-        events <- getChanContents channel
-        foldx (\e s -> do
-                  _, s', a <- runRWST (unDaemon $ mainLoop e) config s
-                  run a
-                  return s') events state')
+    let dbRunner conn = do
+                    let session = Session [] fsnotify channel daemon_state conn
+                    (x, session', action) <- runRWST (unDaemon initSession) config session
+                    events <- getChanContents channel
+                    foldx (\e s -> do
+                                      (_, s', a) <- runRWST (unDaemon $ mainLoop e) config s
+                                      runTransaction a
+                                      return s') events session'
+    liftIO $ withConnection db_path dbRunner
+    liftIO $ FSNotify.stopManager fsnotify
 ```

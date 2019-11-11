@@ -3,13 +3,23 @@
 ``` {.haskell file=src/Config.hs}
 module Config where
 
+import Logging
+import Errors
+
 import Data.Text (Text)
+import qualified Data.Text as T
 <<import-set>>
 import qualified Toml
 import Toml (TomlCodec, (.=))
 import Data.Function (on)
 import Data.List (find)
 import Control.Applicative ((<|>))
+import Control.Monad.Extra (concatMapM)
+import Control.Monad.IO.Class
+import Control.Monad.Catch
+import System.FilePath.Glob (glob)
+import System.Directory 
+import System.FilePath (takeDirectory)
 
 <<config-types>>
 <<config-tomland>>
@@ -18,8 +28,18 @@ import Control.Applicative ((<|>))
 <<config-input>>
 <<config-reader>>
 
-getInputFiles :: Config -> [FilePath]
-getInputFiles _ = []
+getDatabasePath :: (MonadIO m, MonadThrow m) => Config -> m FilePath
+getDatabasePath cfg = do
+    dbPath <- case configEntangled cfg >>= database of
+        Nothing -> throwM $ SystemError $ "database not configured"
+        Just db -> return $ T.unpack db
+    liftIO $ createDirectoryIfMissing True (takeDirectory dbPath)
+    return dbPath
+
+getInputFiles :: (MonadIO m) => Config -> m [FilePath]
+getInputFiles cfg = liftIO $ maybe mempty
+        (concatMapM (glob . T.unpack))
+        (watchList =<< configEntangled cfg)
 ```
 
 Configuration can be stored in `${XDG_CONFIG_HOME}/entangled/config.toml`. Also the local directory or its parents may contain a `.entangled.toml` file. These override settings in the global configuration.
