@@ -260,18 +260,6 @@ import Database
 import Database.SQLite.Simple
 ```
 
-``` {.haskell #main-run}
-schema :: IO [Query]
-schema = do
-    qs <-  T.splitOn ";" <$> T.IO.readFile "schema.sql"
-    return $ map Query (init qs)
-
-createTables :: SQL ()
-createTables = do
-    conn <- getConnection
-    liftIO $ schema >>= mapM_ (execute_ conn)
-```
-
 ### Simple IO logger
 
 ``` {.haskell #main-imports}

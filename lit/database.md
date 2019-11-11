@@ -7,6 +7,7 @@ module Database where
 
 <<database-imports>>
 <<database-types>>
+<<database-create>>
 <<database-insertion>>
 <<database-update>>
 <<database-queries>>
@@ -17,6 +18,8 @@ module Database where
 We wrap all SQL interaction in a `SQL` monad, which stores the `Connection` object and a logger.
 
 ``` {.haskell #database-imports}
+import Paths_entangled
+
 import Logging
 
 import Database.SQLite.Simple
@@ -28,6 +31,7 @@ import Control.Monad.Catch
 import Control.Monad.Writer
 
 <<import-text>>
+import qualified Data.Text.IO as T.IO
 ```
 
 ``` {.haskell #database-types}
@@ -96,7 +100,7 @@ schema.svg: <<file|schema>>
 
 In `SQLite.Simple` the above schema becomes
 
-``` {.sqlite file=schema.sql}
+``` {.sqlite file=data/schema.sql}
 pragma synchronous = off;
 pragma journal_mode = memory;
 
@@ -106,6 +110,21 @@ pragma journal_mode = memory;
 ::: {.TODO}
 Implement the interface in Selda.
 :::
+
+## Create database
+
+``` {.haskell #database-create}
+schema :: IO [Query]
+schema = do
+    schema_path <- getDataFileName "data/schema.sql"
+    qs <-  T.splitOn ";" <$> T.IO.readFile schema_path
+    return $ map Query (init qs)
+
+createTables :: SQL ()
+createTables = do
+    conn <- getConnection
+    liftIO $ schema >>= mapM_ (execute_ conn)
+```
 
 ## Insertion
 

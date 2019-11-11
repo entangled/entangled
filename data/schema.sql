@@ -1,4 +1,4 @@
--- ------ language="SQLite" file="schema.sql"
+-- ------ language="SQLite" file="data/schema.sql"
 pragma synchronous = off;
 pragma journal_mode = memory;
 

@@ -3,6 +3,8 @@
 module Database where
 
 -- ------ begin <<database-imports>>[0]
+import Paths_entangled
+
 import Logging
 
 import Database.SQLite.Simple
@@ -17,6 +19,7 @@ import Control.Monad.Writer
 import qualified Data.Text as T
 import Data.Text (Text)
 -- ------ end
+import qualified Data.Text.IO as T.IO
 -- ------ end
 -- ------ begin <<database-imports>>[1]
 -- ------ begin <<import-map>>[0]
@@ -63,6 +66,18 @@ withTransactionM t = do
     (x, msgs) <- liftIO $ withTransaction conn $ runWriterT $ redirectLogger conn t
     forwardEntries msgs
     return x
+-- ------ end
+-- ------ begin <<database-create>>[0]
+schema :: IO [Query]
+schema = do
+    schema_path <- getDataFileName "data/schema.sql"
+    qs <-  T.splitOn ";" <$> T.IO.readFile schema_path
+    return $ map Query (init qs)
+
+createTables :: SQL ()
+createTables = do
+    conn <- getConnection
+    liftIO $ schema >>= mapM_ (execute_ conn)
 -- ------ end
 -- ------ begin <<database-insertion>>[0]
 insertCodes :: Int64 -> ReferenceMap -> SQL ()

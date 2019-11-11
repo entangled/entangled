@@ -8,18 +8,20 @@ import Errors
 
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.IO as T.IO
+import TextUtil
 <<import-set>>
 import qualified Toml
 import Toml (TomlCodec, (.=))
 import Data.Function (on)
-import Data.List (find)
+import Data.List (find, scanl1)
 import Control.Applicative ((<|>))
 import Control.Monad.Extra (concatMapM)
 import Control.Monad.IO.Class
 import Control.Monad.Catch
 import System.FilePath.Glob (glob)
 import System.Directory 
-import System.FilePath (takeDirectory)
+import System.FilePath
 
 <<config-types>>
 <<config-tomland>>
@@ -193,11 +195,22 @@ NYI
 :::
 
 ``` {.haskell #config-input}
+findFileAscending :: String -> IO (Maybe FilePath)
+findFileAscending filename = do
+    path <- dropTrailingPathSeparator <$> getCurrentDirectory
+    let parents = reverse $ scanl1 (</>) $ splitDirectories path
+    findFile parents filename
+
 readLocalConfig :: IO Config
-readLocalConfig = return mempty
+readLocalConfig = do
+    putStrLn "Reading config..."
+    cfg_path <- maybe (throwM $ SystemError "no config found.") id <$> findFileAscending "entangled.toml"
+    cfg_toml <- T.IO.readFile cfg_path
+    T.IO.putStrLn $ tshow $ Toml.decode configCodec cfg_toml
+    either (throwM . SystemError . tshow) return $ Toml.decode configCodec cfg_toml
 
 readGlobalConfig :: IO Config
-readGlobalConfig = return mempty
+readGlobalConfig = mempty
 ```
 
 ## Processing

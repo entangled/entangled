@@ -34,7 +34,7 @@ import Prelude hiding (writeFile, readFile)
 <<import-text>>
 import qualified Data.Text.IO as T.IO 
 <<import-map>>
-import TextUtil (tshow)
+import TextUtil (tshow, unlines')
 ```
 
 Using lenses we build a `Session` record. In combination with the `State` monad (and a `Reader Config`, and `IO`) we can manage the Entangled Daemon.
@@ -143,6 +143,7 @@ import Control.Monad.Reader
 import Control.Monad.RWS
 import Control.Monad.IO.Class
 import Control.Monad.Writer
+import Control.Monad.Catch
 ```
 
 ``` {.haskell #daemon-session}
@@ -162,7 +163,7 @@ db x = do
 
 newtype Daemon a = Daemon { unDaemon :: RWST Config Transaction Session IO a }
     deriving ( Applicative, Functor, Monad, MonadIO, MonadState Session
-             , MonadReader Config, MonadWriter Transaction )
+             , MonadReader Config, MonadWriter Transaction, MonadThrow )
 
 instance MonadLogger Daemon where
     logEntry level x = tell (msg level x)
@@ -257,6 +258,7 @@ passEvent :: MVar DaemonState -> Chan Event
           -> [FilePath] -> [FilePath] -> FSNotify.Event -> IO ()
 passEvent _      _       _    _    FSNotify.Removed {} = return ()
 passEvent state' channel srcs tgts fsEvent = do
+    putStrLn $ show fsEvent
     abs_path <- canonicalizePath $ FSNotify.eventPath fsEvent
     state    <- readMVar state'
 
@@ -342,20 +344,27 @@ import qualified Data.Map.Lazy as LM
 ```
 
 ``` {.haskell #daemon-writing}
+codeLanguage' :: (MonadThrow m) => ReferenceMap -> ReferenceName -> m Language
+codeLanguage' refs rname = case (codeLanguage $ refs M.! (ReferenceId rname 0)) of
+    KnownLanguage lang -> return lang
+    _                  -> throwM $ DatabaseError $ "Trying to tangle " <> tshow rname <> " with no known language."
+
 writeTargetFile :: FilePath -> Daemon ()
 writeTargetFile rel_path = do
     cfg <- ask
     refs <- db $ queryReferenceMap cfg
     let codes = expandedCode annotateComment refs
-        tangleRef tgt = case codes LM.!? tgt of
+        tangleRef tgt lang = case codes LM.!? tgt of
             Nothing        -> logError $ "Reference `" <> tshow tgt <> "` not found."
             Just (Left e)  -> logError $ tshow e
-            Just (Right t) -> writeFile rel_path t
+            Just (Right t) -> writeFile rel_path $ unlines' [headerComment lang rel_path, t]
 
     tgt' <- db $ queryTargetRef rel_path
     case tgt' of
         Nothing  -> logError $ "Target `" <> T.pack rel_path <> "` not found."
-        Just tgt -> tangleRef tgt
+        Just tgt -> do
+                lang <- codeLanguage' refs tgt
+                tangleRef tgt lang
 ```
 
 ``` {.haskell #daemon-writing}
@@ -386,28 +395,35 @@ After the first event we need to wait a bit, there may be more comming.
 ``` {.haskell #main-loop-cases}
 mainLoop (WriteSource abs_path) = do
     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
+
     setDaemonState Tangling
+    closeWatch
     wait
+
     old_tgts <- db listTargetFiles
     loadSourceFile abs_path
     new_tgts <- db listTargetFiles
     mapM_ deleteFile $ old_tgts \\ new_tgts
     mapM_ writeTargetFile new_tgts
+
     wait
+    setWatch
     setDaemonState Idle
 
 mainLoop (WriteTarget abs_path) = do
     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
     setDaemonState Stitching
     wait
+    closeWatch
     loadTargetFile abs_path
     srcs <- db listSourceFiles
     mapM_ writeSourceFile srcs
     wait
-    setDaemonState Tangling
-    tgts <- db listTargetFiles
-    mapM_ writeTargetFile tgts
-    wait
+    -- setDaemonState Tangling
+    -- tgts <- db listTargetFiles
+    -- mapM_ writeTargetFile tgts
+    -- wait
+    setWatch
     setDaemonState Idle
 
 mainLoop _ = return () 
@@ -423,7 +439,10 @@ initSession :: Daemon ()
 initSession = do
     config <- ask
     abs_paths <- liftIO $ getInputFiles config
+    when (null abs_paths) $ throwM $ SystemError "No input files."
     rel_paths <- liftIO $ mapM makeRelativeToCurrentDirectory abs_paths
+
+    db createTables
 
     printMsg Console.banner
     tell $ doc
@@ -437,6 +456,7 @@ initSession = do
     mapM_ loadSourceFile abs_paths 
     tgts <- db listTargetFiles
     mapM_ writeTargetFile tgts
+    setWatch
 
 foldx :: (Monad m) => (e -> s -> m s) -> [e] -> s -> m ()
 foldx _ [] _ = return ()
@@ -452,6 +472,7 @@ runSession config = do
     let dbRunner conn = do
                     let session = Session [] fsnotify channel daemon_state conn
                     (x, session', action) <- runRWST (unDaemon initSession) config session
+                    runTransaction action
                     events <- getChanContents channel
                     foldx (\e s -> do
                                       (_, s', a) <- runRWST (unDaemon $ mainLoop e) config s
