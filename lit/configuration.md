@@ -203,10 +203,8 @@ findFileAscending filename = do
 
 readLocalConfig :: IO Config
 readLocalConfig = do
-    putStrLn "Reading config..."
     cfg_path <- maybe (throwM $ SystemError "no config found.") id <$> findFileAscending "entangled.toml"
     cfg_toml <- T.IO.readFile cfg_path
-    T.IO.putStrLn $ tshow $ Toml.decode configCodec cfg_toml
     either (throwM . SystemError . tshow) return $ Toml.decode configCodec cfg_toml
 
 readGlobalConfig :: IO Config

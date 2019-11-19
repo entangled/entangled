@@ -396,9 +396,9 @@ After the first event we need to wait a bit, there may be more comming.
 mainLoop (WriteSource abs_path) = do
     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
 
+    wait
     setDaemonState Tangling
     closeWatch
-    wait
 
     old_tgts <- db listTargetFiles
     loadSourceFile abs_path
@@ -412,8 +412,8 @@ mainLoop (WriteSource abs_path) = do
 
 mainLoop (WriteTarget abs_path) = do
     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
-    setDaemonState Stitching
     wait
+    setDaemonState Stitching
     closeWatch
     loadTargetFile abs_path
     srcs <- db listSourceFiles

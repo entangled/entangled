@@ -139,17 +139,26 @@ CommandConfig -> T.IO.putStrLn $ Toml.encode configCodec config
 ```
 
 ``` {.haskell #main-options}
+data FileType = SourceFile | TargetFile
+
 data InsertArgs = InsertArgs
-    { insertFiles :: [FilePath] }
+    { insertType :: FileType
+    , insertFiles :: [FilePath] }
+
+parseFileType :: Parser FileType
+parseFileType = (flag' SourceFile $ long "source" <> short 's' <> help "insert markdown source file")
+            <|> (flag' TargetFile $ long "target" <> short 't' <> help "insert target code file")
 
 parseInsertArgs :: Parser SubCommand
-parseInsertArgs = CommandInsert <$> InsertArgs
-    <$> many (argument str (metavar "FILES..."))
-    <**> helper
+parseInsertArgs = CommandInsert <$> (InsertArgs
+    <$> parseFileType
+    <*> many (argument str (metavar "FILES..."))
+    <**> helper)
 ```
 
 ``` {.haskell #sub-runners}
-CommandInsert a -> printLogger $ runInsert config (insertFiles a)
+CommandInsert (InsertArgs SourceFile fs) -> printLogger $ runInsertSources config fs
+CommandInsert (InsertArgs TargetFile fs) -> printLogger $ runInsertTargets config fs
 ```
 
 ### Tangling a single reference
@@ -163,7 +172,7 @@ CommandInsert a -> printLogger $ runInsert config (insertFiles a)
 ```
 
 ``` {.haskell #main-options}
-data TangleQuery = TangleFile FilePath | TangleRef Text deriving (Show)
+data TangleQuery = TangleFile FilePath | TangleRef Text | TangleAll deriving (Show)
 
 data TangleArgs = TangleArgs
     { tangleQuery :: TangleQuery
@@ -172,10 +181,11 @@ data TangleArgs = TangleArgs
 
 parseTangleArgs :: Parser TangleArgs
 parseTangleArgs = TangleArgs
-    <$> (   TangleFile <$> strOption ( long "file" <> short 'f'
-                                      <> metavar "TARGET" <> help "file target" )
-        <|> TangleRef  <$> strOption ( long "ref"  <> short 'r'
-                                      <> metavar "TARGET" <> help "reference target" ) )
+    <$> (   (TangleFile <$> strOption ( long "file" <> short 'f'
+                                      <> metavar "TARGET" <> help "file target" ))
+        <|> (TangleRef  <$> strOption ( long "ref"  <> short 'r'
+                                      <> metavar "TARGET" <> help "reference target" ))
+        <|> (flag' TangleAll $ long "all" <> short 'a' <> help "tangle all and write to disk" ))
     <*> switch (long "decorate" <> short 'd' <> help "Decorate with stitching comments.")
     <**> helper
 ```
@@ -277,6 +287,24 @@ instance MonadLogger LoggerIO where
 ## Tangle
 
 ``` {.haskell #main-run}
+writeTargetFile' :: (MonadIO m, MonadFileIO m, MonadLogger m, MonadThrow m) => Config -> FilePath -> m ()
+writeTargetFile' cfg rel_path = do
+    dbPath <- getDatabasePath cfg
+    withSQL dbPath $ do
+        refs <- queryReferenceMap cfg
+        let codes = expandedCode annotateComment refs
+            tangleRef tgt lang = case codes LM.!? tgt of
+                Nothing        -> logError $ "Reference `" <> tshow tgt <> "` not found."
+                Just (Left e)  -> logError $ tshow e
+                Just (Right t) -> liftIO $ T.IO.writeFile rel_path $ unlines' [headerComment lang rel_path, t]
+
+        tgt' <- queryTargetRef rel_path
+        case tgt' of
+            Nothing  -> logError $ "Target `" <> T.pack rel_path <> "` not found."
+            Just tgt -> do
+                    lang <- codeLanguage' refs tgt
+                    tangleRef tgt lang
+
 runTangle :: Config -> TangleArgs -> LoggerIO ()
 runTangle cfg TangleArgs{..} = do
     dbPath <- getDatabasePath cfg
@@ -286,16 +314,18 @@ runTangle cfg TangleArgs{..} = do
         let annotate = if tangleDecorate then annotateComment else annotateNaked
             codes = expandedCode annotate refs
             tangleRef tgt = case codes LM.!? tgt of
-                Nothing -> logError $ "Reference `" <> tshow tgt <> "` not found."
-                Just (Left e) -> logError $ tshow e
-                Just (Right t) -> liftIO $ T.IO.putStrLn $ t
+                Nothing -> throwM $ TangleError $ "Reference `" <> tshow tgt <> "` not found."
+                Just (Left e) -> throwM $ TangleError $ tshow e
+                Just (Right t) -> return t
+
         case tangleQuery of
-            TangleRef tgt -> tangleRef (ReferenceName tgt)
+            TangleRef tgt -> liftIO $ T.IO.putStrLn $ tangleRef (ReferenceName tgt)
             TangleFile f  -> do
                 ref' <- queryTargetRef f
                 case ref' of
                     Nothing  -> logError $ "Target `" <> T.pack f <> "` not found."
-                    Just ref -> tangleRef ref
+                    Just ref -> liftIO $ T.IO.putStrLn $  unlines' [headerComment lang f, tangleRef ref]
+            TangleAll -> mapM_ (\f -> 
 ```
 
 ## Stitch
@@ -324,9 +354,13 @@ runList cfg = do
 
 ## Insert
 
+``` {.haskell #main-imports}
+import Stitch (stitch)
+```
+
 ``` {.haskell #main-run}
-runInsert :: Config -> [FilePath] -> LoggerIO ()
-runInsert cfg files = do
+runInsertSources :: Config -> [FilePath] -> LoggerIO ()
+runInsertSources cfg files = do
     dbPath <- getDatabasePath cfg
     logMessage $ "inserting files: " <> tshow files
     withSQL dbPath $ createTables >> mapM_ readDoc files
@@ -335,5 +369,16 @@ runInsert cfg files = do
             case doc of
                 Left e -> liftIO $ T.IO.putStrLn ("warning: " <> tshow e)
                 Right d -> insertDocument f d
+
+runInsertTargets :: Config -> [FilePath] -> LoggerIO ()
+runInsertTargets cfg files = do
+    dbPath <- getDatabasePath cfg
+    logMessage $ "inserting files: " <> tshow files
+    withSQL dbPath $ createTables >> mapM_ readTgt files
+    where readTgt f = do
+            refs' <- runReaderT (liftIO (T.IO.readFile f) >>= stitch f) cfg
+            case refs' of
+                Left err -> logError $ "Error loading '" <> T.pack f <> "':" <> tshow err
+                Right refs -> updateTarget refs
 ```
 
