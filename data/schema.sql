@@ -1,4 +1,5 @@
 -- ------ language="SQLite" file="data/schema.sql"
+-- vim:ft=sqlite
 pragma synchronous = off;
 pragma journal_mode = memory;
 
@@ -18,6 +19,28 @@ create table if not exists "codes"
     , foreign key ("document") references "documents"("id") );
 -- ------ end
 -- ------ begin <<schema>>[2]
+create table if not exists "classes"
+    ( "class"       text not null
+    -- ------ begin <<reference-code>>[0]
+    , "codeName"    text not null
+    , "codeOrdinal" integer not null
+    , foreign key ("codeName") references "codes"("name")
+    , foreign key ("codeOrdinal") references "codes"("ordinal")
+    -- ------ end
+    );
+
+create table if not exists "attributes"
+    ( "attribute"   text not null
+    , "value"       text not null
+    -- ------ begin <<reference-code>>[0]
+    , "codeName"    text not null
+    , "codeOrdinal" integer not null
+    , foreign key ("codeName") references "codes"("name")
+    , foreign key ("codeOrdinal") references "codes"("ordinal")
+    -- ------ end
+    );
+-- ------ end
+-- ------ begin <<schema>>[3]
 create table if not exists "content"
     ( "id"          integer primary key autoincrement
     , "document"    integer not null
@@ -29,7 +52,7 @@ create table if not exists "content"
     , foreign key ("codeOrdinal") references "codes"("ordinal")
     , check ("plain" is not null or ("codeName" is not null and "codeOrdinal" is not null)) );
 -- ------ end
--- ------ begin <<schema>>[3]
+-- ------ begin <<schema>>[4]
 create table if not exists "targets"
     ( "filename"  text not null unique
     , "codename"  text not null

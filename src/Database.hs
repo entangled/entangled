@@ -84,12 +84,17 @@ insertCodes :: Int64 -> ReferenceMap -> SQL ()
 insertCodes docId codes = do
         conn <- getConnection
         liftIO $ executeMany conn "insert into `codes` values (?,?,?,?,?)" rows
+        liftIO $ executeMany conn "insert into `classes` values (?,?,?)" classes
     where codeRow ( (ReferenceId (ReferenceName name) count)
                   , (CodeBlock (KnownLanguage Language{languageName}) _ source) )
               = Just (name, count, source, languageName, docId)
           codeRow _
               = Nothing
           rows = catMaybes $ map codeRow (M.toList codes)
+          classRows ( (ReferenceId (ReferenceName name) count)
+                    , block )
+              = map (\c -> (c, name, count)) $ getCodeClasses block
+          classes = concatMap classRows (M.toList codes)
 -- ------ end
 -- ------ begin <<database-insertion>>[1]
 insertContent :: Int64 -> [Content] -> SQL ()

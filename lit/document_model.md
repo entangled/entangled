@@ -148,6 +148,22 @@ data ProgrammingLanguage
     deriving (Show, Eq)
 ```
 
+#### Extracting attributes
+
+``` {.haskell #document-structure}
+getCodeClasses :: CodeBlock -> [Text]
+getCodeClasses CodeBlock{..} = classes codeProperties
+    where classes [] = []
+          classes (CodeClass c : cs) = c : classes cs
+          classes (_ : cs) = classes cs
+
+getCodeAttributes :: CodeBlock -> [(Text, Text)]
+getCodeAttributes CodeBlock{..} = attrs codeProperties
+    where attrs [] = []
+          attrs (CodeAttribute k v : cs) = (k, v) : attrs cs
+          attrs (_ : cs) = attrs cs
+```
+
 ## Conversion
 
 We can convert a reference back to text by looking up the reference. If the code block is emtpy this returns `Nothing`. This is due to the choice not to include the final newline in the code block.

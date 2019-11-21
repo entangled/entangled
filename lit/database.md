@@ -101,6 +101,7 @@ schema.svg: <<file|schema>>
 In `SQLite.Simple` the above schema becomes
 
 ``` {.sqlite file=data/schema.sql}
+-- vim:ft=sqlite
 pragma synchronous = off;
 pragma journal_mode = memory;
 
@@ -156,13 +157,44 @@ insertCodes :: Int64 -> ReferenceMap -> SQL ()
 insertCodes docId codes = do
         conn <- getConnection
         liftIO $ executeMany conn "insert into `codes` values (?,?,?,?,?)" rows
+        liftIO $ executeMany conn "insert into `classes` values (?,?,?)" classes
     where codeRow ( (ReferenceId (ReferenceName name) count)
                   , (CodeBlock (KnownLanguage Language{languageName}) _ source) )
               = Just (name, count, source, languageName, docId)
           codeRow _
               = Nothing
           rows = catMaybes $ map codeRow (M.toList codes)
+          classRows ( (ReferenceId (ReferenceName name) count)
+                    , block )
+              = map (\c -> (c, name, count)) $ getCodeClasses block
+          classes = concatMap classRows (M.toList codes)
 ```
+
+A table that references specific code blocks should reference both the code name and the code ordinal.
+
+``` {.sqlite #reference-code}
+, "codeName"    text not null
+, "codeOrdinal" integer not null
+, foreign key ("codeName") references "codes"("name")
+, foreign key ("codeOrdinal") references "codes"("ordinal")
+```
+
+### Classes and attributes
+
+``` {.sqlite #schema}
+create table if not exists "classes"
+    ( "class"       text not null
+    <<reference-code>>
+    );
+
+create table if not exists "attributes"
+    ( "attribute"   text not null
+    , "value"       text not null
+    <<reference-code>>
+    );
+```
+
+
 
 ### Content
 
