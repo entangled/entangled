@@ -207,23 +207,10 @@ instance MonadLogger LoggerIO where
     logEntry level x = liftIO $ T.IO.putStrLn $ tshow level <> ": " <> x
 -- ------ end
 -- ------ begin <<main-run>>[2]
-writeTargetFile' :: (MonadIO m, MonadFileIO m, MonadLogger m, MonadThrow m) => Config -> FilePath -> m ()
-writeTargetFile' cfg rel_path = do
-    dbPath <- getDatabasePath cfg
-    withSQL dbPath $ do
-        refs <- queryReferenceMap cfg
-        let codes = expandedCode annotateComment refs
-            tangleRef tgt lang = case codes LM.!? tgt of
-                Nothing        -> logError $ "Reference `" <> tshow tgt <> "` not found."
-                Just (Left e)  -> logError $ tshow e
-                Just (Right t) -> liftIO $ T.IO.writeFile rel_path $ unlines' [headerComment lang rel_path, t]
-
-        tgt' <- queryTargetRef rel_path
-        case tgt' of
-            Nothing  -> logError $ "Target `" <> T.pack rel_path <> "` not found."
-            Just tgt -> do
-                    lang <- codeLanguage' refs tgt
-                    tangleRef tgt lang
+writeFile' :: (MonadIO m) => FilePath -> Text -> m ()
+writeFile' filename text = liftIO $ do
+    createDirectoryIfMissing True (takeDirectory filename)
+    T.IO.writeFile filename text
 
 runTangle :: Config -> TangleArgs -> LoggerIO ()
 runTangle cfg TangleArgs{..} = do
@@ -237,15 +224,19 @@ runTangle cfg TangleArgs{..} = do
                 Nothing -> throwM $ TangleError $ "Reference `" <> tshow tgt <> "` not found."
                 Just (Left e) -> throwM $ TangleError $ tshow e
                 Just (Right t) -> return t
+            tangleFile f = queryTargetRef f >>= \case
+                Nothing -> throwM $ TangleError $ "Target `" <> T.pack f <> "` not found."
+                Just ref -> do
+                    lang <- codeLanguage' refs ref
+                    content <- tangleRef ref
+                    return $ unlines' [headerComment lang f, content]
 
         case tangleQuery of
-            TangleRef tgt -> liftIO $ T.IO.putStrLn $ tangleRef (ReferenceName tgt)
-            TangleFile f  -> do
-                ref' <- queryTargetRef f
-                case ref' of
-                    Nothing  -> logError $ "Target `" <> T.pack f <> "` not found."
-                    Just ref -> liftIO $ T.IO.putStrLn $  unlines' [headerComment lang f, tangleRef ref]
-            TangleAll -> mapM_ (\f -> 
+            TangleRef tgt -> tangleRef (ReferenceName tgt) >>= (\x -> liftIO $ T.IO.putStrLn x)
+            TangleFile f  -> tangleFile f >>= (\x -> liftIO $ T.IO.putStrLn x)
+            TangleAll -> do
+                fs <- listTargetFiles
+                mapM_ (\f -> tangleFile f >>= writeFile' f) fs 
 -- ------ end
 -- ------ begin <<main-run>>[3]
 runStitch :: Config -> StitchArgs -> LoggerIO ()
@@ -284,6 +275,7 @@ runInsertTargets cfg files = do
     withSQL dbPath $ createTables >> mapM_ readTgt files
     where readTgt f = do
             refs' <- runReaderT (liftIO (T.IO.readFile f) >>= stitch f) cfg
+            liftIO $ print refs'
             case refs' of
                 Left err -> logError $ "Error loading '" <> T.pack f <> "':" <> tshow err
                 Right refs -> updateTarget refs
