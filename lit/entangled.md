@@ -225,4 +225,9 @@ toEntangledError _ (Right x) = Right x
 toEntangledError f (Left x) = Left $ f $ tshow x
 
 instance Exception EntangledError
+
+formatError :: EntangledError -> Text
+formatError (TangleError t) = "tangling: " <> t
+formatError (StitchError t) = "stitching: " <> t
+formatError x = tshow x
 ```

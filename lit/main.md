@@ -368,9 +368,8 @@ runInsertTargets cfg files = do
     withSQL dbPath $ createTables >> mapM_ readTgt files
     where readTgt f = do
             refs' <- runReaderT (liftIO (T.IO.readFile f) >>= stitch f) cfg
-            liftIO $ print refs'
             case refs' of
-                Left err -> logError $ "Error loading '" <> T.pack f <> "':" <> tshow err
+                Left err -> logError $ "Error loading '" <> T.pack f <> "': " <> formatError err
                 Right refs -> updateTarget refs
 ```
 

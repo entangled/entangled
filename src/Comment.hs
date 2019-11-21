@@ -33,7 +33,7 @@ import Attributes (attributes, cssIdentifier)
 
 -- ------ begin <<generate-comment>>[0]
 delim :: Text
-delim = " -#- entangled -#- "
+delim = " ~\\~ "
 -- ------ end
 -- ------ begin <<generate-comment>>[1]
 comment :: ProgrammingLanguage
@@ -74,7 +74,7 @@ topHeader = do
 commented :: (MonadParsec e Text m)
           => Language -> m a -> m (a, Text)
 commented lang p = do 
-    indent <- takeWhileP Nothing (`elem` (" \t" :: [Char]))
+    indent <- takeWhileP (Just "initial indent") (`elem` (" \t" :: [Char]))
     pre <- chunk $ (languageStartComment lang) <> delim
     x <- p
     post <- chunk $ (maybe "" id $ languageCloseComment lang)
@@ -86,7 +86,7 @@ commented lang p = do
 beginBlock :: (MonadParsec e Text m)
            => m ReferenceId
 beginBlock = do
-    chunk " begin <<"
+    chunk "begin <<"
     name <- cssIdentifier
     chunk ">>["
     count <- decimal
@@ -95,6 +95,6 @@ beginBlock = do
 
 endBlock :: (MonadParsec e Text m)
          => m ()
-endBlock = chunk " end " >> return ()
+endBlock = chunk "end" >> return ()
 -- ------ end
 -- ------ end

@@ -455,7 +455,7 @@ The `-#- entangled -#-` bit is stored in `delim`.
 
 ``` {.haskell #generate-comment}
 delim :: Text
-delim = " -#- entangled -#- "
+delim = " ~\\~ "
 ```
 
 Given any content, the `comment` function generates a commented line following the above prescription.
@@ -536,7 +536,7 @@ Other parsers will always be combined with `commented`, giving the value of the 
 commented :: (MonadParsec e Text m)
           => Language -> m a -> m (a, Text)
 commented lang p = do 
-    indent <- takeWhileP Nothing (`elem` (" \t" :: [Char]))
+    indent <- takeWhileP (Just "initial indent") (`elem` (" \t" :: [Char]))
     pre <- chunk $ (languageStartComment lang) <> delim
     x <- p
     post <- chunk $ (maybe "" id $ languageCloseComment lang)
@@ -549,7 +549,7 @@ commented lang p = do
 beginBlock :: (MonadParsec e Text m)
            => m ReferenceId
 beginBlock = do
-    chunk " begin <<"
+    chunk "begin <<"
     name <- cssIdentifier
     chunk ">>["
     count <- decimal
@@ -558,7 +558,7 @@ beginBlock = do
 
 endBlock :: (MonadParsec e Text m)
          => m ()
-endBlock = chunk " end " >> return ()
+endBlock = chunk "end" >> return ()
 ```
 
 ## Testing

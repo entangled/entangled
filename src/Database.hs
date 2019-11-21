@@ -111,7 +111,8 @@ insertContent docId content = do
 insertTargets :: Int64 -> Map FilePath ReferenceName -> SQL ()
 insertTargets docId files = do
         conn <- getConnection
-        liftIO $ executeMany conn "insert into `targets` values (?, ?, ?)" rows
+        liftIO $ print rows
+        liftIO $ executeMany conn "insert into `targets`(`filename`,`codename`,`document`) values (?, ?, ?)" rows
     where targetRow (path, ReferenceName name) = (path, name, docId)
           rows = map targetRow (M.toList files)
 -- ------ end
@@ -130,26 +131,25 @@ removeDocumentData :: Int64 -> SQL ()
 removeDocumentData docId = do
     conn <- getConnection
     liftIO $ do
+        execute conn "delete from `targets` where `document` is ?" (Only docId)
         execute conn "delete from `content` where `document` is ?" (Only docId)
         execute conn "delete from `codes` where `document` is ?" (Only docId)
-        execute conn "delete from `targets` where `document` is ?" (Only docId)
 
 insertDocument :: FilePath -> Document -> SQL ()
 insertDocument rel_path Document{..} = do
     conn <- getConnection
     docId' <- getDocumentId rel_path
-    withTransactionM $ do
-        docId <- case docId' of
-            Just docId -> do
-                logMessage $ "Replacing '" <> T.pack rel_path <> "'."
-                removeDocumentData docId >> return docId
-            Nothing    -> do
-                logMessage $ "Inserting new '" <> T.pack rel_path <> "'."
-                liftIO $ execute conn "insert into `documents`(`filename`) values (?)" (Only rel_path)
-                liftIO $ lastInsertRowId conn
-        insertCodes docId references
-        insertContent docId documentContent
-        insertTargets docId documentTargets
+    docId <- case docId' of
+        Just docId -> do
+            logMessage $ "Replacing '" <> T.pack rel_path <> "'."
+            removeDocumentData docId >> return docId
+        Nothing    -> do
+            logMessage $ "Inserting new '" <> T.pack rel_path <> "'."
+            liftIO $ execute conn "insert into `documents`(`filename`) values (?)" (Only rel_path)
+            liftIO $ lastInsertRowId conn
+    insertCodes docId references
+    insertContent docId documentContent
+    insertTargets docId documentTargets
 -- ------ end
 -- ------ begin <<database-update>>[1]
 updateTarget :: [ReferencePair] -> SQL () 

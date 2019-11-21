@@ -104,6 +104,7 @@ In `SQLite.Simple` the above schema becomes
 -- vim:ft=sqlite
 pragma synchronous = off;
 pragma journal_mode = memory;
+pragma foreign_keys = on;
 
 <<schema>>
 ```
@@ -134,7 +135,9 @@ createTables = do
 ``` {.sqlite #schema}
 create table if not exists "documents"
     ( "id"        integer primary key autoincrement
-    , "filename"  text not null );
+    , "filename"  text not null
+    , "time"      timestamp default current_timestamp not null
+    );
 ```
 
 ### Codes
@@ -175,8 +178,9 @@ A table that references specific code blocks should reference both the code name
 ``` {.sqlite #reference-code}
 , "codeName"    text not null
 , "codeOrdinal" integer not null
-, foreign key ("codeName") references "codes"("name")
-, foreign key ("codeOrdinal") references "codes"("ordinal")
+, constraint "rcode" foreign key ("codeName", "codeOrdinal") references "codes"("name","ordinal") on delete cascade
+-- , foreign key ("codeName") references "codes"("name")
+-- , foreign key ("codeOrdinal") references "codes"("ordinal")
 ```
 
 ### Classes and attributes
@@ -206,9 +210,9 @@ create table if not exists "content"
     , "codeName"    text
     , "codeOrdinal" integer
     , foreign key ("document") references "documents"("id")
-    , foreign key ("codeName") references "codes"("name")
-    , foreign key ("codeOrdinal") references "codes"("ordinal")
-    , check ("plain" is not null or ("codeName" is not null and "codeOrdinal" is not null)) );
+    , foreign key ("codeName", "codeOrdinal") references "codes"("name","ordinal")
+    );
+    -- , check ("plain" is not null or ("codeName" is not null and "codeOrdinal" is not null)) )
 ```
 
 ``` {.haskell #database-insertion}
@@ -230,7 +234,8 @@ create table if not exists "targets"
     ( "filename"  text not null unique
     , "codename"  text not null
     , "document"  integer not null
-    , foreign key ("codename") references "codes"("name")
+    , "time"      timestamp default current_timestamp not null
+    -- , foreign key ("codename") references "codes"("name")
     , foreign key ("document") references "documents"("id") );
 ```
 
@@ -238,7 +243,8 @@ create table if not exists "targets"
 insertTargets :: Int64 -> Map FilePath ReferenceName -> SQL ()
 insertTargets docId files = do
         conn <- getConnection
-        liftIO $ executeMany conn "insert into `targets` values (?, ?, ?)" rows
+        liftIO $ print rows
+        liftIO $ executeMany conn "insert into `targets`(`filename`,`codename`,`document`) values (?, ?, ?)" rows
     where targetRow (path, ReferenceName name) = (path, name, docId)
           rows = map targetRow (M.toList files)
 ```
@@ -264,26 +270,25 @@ removeDocumentData :: Int64 -> SQL ()
 removeDocumentData docId = do
     conn <- getConnection
     liftIO $ do
+        execute conn "delete from `targets` where `document` is ?" (Only docId)
         execute conn "delete from `content` where `document` is ?" (Only docId)
         execute conn "delete from `codes` where `document` is ?" (Only docId)
-        execute conn "delete from `targets` where `document` is ?" (Only docId)
 
 insertDocument :: FilePath -> Document -> SQL ()
 insertDocument rel_path Document{..} = do
     conn <- getConnection
     docId' <- getDocumentId rel_path
-    withTransactionM $ do
-        docId <- case docId' of
-            Just docId -> do
-                logMessage $ "Replacing '" <> T.pack rel_path <> "'."
-                removeDocumentData docId >> return docId
-            Nothing    -> do
-                logMessage $ "Inserting new '" <> T.pack rel_path <> "'."
-                liftIO $ execute conn "insert into `documents`(`filename`) values (?)" (Only rel_path)
-                liftIO $ lastInsertRowId conn
-        insertCodes docId references
-        insertContent docId documentContent
-        insertTargets docId documentTargets
+    docId <- case docId' of
+        Just docId -> do
+            logMessage $ "Replacing '" <> T.pack rel_path <> "'."
+            removeDocumentData docId >> return docId
+        Nothing    -> do
+            logMessage $ "Inserting new '" <> T.pack rel_path <> "'."
+            liftIO $ execute conn "insert into `documents`(`filename`) values (?)" (Only rel_path)
+            liftIO $ lastInsertRowId conn
+    insertCodes docId references
+    insertContent docId documentContent
+    insertTargets docId documentTargets
 ```
 
 ### Stitch

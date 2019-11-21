@@ -21,7 +21,7 @@ sourceDocument = do
     (prop, _) <- tokenP topHeader
     lang <- maybe (fail "No valid language found in header.") return
                   $ getAttribute prop "language" >>= languageFromName config
-    (_, refs) <- mconcat <$> many (sourceBlock lang)
+    (_, refs) <- mconcat <$> some (sourceBlock lang)
     return refs
 ```
 
@@ -63,7 +63,8 @@ stitch :: ( MonadReader Config m )
 stitch filename text = do
     p <- asks $ runReaderT (sourceDocument :: SourceParser [ReferencePair])
     let refs = parse p filename $ ListStream (T.lines text)
-    return $ toEntangledError StitchError refs
+    return $ either (\e -> Left $ StitchError $ T.pack $ errorBundlePretty e)
+                    Right refs
 ```
 
 ## Imports
@@ -77,7 +78,7 @@ import TextUtil (indent, unindent, unlines')
 
 import Text.Megaparsec
     ( MonadParsec, Parsec, parse, anySingle, manyTill, (<|>)
-    , many )
+    , many, some, errorBundlePretty )
 import Data.Void (Void)
 <<import-text>>
 import qualified Data.Map.Strict as M
