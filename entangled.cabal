@@ -60,9 +60,9 @@ library
     , filepath >=1.4 && <2
     , fsnotify >=0.3 && <0.4
     , hspec >=2.5 && <3
-    , microlens-platform >=0.3 && <0.4
+    , microlens-platform >=0.4 && <0.5
     , mtl >=2.2 && <3
-    , optparse-applicative >=0.14 && <0.15
+    , optparse-applicative >=0.15 && <0.16
     , parsec >=3 && <4
     , prettyprinter >=1.2 && <2
     , prettyprinter-ansi-terminal >=1.1 && <2
@@ -92,9 +92,9 @@ executable entangled
     , filepath >=1.4 && <2
     , fsnotify >=0.3 && <0.4
     , hspec >=2.5 && <3
-    , microlens-platform >=0.3 && <0.4
+    , microlens-platform >=0.4 && <0.5
     , mtl >=2.2 && <3
-    , optparse-applicative >=0.14 && <0.15
+    , optparse-applicative >=0.15 && <0.16
     , parsec >=3 && <4
     , prettyprinter >=1.2 && <2
     , prettyprinter-ansi-terminal >=1.1 && <2
@@ -125,9 +125,9 @@ test-suite entangled-test
     , filepath >=1.4 && <2
     , fsnotify >=0.3 && <0.4
     , hspec >=2.5 && <3
-    , microlens-platform >=0.3 && <0.4
+    , microlens-platform >=0.4 && <0.5
     , mtl >=2.2 && <3
-    , optparse-applicative >=0.14 && <0.15
+    , optparse-applicative >=0.15 && <0.16
     , parsec >=3 && <4
     , prettyprinter >=1.2 && <2
     , prettyprinter-ansi-terminal >=1.1 && <2

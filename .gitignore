@@ -15,4 +15,5 @@ debian
 dist-ghc
 dist-newstyle
 *-stamp
+.entangled
 

@@ -31,17 +31,17 @@ Todo:
 
 # Building
 
-`enTangleD` is written in [Haskell](https://www.haskell.org/), and uses the `stack` build system. You can build an executable by running
+`enTangleD` is written in [Haskell](https://www.haskell.org/), and uses the `cabal` build system. You can build an executable by running
 
-    stack build
+    cabal build
 
-If this is the first time you run `stack`, this may take a while. Install the executable in your `~/.local/bin`
+If this is the first time you run `cabal`, this may take a while. Install the executable in your `~/.local/bin`
 
-    stack install
+    cabal install
 
 Run unit tests
 
-    stack test
+    cabal test
 
 # Using
 
