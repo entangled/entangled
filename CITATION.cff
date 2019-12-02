@@ -1,0 +1,17 @@
+# YAML 1.2
+---
+abstract: "Literate programming is a programming paradigm introduced by Donald Knuth in which a program is given as an explanation of the program logic in a natural language, such as English, interspersed with snippets of macros and traditional source code, from which a compilable source code can be generated. Entangled makes writing literate programs easier by keeping code blocks in Markdown up-to-date with generated source files. By monitoring the tangled source files, any change in the master document or source files is reflected in the other."
+authors: 
+  -
+    affiliation: "Netherlands eScience Center"
+    family-names: Hidding
+    given-names: Johan
+    orcid: "https://orcid.org/0000-0002-7550-1796"
+cff-version: "1.1.0"
+keywords: 
+  - "Literate Programming"
+license: "Apache-2.0"
+message: "If you use this software, please cite it using these metadata."
+repository-code: "https://github.com/entangled/entangled"
+title: Entangled
+...
