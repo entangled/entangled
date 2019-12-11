@@ -17,6 +17,7 @@ module Document
 import qualified Data.Text as T
 import qualified Data.Map.Strict as M
 import Data.Maybe
+import Text.Parsec (SourcePos)
 
 unlines' :: [T.Text] -> T.Text
 unlines' = T.intercalate (T.pack "\n")
@@ -45,6 +46,7 @@ data CodeBlock = CodeBlock
     { codeLanguage   :: String
     , codeProperties :: [CodeProperty]
     , codeSource     :: T.Text
+    , sourcePos      :: SourcePos
     } deriving (Show, Eq)
 
 {-| Each 'ReferenceID' connects to a 'CodeBlock'
@@ -79,7 +81,7 @@ contentToText ref (RawText x) = Just x
 contentToText ref (Reference r) 
     | code == T.pack "" = Nothing
     | otherwise         = Just code
-    where CodeBlock _ _ code = ref M.! r
+    where CodeBlock _ _ code _ = ref M.! r
 
 stitchText :: Document -> T.Text
 stitchText (Document refs c) = T.unlines $ mapMaybe (contentToText refs) c

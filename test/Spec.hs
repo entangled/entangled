@@ -40,7 +40,7 @@ markdownSpecs lib = do
             it "has a file reference to 'hello.cc'" $
                 refMap `shouldSatisfy` (\m -> FileReferenceId "hello.cc" `Map.member` m)
 
-            let CodeBlock lang _ code = refMap Map.! FileReferenceId "hello.cc"
+            let CodeBlock lang _ code pos = refMap Map.! FileReferenceId "hello.cc"
             it "has a codeblock in c++" $
                 lang `shouldBe` "C++"
 

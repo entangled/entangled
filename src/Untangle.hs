@@ -21,7 +21,7 @@ import Data.List
 import Text.Regex.TDFA
 import Text.Read
 import qualified Text.Parsec as Parsec
-import Text.Parsec ((<|>), try, many, anyToken, manyTill)
+import Text.Parsec ((<|>), try, many, anyToken, manyTill, getPosition)
 
 import Test.Hspec
 import Data.Either.Combinators (fromRight')
@@ -90,6 +90,7 @@ token = Parsec.tokenPrim id nextPos
 document :: Monad m => Parser m ReferenceMap
 document = do
     header <- token matchHeader
+    pos <- getPosition
     let language = headerLanguage header
     commentString <- asks $ getCommentString language
     case commentString of
@@ -102,7 +103,7 @@ document = do
                      (token $ matchEnd comment)
 
     addReference (FileReferenceId $ headerFilename header)
-                 (CodeBlock language [] (T.pack content))
+                 (CodeBlock language [] (T.pack content) pos)
     getRefs
 
 unindent :: String -> String -> Maybe String
@@ -117,6 +118,7 @@ reference = do
     comment  <- getComment
 
     ref     <- try $ token $ matchReference comment
+    pos     <- getPosition
     lines   <- catMaybes <$> manyTill (reference <|> Just <$> anyToken)
                                       (token $ matchEnd comment)
     let strippedContent = map (unindent $ rtIndent ref) lines
@@ -124,7 +126,7 @@ reference = do
     let content = intercalate "\n" $ catMaybes strippedContent
 
     addReference (NameReferenceId (rtName ref) (rtIndex ref))
-                 (CodeBlock language [] (T.pack content))
+                 (CodeBlock language [] (T.pack content) pos)
 
     if rtIndex ref == 0
         then return $ Just $ rtIndent ref ++ "<<" ++ rtName ref ++ ">>"

@@ -198,14 +198,15 @@ tangleTargets = do
 loadSourceFile :: FilePath -> TangleM (Either TangleError Document)
 loadSourceFile f = do
     source  <- liftIO $ T.IO.readFile f
-    parseMarkdown f source
+    shortPath <- liftIO $ makeRelativeToCurrentDirectory f
+    parseMarkdown shortPath source
 
 addSourceFile :: FilePath -> TangleM IOAction
 addSourceFile f = do
     shortPath <- liftIO $ makeRelativeToCurrentDirectory f
     source  <- liftIO $ T.IO.readFile f
     refs    <- use referenceMap
-    doc'    <- parseMarkdown' refs f source
+    doc'    <- parseMarkdown' refs shortPath source
     case doc' of
         Left err -> return $ msg Error $
             "Error loading '" ++ shortPath ++ "': " ++ show err

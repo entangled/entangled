@@ -15,7 +15,7 @@ import Data.Functor.Identity (Identity(..))
 import qualified Data.Text as T
 
 import qualified Text.Parsec as Parsec
-import Text.Parsec ((<|>), manyTill, anyChar, try, endOfLine, many, oneOf, noneOf, string, many1)
+import Text.Parsec ((<|>), manyTill, anyChar, try, endOfLine, many, oneOf, noneOf, string, many1, SourcePos, sourceName, sourceLine)
 
 import Model (TangleError(..), toTangleError)
 import Document
@@ -107,11 +107,11 @@ tangleNaked (Document refs _) = Map.fromList $ zip fileNames sources
           fileNames = map referenceName fileRefs
 
 {- Annotated tangle -}
-topAnnotation :: ReferenceId -> String -> String -> String -> String
-topAnnotation (NameReferenceId n i) comment close lang =
-    comment ++ " begin <<" ++ n ++ ">>[" ++ show i ++ "]" ++ close
-topAnnotation (FileReferenceId n) comment close lang =
-    comment ++ " language=\"" ++ lang ++ "\" file=\"" ++ n ++ "\"" ++ close
+topAnnotation :: ReferenceId -> String -> String -> String -> SourcePos -> String
+topAnnotation (NameReferenceId n i) comment close lang pos =
+    comment ++ " begin <<" ++ n ++ ">>[" ++ show i ++ "] project://" ++ sourceName pos ++ "#" ++ (show $ sourceLine pos) ++ close
+topAnnotation (FileReferenceId n) comment close lang pos =
+    comment ++ " language=\"" ++ lang ++ "\" file=\"" ++ n ++ "\" project://" ++ sourceName pos ++ "#" ++ (show $ sourceLine pos) ++ close
 
 lookupLanguage' :: (MonadReader Config m)
         => String -> m (Either TangleError Language)
@@ -123,11 +123,11 @@ lookupLanguage' name = do
 
 annotate :: (MonadReader Config m)
         => ReferenceId -> CodeBlock -> m (Either TangleError T.Text)
-annotate id (CodeBlock lang _ text) = do
+annotate id (CodeBlock lang _ text pos) = do
     l <- lookupLanguage' lang
     return $ do 
         (Language _ _ comment close) <- l
-        let top      = T.pack $ topAnnotation id comment close lang
+        let top      = T.pack $ topAnnotation id comment close lang pos
             bottom   = T.pack $ comment ++ " end" ++ close
         return $ top <> T.pack "\n" <> text <> T.pack "\n" <> bottom
 
