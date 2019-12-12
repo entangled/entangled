@@ -51,6 +51,7 @@ defaultLanguages =
     , Language "CSS"         ["css"]                      "/* ------" " */"
     , Language "Awk"         ["awk"]                      "## ------" ""
     , Language "OpenCL"      ["opencl"]                   "// ------" ""
+    , Language "Idris"       ["idris"]                    "-- ------" ""
     ]
 
 defaultConfig = Config defaultLanguages
