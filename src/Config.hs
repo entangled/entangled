@@ -52,6 +52,7 @@ defaultLanguages =
     , Language "Awk"         ["awk"]                      "## ------" ""
     , Language "OpenCL"      ["opencl"]                   "// ------" ""
     , Language "Idris"       ["idris"]                    "-- ------" ""
+    , Language "SQLite"      ["sqlite"]                   "-- ------" ""
     ]
 
 defaultConfig = Config defaultLanguages
