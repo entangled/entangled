@@ -396,6 +396,7 @@ startSession fs = do
     ts <- timeStamp
     run $ msgGroup (ts P.<+> P.pretty "Initializing")
         $ w <> x <> y
+    wait -- for intial tangle to complete before watching target files
     setWatch >>= run
     eventList' <- use $ eventChannel . to getChanContents
     eventList  <- liftIO eventList'
