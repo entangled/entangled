@@ -6,7 +6,8 @@ module Document
     , CodeProperty(..)
     , CodeBlock(..)
     , ReferenceMap
-    , countReferences
+    , countReferencesPerSource
+    , sourcePosId
     , Content(..)
     , Document(..)
     , isFileReference
@@ -14,10 +15,12 @@ module Document
     , listActiveReferences
     ) where
 
+import Data.Char (isAlphaNum)
 import qualified Data.Text as T
 import qualified Data.Map.Strict as M
 import Data.Maybe
-import Text.Parsec (SourcePos)
+import System.FilePath (takeBaseName)
+import Text.Parsec (SourcePos, sourceName)
 
 unlines' :: [T.Text] -> T.Text
 unlines' = T.intercalate (T.pack "\n")
@@ -29,12 +32,12 @@ unlines' = T.intercalate (T.pack "\n")
 {-| A code block may reference a filename or a noweb reference.
  -}
 data ReferenceId  = FileReferenceId FilePath
-                  | NameReferenceId String Int
+                  | NameReferenceId String String Int
                   deriving (Show, Eq, Ord)
 
 referenceName :: ReferenceId -> String
 referenceName (FileReferenceId x) = x
-referenceName (NameReferenceId x _) = x
+referenceName (NameReferenceId x _ _) = x
 
 data CodeProperty
     = CodeId String
@@ -59,8 +62,19 @@ emptyReferenceMap = M.fromList []
 allNameReferences :: String -> ReferenceMap -> [ReferenceId]
 allNameReferences name = filter ((== name) . referenceName) . M.keys
 
-countReferences :: String -> ReferenceMap -> Int
-countReferences name refs = length $ allNameReferences name refs
+referenceHasName :: String -> String -> ReferenceId -> Bool
+referenceHasName sourceId name r = case r of
+    (FileReferenceId x) -> x == name
+    (NameReferenceId x s _) -> x == name && s == sourceId
+
+allNameReferencesWithSource :: String -> String -> ReferenceMap -> [ReferenceId]
+allNameReferencesWithSource sourceId name = filter (referenceHasName sourceId name) . M.keys
+
+countReferencesPerSource :: String -> String -> ReferenceMap -> Int
+countReferencesPerSource sourceId name refs = length $ allNameReferencesWithSource sourceId name refs
+
+sourcePosId :: SourcePos -> String
+sourcePosId pos = takeWhile isAlphaNum $ takeBaseName $ sourceName pos
 
 {-| Any piece of 'Content' is a 'RawText' or 'Reference'.
 -}

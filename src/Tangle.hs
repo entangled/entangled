@@ -108,8 +108,8 @@ tangleNaked (Document refs _) = Map.fromList $ zip fileNames sources
 
 {- Annotated tangle -}
 topAnnotation :: ReferenceId -> String -> String -> String -> SourcePos -> String
-topAnnotation (NameReferenceId n i) comment close lang pos =
-    comment ++ " begin <<" ++ n ++ ">>[" ++ show i ++ "] project://" ++ sourceName pos ++ "#" ++ (show $ sourceLine pos) ++ close
+topAnnotation (NameReferenceId n sourceId i) comment close lang pos =
+    comment ++ " begin <<" ++ n ++ ">>[" ++ sourceId ++ ":" ++ show i ++ "] project://" ++ sourceName pos ++ "#" ++ (show $ sourceLine pos) ++ close
 topAnnotation (FileReferenceId n) comment close lang pos =
     comment ++ " language=\"" ++ lang ++ "\" file=\"" ++ n ++ "\" project://" ++ sourceName pos ++ "#" ++ (show $ sourceLine pos) ++ close
 

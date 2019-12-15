@@ -29,7 +29,7 @@ import Document
 parseMarkdown'' :: T.Text -> IO (Either TangleError Document)
 parseMarkdown'' t = do
     randomGen <- getStdGen
-    runReaderT (fst <$> runStateT (parseMarkdown "" t) randomGen) defaultConfig
+    runReaderT (fst <$> runStateT (parseMarkdown "hello.cc" t) randomGen) defaultConfig
 
 markdownSpecs :: Map.Map FilePath (T.Text, Document) -> Spec
 markdownSpecs lib = do
@@ -93,7 +93,7 @@ markdownSpecs lib = do
             let rm  = fromRight' rm'
             it "recovers the identical code block" $ do
                 let ref1 = FileReferenceId "hello.cc"
-                    ref2 = NameReferenceId "main-body" 0
+                    ref2 = NameReferenceId "main-body" "hello" 0
                 codeSource (rm Map.! ref1) `shouldBe` codeSource (rmo Map.! ref1)
                 codeSource (rm Map.! ref2) `shouldBe` codeSource (rmo Map.! ref2)
             

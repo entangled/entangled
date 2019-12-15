@@ -35,6 +35,7 @@ data Header = Header
 data ReferenceTag = ReferenceTag
     { rtName   :: String
     , rtIndex  :: Int
+    , rtSource :: String
     , rtIndent :: String
     } deriving (Eq, Show)
 
@@ -53,13 +54,17 @@ data ParserState = ParserState
     { psComment :: String
     , psLanguage :: String
     , psRefs :: ReferenceMap
+    , psLastRef :: ReferenceId
     } | EmptyState deriving (Show, Eq)
 
-updateRefs :: (ReferenceMap -> ReferenceMap) -> ParserState -> ParserState
-updateRefs f s@(ParserState _ _ r) = s { psRefs = f r}
+updateRefs :: ReferenceId -> (ReferenceMap -> ReferenceMap) -> ParserState -> ParserState
+updateRefs newRef f s@(ParserState _ _ r _) = s { psRefs = f r, psLastRef = newRef }
 
 getRefs :: Monad m => Parser m ReferenceMap
 getRefs = psRefs <$> Parsec.getState
+
+getLastRef :: Monad m => Parser m ReferenceId
+getLastRef = psLastRef <$> Parsec.getState
 
 getLanguage :: Monad m => Parser m String
 getLanguage = psLanguage <$> Parsec.getState
@@ -68,7 +73,7 @@ getComment :: Monad m => Parser m String
 getComment = psComment <$> Parsec.getState
 
 addReference :: Monad m => ReferenceId -> CodeBlock -> Parser m ()
-addReference r c = Parsec.modifyState $ updateRefs $ Map.insert r c
+addReference r c = Parsec.modifyState $ updateRefs r $ Map.insert r c
 
 -- ========================================================================= --
 -- Parser type definition and fundamentals                                   --
@@ -92,17 +97,18 @@ document = do
     header <- token matchHeader
     pos <- getPosition
     let language = headerLanguage header
+    let fileRef = FileReferenceId $ headerFilename header
     commentString <- asks $ getCommentString language
     case commentString of
         Nothing -> fail $ "Unknown language: " ++ language
-        Just c  -> Parsec.setState $ ParserState c language mempty
+        Just c  -> Parsec.setState $ ParserState c language mempty fileRef
 
     comment <- getComment
     content <- intercalate "\n" . catMaybes
         <$> manyTill (reference <|> Just <$> anyToken)
                      (token $ matchEnd comment)
 
-    addReference (FileReferenceId $ headerFilename header)
+    addReference fileRef
                  (CodeBlock language [] (T.pack content) pos)
     getRefs
 
@@ -116,8 +122,10 @@ reference :: Monad m => Parser m (Maybe String)
 reference = do
     language <- getLanguage
     comment  <- getComment
+    lastRef  <- getLastRef
 
     ref     <- try $ token $ matchReference comment
+    let name = (rtName ref)
     pos     <- getPosition
     lines   <- catMaybes <$> manyTill (reference <|> Just <$> anyToken)
                                       (token $ matchEnd comment)
@@ -125,11 +133,11 @@ reference = do
     when (isJust $ find isNothing strippedContent) $ fail "Indentation error"
     let content = intercalate "\n" $ catMaybes strippedContent
 
-    addReference (NameReferenceId (rtName ref) (rtIndex ref))
+    addReference (NameReferenceId name (rtSource ref) (rtIndex ref))
                  (CodeBlock language [] (T.pack content) pos)
 
-    if rtIndex ref == 0
-        then return $ Just $ rtIndent ref ++ "<<" ++ rtName ref ++ ">>"
+    if rtIndex ref == 0 && name /= referenceName lastRef
+        then return $ Just $ rtIndent ref ++ "<<" ++ name ++ ">>"
         else return Nothing
 
 -- ========================================================================= --
@@ -155,7 +163,7 @@ matchHeader line =
 
 referencePattern :: String -> String
 referencePattern comment = "^([ \\t]*)" ++ escape comment
-    ++ "[ \\t]+begin[ \\t]+<<(.+)>>\\[([0-9]+)\\]"
+    ++ "[ \\t]+begin[ \\t]+<<(.+)>>\\[([0-9A-Za-z]+):([0-9]+)\\]"
 
 matchReference :: String -> String -> Maybe ReferenceTag
 matchReference comment line =
@@ -163,10 +171,11 @@ matchReference comment line =
         []  -> Nothing
         [m] -> do
             let (name, _)        = m Array.! 2
-                (indexString, _) = m Array.! 3
+                (indexString, _) = m Array.! 4
+                (source, _)      = m Array.! 3
                 (indent, _)      = m Array.! 1
             idx <- readMaybe indexString :: Maybe Int
-            return $ ReferenceTag name idx indent
+            return $ ReferenceTag name idx source indent
 
 endPattern :: String -> String
 endPattern comment = "^[ \\t]*" ++ escape comment
@@ -201,10 +210,10 @@ untangleSpec = do
 
     describe "Untangle.matchReference" $ do
         it "unpacks a reference line" $
-            matchReference "//" "    // begin <<hello-world>>[1]" `shouldBe`
-                (Just $ ReferenceTag "hello-world" 1 "    ")
+            matchReference "//" "    // begin <<hello-world>>[src:1]" `shouldBe`
+                (Just $ ReferenceTag "hello-world" 1 "src" "    ")
         it "ignores fails" $
-            matchReference "//" "std::cout << \"// <<this is actual code>>[9]\";" `shouldSatisfy`
+            matchReference "//" "std::cout << \"// <<this is actual code>>[src:9]\";" `shouldSatisfy`
                 isNothing
 
     describe "Untangle.matchEnd" $ do

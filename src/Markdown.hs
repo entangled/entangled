@@ -109,29 +109,29 @@ getLanguage (_ : xs) = getLanguage xs
 randomNameReference :: (MonadState s m, RandomGen s) => m ReferenceId
 randomNameReference = do
     uuid :: UUID <- state random
-    return $ NameReferenceId (toString uuid) 0
+    return $ NameReferenceId (toString uuid) "uuid" 0
 
-getReferenceId :: (MonadState s m, RandomGen s) => [CodeProperty] -> DocumentParser m ReferenceId
-getReferenceId [] = randomNameReference
+getReferenceId :: (MonadState s m, RandomGen s) => String -> [CodeProperty] -> DocumentParser m ReferenceId
+getReferenceId _ [] = randomNameReference
 
-getReferenceId (CodeAttribute tag value : xs) =
+getReferenceId sourceId (CodeAttribute tag value : xs) =
     case tag of
         "file"    -> return $ FileReferenceId value
-        _         -> getReferenceId xs
+        _         -> getReferenceId sourceId xs
 
-getReferenceId (CodeId id : _) = do
-    n <- countReferences id <$> Parsec.getState
-    return $ NameReferenceId id n
+getReferenceId sourceId (CodeId id : _) = do
+    i <- countReferencesPerSource sourceId id <$> Parsec.getState
+    return $ NameReferenceId id sourceId i
 
-getReferenceId (_ : xs) = getReferenceId xs
+getReferenceId sourceId (_ : xs) = getReferenceId sourceId xs
 
 token :: Monad m => (T.Text -> Maybe a) -> DocumentParser m a
 token = Parsec.tokenPrim T.unpack nextPos
     where nextPos p _ _ = Parsec.incSourceLine p 1
 
-fromCodeBlock :: (MonadState s m, RandomGen s) => CodeBlock -> DocumentParser m Content
-fromCodeBlock code = do
-    id   <- getReferenceId (codeProperties code)
+fromCodeBlock :: (MonadState s m, RandomGen s) => String -> CodeBlock -> DocumentParser m Content
+fromCodeBlock sourceId code = do
+    id <- getReferenceId sourceId (codeProperties code)
     Parsec.updateState (M.insert id code)
     return $ Reference id
 
@@ -143,7 +143,7 @@ parseCodeBlock' = do
     (end, _)       <- token parseDelim
     language       <- getLanguage props
     let langName = maybe "<unknown-language>" languageName language
-    ref            <- fromCodeBlock $ CodeBlock langName props (unlines' content) pos
+    ref            <- fromCodeBlock (sourcePosId pos) $ CodeBlock langName props (unlines' content) pos
     return [RawText begin, ref, RawText end]
 
 parseNormalBlock' :: Monad m => DocumentParser m [Content]
