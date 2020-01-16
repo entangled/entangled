@@ -22,7 +22,7 @@ import qualified Text.Parsec as Parsec
 import Text.Parsec.Text
 import Text.Parsec (
       manyTill, anyChar, try, string, many1, many, noneOf, spaces, endBy, (<|>)
-    , eof, endOfLine, lookAhead, newline, option)
+    , eof, endOfLine, lookAhead, newline, option, getPosition)
 
 import Config
 import Model (TangleError, toTangleError)
@@ -138,11 +138,12 @@ fromCodeBlock code = do
 parseCodeBlock' :: (MonadReader Config m, MonadState s m, RandomGen s) => DocumentParser m [Content]
 parseCodeBlock' = do
     (begin, props) <- token parseDelim
+    pos            <- getPosition
     content        <- manyTill (token Just) (try $ lookAhead $ token parseDelim)
     (end, _)       <- token parseDelim
     language       <- getLanguage props
     let langName = maybe "<unknown-language>" languageName language
-    ref            <- fromCodeBlock $ CodeBlock langName props (unlines' content)
+    ref            <- fromCodeBlock $ CodeBlock langName props (unlines' content) pos
     return [RawText begin, ref, RawText end]
 
 parseNormalBlock' :: Monad m => DocumentParser m [Content]
