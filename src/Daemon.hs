@@ -31,7 +31,7 @@ import Document
 import Config
 import Database
 import Logging
-import Tangle (parseMarkdown, expandedCode)
+import Tangle (parseMarkdown, expandedCode, Annotator)
 import Comment
 import Stitch (stitch)
 
@@ -215,16 +215,20 @@ loadTargetFile abs_path = do
             db $ updateTarget refs
 -- ------ end
 -- ------ begin <<daemon-writing>>[0]
-codeLanguage' :: (MonadThrow m) => ReferenceMap -> ReferenceName -> m Language
+codeLanguage' :: ( MonadThrow m )
+              => ReferenceMap -> ReferenceName -> m Text
 codeLanguage' refs rname = case (codeLanguage $ refs M.! (ReferenceId rname 0)) of
     KnownLanguage lang -> return lang
     _                  -> throwM $ DatabaseError $ "Trying to tangle " <> tshow rname <> " with no known language."
+
+annotateComment' :: Config -> Annotator
+annotateComment' cfg rmap rid = runReaderT (annotateComment rmap rid) cfg
 
 writeTargetFile :: FilePath -> Daemon ()
 writeTargetFile rel_path = do
     cfg <- ask
     refs <- db $ queryReferenceMap cfg
-    let codes = expandedCode annotateComment refs
+    let codes = expandedCode (annotateComment' cfg) refs
         tangleRef tgt lang = case codes LM.!? tgt of
             Nothing        -> logError $ "Reference `" <> tshow tgt <> "` not found."
             Just (Left e)  -> logError $ tshow e
@@ -234,8 +238,10 @@ writeTargetFile rel_path = do
     case tgt' of
         Nothing  -> logError $ "Target `" <> T.pack rel_path <> "` not found."
         Just tgt -> do
-                lang <- codeLanguage' refs tgt
-                tangleRef tgt lang
+                langName <- codeLanguage' refs tgt
+                case languageFromName cfg langName of
+                    Nothing -> logError $ "Unknown language id " <> langName
+                    Just lang -> tangleRef tgt lang
 -- ------ end
 -- ------ begin <<daemon-writing>>[1]
 writeSourceFile :: FilePath -> Daemon ()

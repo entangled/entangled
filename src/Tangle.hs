@@ -32,7 +32,7 @@ import Data.Maybe (catMaybes)
 
 import ListStream (ListStream (..))
 import Document
-import Config (Config, lookupLanguage)
+import Config (Config, lookupLanguage, ConfigLanguage(..) )
 
 -- ------ begin <<tangle-imports>>[0]
 import Attributes (attributes)
@@ -67,7 +67,7 @@ getLanguage [] = return NoLanguage
 getLanguage (CodeClass cls : _)
     = maybe (UnknownClass cls) 
             KnownLanguage
-            <$> reader (\cfg -> lookupLanguage cfg cls)
+            <$> reader (\cfg -> languageName <$> lookupLanguage cfg cls)
 getLanguage (_ : xs) = getLanguage xs
 -- ------ end
 -- ------ begin <<parse-markdown>>[2]

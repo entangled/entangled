@@ -6,33 +6,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
   <meta name="author" content="Johan Hidding" />
   <title>Slasher game in Elm</title>
-  <style type="text/css">
+  <style>
       code{white-space: pre-wrap;}
       span.smallcaps{font-variant: small-caps;}
       span.underline{text-decoration: underline;}
       div.column{display: inline-block; vertical-align: top; width: 50%;}
   </style>
-  <style type="text/css">
-a.sourceLine { display: inline-block; line-height: 1.25; }
-a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
-a.sourceLine:empty { height: 1.2em; }
-.sourceCode { overflow: visible; }
-code.sourceCode { white-space: pre; position: relative; }
+  <style>
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
 div.sourceCode { margin: 1em 0; }
 pre.sourceCode { margin: 0; }
 @media screen {
 div.sourceCode { overflow: auto; }
 }
 @media print {
-code.sourceCode { white-space: pre-wrap; }
-a.sourceLine { text-indent: -1em; padding-left: 1em; }
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
 }
-pre.numberSource a.sourceLine
-  { position: relative; left: -4em; }
-pre.numberSource a.sourceLine::before
-  { content: attr(title);
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
     position: relative; left: -1em; text-align: right; vertical-align: baseline;
-    border: none; pointer-events: all; display: inline-block;
+    border: none; display: inline-block;
     -webkit-touch-callout: none; -webkit-user-select: none;
     -khtml-user-select: none; -moz-user-select: none;
     -ms-user-select: none; user-select: none;
@@ -41,9 +42,9 @@ pre.numberSource a.sourceLine::before
   }
 pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
 div.sourceCode
-  {  }
+  {   }
 @media screen {
-a.sourceLine::before { text-decoration: underline; }
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 code span.al { color: #ff0000; font-weight: bold; } /* Alert */
 code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
@@ -86,7 +87,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <h1 class="title">Slasher game in Elm</h1>
 <p class="author">Johan Hidding</p>
 </header>
-<nav id="TOC">
+<nav id="TOC" role="doc-toc">
 <ul>
 <li><a href="#main">Main</a><ul>
 <li><a href="#imports">Imports</a></li>
@@ -113,9 +114,11 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <li>Random numbers in Elm (through Cmd/Msg loop)</li>
 <li>Generate SVG</li>
 </ul>
-<p>Our game is simple. The original <em>slasher</em> game is one I remember from way back when I was playing with <a href="https://en.wikipedia.org/wiki/GW-BASIC">GW Basic</a>. Your hero is zipping around the screen at break neck speeds and the only way to control him is by placing slash <code>/</code> and backslash <code>\</code> characters from which it bounces off. The goal is to catch the golden snitch which only stays in one place for so long.</p>
+Our game is simple. The original <em>slasher</em> game is one I remember from way back when I was playing with <a href="https://en.wikipedia.org/wiki/GW-BASIC">GW Basic</a>. Your hero is zipping around the screen at break neck speeds and the only way to control him is by placing slash <code>/</code> and backslash
+<pre>\</pre>
+<p>characters from which it bounces off. The goal is to catch the golden snitch which only stays in one place for so long.</p>
 <figure>
-<img src="screenshot.png" alt="Screenshot of “Slasher”" /><figcaption>Screenshot of “Slasher”</figcaption>
+<img src="screenshot.png" alt="" /><figcaption>Screenshot of “Slasher”</figcaption>
 </figure>
 <p><a href="https://jhidding.github.io/enTangleD/slasher.html">You can play this game here.</a></p>
 <h2 id="main">Main</h2>
@@ -128,25 +131,27 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </ul>
 <p>The Elm guide has a section describing the difference between <code>sandbox</code> and <code>element</code>. The event loop of <code>element</code> looks like this:</p>
 <figure>
-<img src="https://guide.elm-lang.org/effects/diagrams/element.svg" alt="Browser.element event loop" /><figcaption><code>Browser.element</code> event loop</figcaption>
+<img src="https://guide.elm-lang.org/effects/diagrams/element.svg" alt="" /><figcaption><code>Browser.element</code> event loop</figcaption>
 </figure>
 <p>We will be creating an <code>element</code> program, compile it to a JavaScript file, and create a HTML and CSS around it by hand. The lay-out of such a program in Elm looks as follows:</p>
 <p><em>file: «src/Main.elm»=</em></p>
-<pre class="elm"><code>&lt;&lt;imports&gt;&gt;
-&lt;&lt;main&gt;&gt;
-
-&lt;&lt;model&gt;&gt;
-&lt;&lt;update&gt;&gt;
-&lt;&lt;subscriptions&gt;&gt;
-&lt;&lt;view&gt;&gt;</code></pre>
+<div class="sourceCode" id="cb1"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="cb1-1"><a href="#cb1-1"></a><span class="kw">module</span> <span class="dt">Main</span> <span class="kw">exposing</span> (<span class="op">..</span>)</span>
+<span id="cb1-2"><a href="#cb1-2"></a></span>
+<span id="cb1-3"><a href="#cb1-3"></a><span class="op">&lt;&lt;</span><span class="fu">imports</span><span class="op">&gt;&gt;</span></span>
+<span id="cb1-4"><a href="#cb1-4"></a><span class="op">&lt;&lt;</span><span class="fu">main</span><span class="op">&gt;&gt;</span></span>
+<span id="cb1-5"><a href="#cb1-5"></a></span>
+<span id="cb1-6"><a href="#cb1-6"></a><span class="op">&lt;&lt;</span><span class="fu">model</span><span class="op">&gt;&gt;</span></span>
+<span id="cb1-7"><a href="#cb1-7"></a><span class="op">&lt;&lt;</span><span class="fu">update</span><span class="op">&gt;&gt;</span></span>
+<span id="cb1-8"><a href="#cb1-8"></a><span class="op">&lt;&lt;</span><span class="fu">subscriptions</span><span class="op">&gt;&gt;</span></span>
+<span id="cb1-9"><a href="#cb1-9"></a><span class="op">&lt;&lt;</span><span class="fu">view</span><span class="op">&gt;&gt;</span></span></code></pre></div>
 <p>The <code>main</code> function tells Elm that we create an <code>element</code></p>
 <p><em>«main»=</em></p>
-<pre id="main" class="elm"><code>main =
-    Browser.element
-        { init = init
-        , update = update
-        , subscriptions = subscriptions
-        , view = view }</code></pre>
+<div class="sourceCode" id="main"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="main-1"><a href="#main-1"></a><span class="fu">main</span> <span class="op">=</span></span>
+<span id="main-2"><a href="#main-2"></a>    <span class="dt">Browser</span><span class="op">.</span><span class="fu">element</span></span>
+<span id="main-3"><a href="#main-3"></a>        { <span class="fu">init</span> <span class="op">=</span> <span class="fu">init</span></span>
+<span id="main-4"><a href="#main-4"></a>        <span class="op">,</span> <span class="fu">update</span> <span class="op">=</span> <span class="fu">update</span></span>
+<span id="main-5"><a href="#main-5"></a>        <span class="op">,</span> <span class="fu">subscriptions</span> <span class="op">=</span> <span class="fu">subscriptions</span></span>
+<span id="main-6"><a href="#main-6"></a>        <span class="op">,</span> <span class="fu">view</span> <span class="op">=</span> <span class="fu">view</span> }</span></code></pre></div>
 <p>The rest of the program has:</p>
 <ul>
 <li><strong>model</strong>: Data model of the game. In strongly typed functional languages the design of a program always starts with thinking about type definitions.</li>
@@ -156,193 +161,193 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </ul>
 <h3 id="imports">Imports</h3>
 <p><em>«imports»=</em></p>
-<pre id="imports" class="elm"><code>import Browser
-import Array exposing (Array, repeat, indexedMap, toList, set, get)
-import List exposing (concat)
-import Browser.Events exposing (onAnimationFrameDelta, onKeyDown)
-import Html exposing (Html, button, div, text, p, input, main_, a)
-import Html.Attributes exposing (href)
-import Html.Events exposing (onClick, preventDefaultOn)
-import Svg exposing (svg, circle, line, rect, g, polygon, text_)
-import Svg.Attributes exposing (..)
-import Random
-
-import Json.Decode as Decode</code></pre>
+<div class="sourceCode" id="imports"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="imports-1"><a href="#imports-1"></a><span class="kw">import</span> <span class="dt">Browser</span></span>
+<span id="imports-2"><a href="#imports-2"></a><span class="kw">import</span> <span class="dt">Array</span> <span class="kw">exposing</span> (<span class="dt">Array</span><span class="op">,</span> <span class="fu">repeat</span><span class="op">,</span> <span class="fu">indexedMap</span><span class="op">,</span> <span class="fu">toList</span><span class="op">,</span> <span class="fu">set</span><span class="op">,</span> <span class="fu">get</span>)</span>
+<span id="imports-3"><a href="#imports-3"></a><span class="kw">import</span> <span class="dt">List</span> <span class="kw">exposing</span> (<span class="fu">concat</span>)</span>
+<span id="imports-4"><a href="#imports-4"></a><span class="kw">import</span> <span class="dt">Browser</span><span class="op">.</span><span class="dt">Events</span> <span class="kw">exposing</span> (<span class="fu">onAnimationFrameDelta</span><span class="op">,</span> <span class="fu">onKeyDown</span>)</span>
+<span id="imports-5"><a href="#imports-5"></a><span class="kw">import</span> <span class="dt">Html</span> <span class="kw">exposing</span> (<span class="dt">Html</span><span class="op">,</span> <span class="fu">button</span><span class="op">,</span> <span class="fu">div</span><span class="op">,</span> <span class="fu">text</span><span class="op">,</span> <span class="fu">p</span><span class="op">,</span> <span class="fu">input</span><span class="op">,</span> <span class="fu">main_</span><span class="op">,</span> <span class="fu">a</span>)</span>
+<span id="imports-6"><a href="#imports-6"></a><span class="kw">import</span> <span class="dt">Html</span><span class="op">.</span><span class="dt">Attributes</span> <span class="kw">exposing</span> (<span class="fu">href</span>)</span>
+<span id="imports-7"><a href="#imports-7"></a><span class="kw">import</span> <span class="dt">Html</span><span class="op">.</span><span class="dt">Events</span> <span class="kw">exposing</span> (<span class="fu">onClick</span><span class="op">,</span> <span class="fu">preventDefaultOn</span>)</span>
+<span id="imports-8"><a href="#imports-8"></a><span class="kw">import</span> <span class="dt">Svg</span> <span class="kw">exposing</span> (<span class="fu">svg</span><span class="op">,</span> <span class="fu">circle</span><span class="op">,</span> <span class="fu">line</span><span class="op">,</span> <span class="fu">rect</span><span class="op">,</span> <span class="fu">g</span><span class="op">,</span> <span class="fu">polygon</span><span class="op">,</span> <span class="fu">text_</span>)</span>
+<span id="imports-9"><a href="#imports-9"></a><span class="kw">import</span> <span class="dt">Svg</span><span class="op">.</span><span class="dt">Attributes</span> <span class="kw">exposing</span> (<span class="op">..</span>)</span>
+<span id="imports-10"><a href="#imports-10"></a><span class="kw">import</span> <span class="dt">Random</span></span>
+<span id="imports-11"><a href="#imports-11"></a></span>
+<span id="imports-12"><a href="#imports-12"></a><span class="kw">import</span> <span class="dt">Json</span><span class="op">.</span><span class="dt">Decode</span> <span class="kw">as</span> <span class="dt">Decode</span></span></code></pre></div>
 <h2 id="the-model">The Model</h2>
 <p>The <em>model</em> will be a grid of cells and two actors: our hero and the snitch (if you like to play around with the code, try to add a list of enemy actors that can hurt the hero).</p>
 <p><em>«model»=</em></p>
-<pre id="model" class="elm"><code>type alias Model =
-    { actors : { player : Actor, snitch : Actor }
-    , grid : Grid
-    , snitchTime : Float
-    , state : GameState
-    }</code></pre>
+<div class="sourceCode" id="model"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="model-1"><a href="#model-1"></a><span class="kw">type</span> <span class="kw">alias</span> <span class="dt">Model</span> <span class="op">=</span></span>
+<span id="model-2"><a href="#model-2"></a>    { <span class="fu">actors</span> : { <span class="fu">player</span> : <span class="dt">Actor</span><span class="op">,</span> <span class="fu">snitch</span> : <span class="dt">Actor</span> }</span>
+<span id="model-3"><a href="#model-3"></a>    <span class="op">,</span> <span class="fu">grid</span> : <span class="dt">Grid</span></span>
+<span id="model-4"><a href="#model-4"></a>    <span class="op">,</span> <span class="fu">snitchTime</span> : <span class="dt">Float</span></span>
+<span id="model-5"><a href="#model-5"></a>    <span class="op">,</span> <span class="fu">state</span> : <span class="dt">GameState</span></span>
+<span id="model-6"><a href="#model-6"></a>    }</span></code></pre></div>
 <p>In addition to the <em>actors</em> and the <em>grid</em>, we have to keep time, and a game state flag. The game state tells us if the game is running etc.</p>
 <p><em>«model»=+</em></p>
-<pre id="model" class="elm"><code>type GameState = Start | Running | Pause | Won</code></pre>
+<div class="sourceCode" id="model"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="model-1"><a href="#model-1"></a><span class="kw">type</span> <span class="dt">GameState</span> <span class="op">=</span> <span class="dt">Start</span> <span class="op">|</span> <span class="dt">Running</span> <span class="op">|</span> <span class="dt">Pause</span> <span class="op">|</span> <span class="dt">Won</span></span></code></pre></div>
 <p>We define the <em>grid</em> as nested arrays of cells, where each cell can have the value <code>Empty</code>, <code>Slash</code> or <code>BackSlash</code>:</p>
 <p><em>«model»=+</em></p>
-<pre id="model" class="elm"><code>type alias Grid = Array (Array Cell)
-
-type Cell
-    = Empty
-    | Slash
-    | BackSlash
-
-gridRef : (Int, Int) -&gt; Grid -&gt; Cell
-gridRef (i, j) grid = 
-    Maybe.withDefault Empty 
-    &lt;| Maybe.andThen (\ row -&gt; get i row) (get j grid)
-
-gridSet : (Int, Int) -&gt; Cell -&gt; Grid -&gt; Grid
-gridSet (i, j) cell grid =
-    let row_ = get j grid
-    in case row_ of
-        Nothing  -&gt; grid
-        Just row -&gt; set j (set i cell row) grid</code></pre>
+<div class="sourceCode" id="model"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="model-1"><a href="#model-1"></a><span class="kw">type</span> <span class="kw">alias</span> <span class="dt">Grid</span> <span class="op">=</span> <span class="dt">Array</span> (<span class="dt">Array</span> <span class="dt">Cell</span>)</span>
+<span id="model-2"><a href="#model-2"></a></span>
+<span id="model-3"><a href="#model-3"></a><span class="kw">type</span> <span class="dt">Cell</span></span>
+<span id="model-4"><a href="#model-4"></a>    <span class="op">=</span> <span class="dt">Empty</span></span>
+<span id="model-5"><a href="#model-5"></a>    <span class="op">|</span> <span class="dt">Slash</span></span>
+<span id="model-6"><a href="#model-6"></a>    <span class="op">|</span> <span class="dt">BackSlash</span></span>
+<span id="model-7"><a href="#model-7"></a></span>
+<span id="model-8"><a href="#model-8"></a><span class="fu">gridRef</span> : (<span class="dt">Int</span><span class="op">,</span> <span class="dt">Int</span>) <span class="op">-&gt;</span> <span class="dt">Grid</span> <span class="op">-&gt;</span> <span class="dt">Cell</span></span>
+<span id="model-9"><a href="#model-9"></a><span class="fu">gridRef</span> (<span class="fu">i</span><span class="op">,</span> <span class="fu">j</span>) <span class="fu">grid</span> <span class="op">=</span> </span>
+<span id="model-10"><a href="#model-10"></a>    <span class="dt">Maybe</span><span class="op">.</span><span class="fu">withDefault</span> <span class="dt">Empty</span> </span>
+<span id="model-11"><a href="#model-11"></a>    <span class="op">&lt;|</span> <span class="dt">Maybe</span><span class="op">.</span><span class="fu">andThen</span> (\ <span class="fu">row</span> <span class="op">-&gt;</span> <span class="fu">get</span> <span class="fu">i</span> <span class="fu">row</span>) (<span class="fu">get</span> <span class="fu">j</span> <span class="fu">grid</span>)</span>
+<span id="model-12"><a href="#model-12"></a></span>
+<span id="model-13"><a href="#model-13"></a><span class="fu">gridSet</span> : (<span class="dt">Int</span><span class="op">,</span> <span class="dt">Int</span>) <span class="op">-&gt;</span> <span class="dt">Cell</span> <span class="op">-&gt;</span> <span class="dt">Grid</span> <span class="op">-&gt;</span> <span class="dt">Grid</span></span>
+<span id="model-14"><a href="#model-14"></a><span class="fu">gridSet</span> (<span class="fu">i</span><span class="op">,</span> <span class="fu">j</span>) <span class="fu">cell</span> <span class="fu">grid</span> <span class="op">=</span></span>
+<span id="model-15"><a href="#model-15"></a>    <span class="kw">let</span> <span class="fu">row_</span> <span class="op">=</span> <span class="fu">get</span> <span class="fu">j</span> <span class="fu">grid</span></span>
+<span id="model-16"><a href="#model-16"></a>    <span class="kw">in</span> <span class="cf">case</span> <span class="fu">row_</span> <span class="cf">of</span></span>
+<span id="model-17"><a href="#model-17"></a>        <span class="dt">Nothing</span>  <span class="op">-&gt;</span> <span class="fu">grid</span></span>
+<span id="model-18"><a href="#model-18"></a>        <span class="dt">Just</span> <span class="fu">row</span> <span class="op">-&gt;</span> <span class="fu">set</span> <span class="fu">j</span> (<span class="fu">set</span> <span class="fu">i</span> <span class="fu">cell</span> <span class="fu">row</span>) <span class="fu">grid</span></span></code></pre></div>
 <p>Lastly, an <code>Actor</code> is something that has a location and a velocity, each a 2-tuple of floats.</p>
 <p><em>«model»=+</em></p>
-<pre id="model" class="elm"><code>type alias Actor =
-    { location : (Float, Float)
-    , velocity : (Float, Float)
-    }</code></pre>
+<div class="sourceCode" id="model"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="model-1"><a href="#model-1"></a><span class="kw">type</span> <span class="kw">alias</span> <span class="dt">Actor</span> <span class="op">=</span></span>
+<span id="model-2"><a href="#model-2"></a>    { <span class="fu">location</span> : (<span class="dt">Float</span><span class="op">,</span> <span class="dt">Float</span>)</span>
+<span id="model-3"><a href="#model-3"></a>    <span class="op">,</span> <span class="fu">velocity</span> : (<span class="dt">Float</span><span class="op">,</span> <span class="dt">Float</span>)</span>
+<span id="model-4"><a href="#model-4"></a>    }</span></code></pre></div>
 <h3 id="config">Config</h3>
 <p><em>«model»=+</em></p>
-<pre id="model" class="elm"><code>type alias Config =
-    { gridSize : (Int, Int)
-    , playerSpeed : Float
-    , scale : Int
-    , snitchTime : Float
-    }
-
-config : Config
-config =
-    { gridSize = (80, 50)
-    , playerSpeed = 0.03
-    , scale = 15
-    , snitchTime = 10000
-    }
-
-inRange : (Int, Int) -&gt; Bool
-inRange (i, j) = 
-    let (w, h) = config.gridSize
-    in i &gt;= 0 &amp;&amp; i &lt; w &amp;&amp; j &gt;= 0 &amp;&amp; j &lt; h</code></pre>
+<div class="sourceCode" id="model"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="model-1"><a href="#model-1"></a><span class="kw">type</span> <span class="kw">alias</span> <span class="dt">Config</span> <span class="op">=</span></span>
+<span id="model-2"><a href="#model-2"></a>    { <span class="fu">gridSize</span> : (<span class="dt">Int</span><span class="op">,</span> <span class="dt">Int</span>)</span>
+<span id="model-3"><a href="#model-3"></a>    <span class="op">,</span> <span class="fu">playerSpeed</span> : <span class="dt">Float</span></span>
+<span id="model-4"><a href="#model-4"></a>    <span class="op">,</span> <span class="fu">scale</span> : <span class="dt">Int</span></span>
+<span id="model-5"><a href="#model-5"></a>    <span class="op">,</span> <span class="fu">snitchTime</span> : <span class="dt">Float</span></span>
+<span id="model-6"><a href="#model-6"></a>    }</span>
+<span id="model-7"><a href="#model-7"></a></span>
+<span id="model-8"><a href="#model-8"></a><span class="fu">config</span> : <span class="dt">Config</span></span>
+<span id="model-9"><a href="#model-9"></a><span class="fu">config</span> <span class="op">=</span></span>
+<span id="model-10"><a href="#model-10"></a>    { <span class="fu">gridSize</span> <span class="op">=</span> (<span class="dv">80</span><span class="op">,</span> <span class="dv">50</span>)</span>
+<span id="model-11"><a href="#model-11"></a>    <span class="op">,</span> <span class="fu">playerSpeed</span> <span class="op">=</span> <span class="dv">0</span><span class="op">.</span><span class="dv">03</span></span>
+<span id="model-12"><a href="#model-12"></a>    <span class="op">,</span> <span class="fu">scale</span> <span class="op">=</span> <span class="dv">15</span></span>
+<span id="model-13"><a href="#model-13"></a>    <span class="op">,</span> <span class="fu">snitchTime</span> <span class="op">=</span> <span class="dv">10000</span></span>
+<span id="model-14"><a href="#model-14"></a>    }</span>
+<span id="model-15"><a href="#model-15"></a></span>
+<span id="model-16"><a href="#model-16"></a><span class="fu">inRange</span> : (<span class="dt">Int</span><span class="op">,</span> <span class="dt">Int</span>) <span class="op">-&gt;</span> <span class="dt">Bool</span></span>
+<span id="model-17"><a href="#model-17"></a><span class="fu">inRange</span> (<span class="fu">i</span><span class="op">,</span> <span class="fu">j</span>) <span class="op">=</span> </span>
+<span id="model-18"><a href="#model-18"></a>    <span class="kw">let</span> (<span class="fu">w</span><span class="op">,</span> <span class="fu">h</span>) <span class="op">=</span> <span class="fu">config</span><span class="op">.</span><span class="fu">gridSize</span></span>
+<span id="model-19"><a href="#model-19"></a>    <span class="kw">in</span> <span class="fu">i</span> <span class="op">&gt;=</span> <span class="dv">0</span> <span class="op">&amp;&amp;</span> <span class="fu">i</span> <span class="op">&lt;</span> <span class="fu">w</span> <span class="op">&amp;&amp;</span> <span class="fu">j</span> <span class="op">&gt;=</span> <span class="dv">0</span> <span class="op">&amp;&amp;</span> <span class="fu">j</span> <span class="op">&lt;</span> <span class="fu">h</span></span></code></pre></div>
 <h3 id="init">Init</h3>
 <p>The model is initialised by the <code>init</code> function. This function has the funny signature <code>() -&gt; (Model, Cmd Msg)</code>. We’ll return to the type definition of <code>Msg</code> later, but what this means is that the <code>init</code> function generates an initial state and a command (or list of commands) that tells the Elm run-time to perform an action upon initialisation. Such an action can be anything that requires some form of external state: HTTP requests, location/time information, and in our case: generating random numbers.</p>
 <p><em>«model»=+</em></p>
-<pre id="model" class="elm"><code>init : () -&gt; (Model, Cmd Msg)
-init _ = 
-    let (width, height) = config.gridSize
-        playerLoc       = ((toFloat width)/2 + 0.5, 2.5)
-    in (
-    { actors =
-        { player = { location = playerLoc
-                   , velocity = (0.0, config.playerSpeed) }
-        , snitch = { location = (0.0, 0.0)
-                   , velocity = (0.0, 0.0) }
-        }
-    , grid = makeGrid config.gridSize
-    , snitchTime = 0.0
-    , state = Start
-    }, Random.generate
-            PlaceSnitch
-            (Random.pair (Random.int 0 (width - 1))
-                         (Random.int 0 (height - 1))))
-
-makeGrid : (Int, Int) -&gt; Array (Array Cell)
-makeGrid (width, height) =
-    Array.repeat height
-                 (Array.repeat width Empty)</code></pre>
+<div class="sourceCode" id="model"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="model-1"><a href="#model-1"></a><span class="fu">init</span> : () <span class="op">-&gt;</span> (<span class="dt">Model</span><span class="op">,</span> <span class="dt">Cmd</span> <span class="dt">Msg</span>)</span>
+<span id="model-2"><a href="#model-2"></a><span class="fu">init</span> <span class="fu">_</span> <span class="op">=</span> </span>
+<span id="model-3"><a href="#model-3"></a>    <span class="kw">let</span> (<span class="fu">width</span><span class="op">,</span> <span class="fu">height</span>) <span class="op">=</span> <span class="fu">config</span><span class="op">.</span><span class="fu">gridSize</span></span>
+<span id="model-4"><a href="#model-4"></a>        <span class="fu">playerLoc</span>       <span class="op">=</span> ((<span class="fu">toFloat</span> <span class="fu">width</span>)<span class="op">/</span><span class="dv">2</span> <span class="op">+</span> <span class="dv">0</span><span class="op">.</span><span class="dv">5</span><span class="op">,</span> <span class="dv">2</span><span class="op">.</span><span class="dv">5</span>)</span>
+<span id="model-5"><a href="#model-5"></a>    <span class="kw">in</span> (</span>
+<span id="model-6"><a href="#model-6"></a>    { <span class="fu">actors</span> <span class="op">=</span></span>
+<span id="model-7"><a href="#model-7"></a>        { <span class="fu">player</span> <span class="op">=</span> { <span class="fu">location</span> <span class="op">=</span> <span class="fu">playerLoc</span></span>
+<span id="model-8"><a href="#model-8"></a>                   <span class="op">,</span> <span class="fu">velocity</span> <span class="op">=</span> (<span class="dv">0</span><span class="op">.</span><span class="dv">0</span><span class="op">,</span> <span class="fu">config</span><span class="op">.</span><span class="fu">playerSpeed</span>) }</span>
+<span id="model-9"><a href="#model-9"></a>        <span class="op">,</span> <span class="fu">snitch</span> <span class="op">=</span> { <span class="fu">location</span> <span class="op">=</span> (<span class="dv">0</span><span class="op">.</span><span class="dv">0</span><span class="op">,</span> <span class="dv">0</span><span class="op">.</span><span class="dv">0</span>)</span>
+<span id="model-10"><a href="#model-10"></a>                   <span class="op">,</span> <span class="fu">velocity</span> <span class="op">=</span> (<span class="dv">0</span><span class="op">.</span><span class="dv">0</span><span class="op">,</span> <span class="dv">0</span><span class="op">.</span><span class="dv">0</span>) }</span>
+<span id="model-11"><a href="#model-11"></a>        }</span>
+<span id="model-12"><a href="#model-12"></a>    <span class="op">,</span> <span class="fu">grid</span> <span class="op">=</span> <span class="fu">makeGrid</span> <span class="fu">config</span><span class="op">.</span><span class="fu">gridSize</span></span>
+<span id="model-13"><a href="#model-13"></a>    <span class="op">,</span> <span class="fu">snitchTime</span> <span class="op">=</span> <span class="dv">0</span><span class="op">.</span><span class="dv">0</span></span>
+<span id="model-14"><a href="#model-14"></a>    <span class="op">,</span> <span class="fu">state</span> <span class="op">=</span> <span class="dt">Start</span></span>
+<span id="model-15"><a href="#model-15"></a>    }<span class="op">,</span> <span class="dt">Random</span><span class="op">.</span><span class="fu">generate</span></span>
+<span id="model-16"><a href="#model-16"></a>            <span class="dt">PlaceSnitch</span></span>
+<span id="model-17"><a href="#model-17"></a>            (<span class="dt">Random</span><span class="op">.</span><span class="fu">pair</span> (<span class="dt">Random</span><span class="op">.</span><span class="fu">int</span> <span class="dv">0</span> (<span class="fu">width</span> <span class="op">-</span> <span class="dv">1</span>))</span>
+<span id="model-18"><a href="#model-18"></a>                         (<span class="dt">Random</span><span class="op">.</span><span class="fu">int</span> <span class="dv">0</span> (<span class="fu">height</span> <span class="op">-</span> <span class="dv">1</span>))))</span>
+<span id="model-19"><a href="#model-19"></a></span>
+<span id="model-20"><a href="#model-20"></a><span class="fu">makeGrid</span> : (<span class="dt">Int</span><span class="op">,</span> <span class="dt">Int</span>) <span class="op">-&gt;</span> <span class="dt">Array</span> (<span class="dt">Array</span> <span class="dt">Cell</span>)</span>
+<span id="model-21"><a href="#model-21"></a><span class="fu">makeGrid</span> (<span class="fu">width</span><span class="op">,</span> <span class="fu">height</span>) <span class="op">=</span></span>
+<span id="model-22"><a href="#model-22"></a>    <span class="dt">Array</span><span class="op">.</span><span class="fu">repeat</span> <span class="fu">height</span></span>
+<span id="model-23"><a href="#model-23"></a>                 (<span class="dt">Array</span><span class="op">.</span><span class="fu">repeat</span> <span class="fu">width</span> <span class="dt">Empty</span>)</span></code></pre></div>
 <h2 id="subscriptions">Subscriptions</h2>
 <p><em>«subscriptions»=</em></p>
-<pre id="subscriptions" class="elm"><code>keyDecoder : Decode.Decoder Msg
-keyDecoder =
-  Decode.map KeyPress (Decode.field &quot;key&quot; Decode.string)
-
-subscriptions : Model -&gt; Sub Msg
-subscriptions model = Sub.batch
-    [ onAnimationFrameDelta TimeStep
-    , onKeyDown keyDecoder
-    ]</code></pre>
+<div class="sourceCode" id="subscriptions"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="subscriptions-1"><a href="#subscriptions-1"></a><span class="fu">keyDecoder</span> : <span class="dt">Decode</span><span class="op">.</span><span class="dt">Decoder</span> <span class="dt">Msg</span></span>
+<span id="subscriptions-2"><a href="#subscriptions-2"></a><span class="fu">keyDecoder</span> <span class="op">=</span></span>
+<span id="subscriptions-3"><a href="#subscriptions-3"></a>  <span class="dt">Decode</span><span class="op">.</span><span class="fu">map</span> <span class="dt">KeyPress</span> (<span class="dt">Decode</span><span class="op">.</span><span class="fu">field</span> <span class="st">&quot;key&quot;</span> <span class="dt">Decode</span><span class="op">.</span><span class="fu">string</span>)</span>
+<span id="subscriptions-4"><a href="#subscriptions-4"></a></span>
+<span id="subscriptions-5"><a href="#subscriptions-5"></a><span class="fu">subscriptions</span> : <span class="dt">Model</span> <span class="op">-&gt;</span> <span class="dt">Sub</span> <span class="dt">Msg</span></span>
+<span id="subscriptions-6"><a href="#subscriptions-6"></a><span class="fu">subscriptions</span> <span class="fu">model</span> <span class="op">=</span> <span class="dt">Sub</span><span class="op">.</span><span class="fu">batch</span></span>
+<span id="subscriptions-7"><a href="#subscriptions-7"></a>    [ <span class="fu">onAnimationFrameDelta</span> <span class="dt">TimeStep</span></span>
+<span id="subscriptions-8"><a href="#subscriptions-8"></a>    <span class="op">,</span> <span class="fu">onKeyDown</span> <span class="fu">keyDecoder</span></span>
+<span id="subscriptions-9"><a href="#subscriptions-9"></a>    ]</span></code></pre></div>
 <h2 id="update">Update</h2>
 <p>The <code>update</code> function has the following signature:</p>
 <p><em>«update-function»=</em></p>
-<pre id="update-function" class="elm"><code>update : Msg -&gt; Model -&gt; (Model, Cmd Msg)</code></pre>
+<div class="sourceCode" id="update-function"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="update-function-1"><a href="#update-function-1"></a><span class="fu">update</span> : <span class="dt">Msg</span> <span class="op">-&gt;</span> <span class="dt">Model</span> <span class="op">-&gt;</span> (<span class="dt">Model</span><span class="op">,</span> <span class="dt">Cmd</span> <span class="dt">Msg</span>)</span></code></pre></div>
 <p>This means that, given a <em>message</em> and a <em>model</em> state, we can generate a new model state and a list of requests to the Elm run-time. This list of requests has the type <code>Cmd Msg</code>, telling Elm that, whatever the request, it has to respond with a <code>Msg</code>.</p>
 <p><em>«msg-type»=</em></p>
-<pre id="msg-type" class="elm"><code>type Msg
-    = KeyPress String
-    | TimeStep Float
-    | PlaceSnitch (Int, Int)</code></pre>
+<div class="sourceCode" id="msg-type"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="msg-type-1"><a href="#msg-type-1"></a><span class="kw">type</span> <span class="dt">Msg</span></span>
+<span id="msg-type-2"><a href="#msg-type-2"></a>    <span class="op">=</span> <span class="dt">KeyPress</span> <span class="dt">String</span></span>
+<span id="msg-type-3"><a href="#msg-type-3"></a>    <span class="op">|</span> <span class="dt">TimeStep</span> <span class="dt">Float</span></span>
+<span id="msg-type-4"><a href="#msg-type-4"></a>    <span class="op">|</span> <span class="dt">PlaceSnitch</span> (<span class="dt">Int</span><span class="op">,</span> <span class="dt">Int</span>)</span></code></pre></div>
 <p>In our case, a message is either a <code>KeyPress</code> indicating a key being pressed, a <code>TimeStep</code> when a new animation frame is triggered or a <code>PlaceSnitch</code> when the random number generator returns a fresh pair of coordinates. We’ll defer the handling of these messages to helper functions.</p>
 <p><em>«update-function»=+</em></p>
-<pre id="update-function" class="elm"><code>update msg model =
-    case msg of
-        TimeStep dt   -&gt; let next = timeStep dt model
-                         in (next, checkSnitchTime next)
-        KeyPress k    -&gt; (keyMap k model, Cmd.none)
-        PlaceSnitch l -&gt; (placeSnitch l model, Cmd.none)</code></pre>
+<div class="sourceCode" id="update-function"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="update-function-1"><a href="#update-function-1"></a><span class="fu">update</span> <span class="fu">msg</span> <span class="fu">model</span> <span class="op">=</span></span>
+<span id="update-function-2"><a href="#update-function-2"></a>    <span class="cf">case</span> <span class="fu">msg</span> <span class="cf">of</span></span>
+<span id="update-function-3"><a href="#update-function-3"></a>        <span class="dt">TimeStep</span> <span class="fu">dt</span>   <span class="op">-&gt;</span> <span class="kw">let</span> <span class="fu">next</span> <span class="op">=</span> <span class="fu">timeStep</span> <span class="fu">dt</span> <span class="fu">model</span></span>
+<span id="update-function-4"><a href="#update-function-4"></a>                         <span class="kw">in</span> (<span class="fu">next</span><span class="op">,</span> <span class="fu">checkSnitchTime</span> <span class="fu">next</span>)</span>
+<span id="update-function-5"><a href="#update-function-5"></a>        <span class="dt">KeyPress</span> <span class="fu">k</span>    <span class="op">-&gt;</span> (<span class="fu">keyMap</span> <span class="fu">k</span> <span class="fu">model</span><span class="op">,</span> <span class="dt">Cmd</span><span class="op">.</span><span class="fu">none</span>)</span>
+<span id="update-function-6"><a href="#update-function-6"></a>        <span class="dt">PlaceSnitch</span> <span class="fu">l</span> <span class="op">-&gt;</span> (<span class="fu">placeSnitch</span> <span class="fu">l</span> <span class="fu">model</span><span class="op">,</span> <span class="dt">Cmd</span><span class="op">.</span><span class="fu">none</span>)</span></code></pre></div>
 <p><em>«update»=</em></p>
-<pre id="update" class="elm"><code>&lt;&lt;msg-type&gt;&gt;
-&lt;&lt;update-function&gt;&gt;</code></pre>
+<div class="sourceCode" id="update"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="update-1"><a href="#update-1"></a><span class="op">&lt;&lt;</span><span class="fu">msg</span><span class="op">-</span><span class="kw">type</span><span class="op">&gt;&gt;</span></span>
+<span id="update-2"><a href="#update-2"></a><span class="op">&lt;&lt;</span><span class="fu">update</span><span class="op">-</span><span class="fu">function</span><span class="op">&gt;&gt;</span></span></code></pre></div>
 <h3 id="time-step">Time step</h3>
 <p>Each time step, if the game in in <code>Running</code> state, we need to check if the game is won, and otherwise move all actors that need moving.</p>
 <p><em>«update»=+</em></p>
-<pre id="update" class="elm"><code>timeStep : Float -&gt; Model -&gt; Model
-timeStep dt ({actors, grid, snitchTime, state} as model) =
-    case state of
-        Running -&gt; if didWeWin model
-                   then { model
-                        | state = Won }
-                   else { model
-                        | snitchTime = snitchTime - dt
-                        , actors =
-                            { actors
-                            | player = updateActor grid dt actors.player } }
-        _       -&gt; model</code></pre>
+<div class="sourceCode" id="update"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="update-1"><a href="#update-1"></a><span class="fu">timeStep</span> : <span class="dt">Float</span> <span class="op">-&gt;</span> <span class="dt">Model</span> <span class="op">-&gt;</span> <span class="dt">Model</span></span>
+<span id="update-2"><a href="#update-2"></a><span class="fu">timeStep</span> <span class="fu">dt</span> ({<span class="fu">actors</span><span class="op">,</span> <span class="fu">grid</span><span class="op">,</span> <span class="fu">snitchTime</span><span class="op">,</span> <span class="fu">state</span>} <span class="kw">as</span> <span class="fu">model</span>) <span class="op">=</span></span>
+<span id="update-3"><a href="#update-3"></a>    <span class="cf">case</span> <span class="fu">state</span> <span class="cf">of</span></span>
+<span id="update-4"><a href="#update-4"></a>        <span class="dt">Running</span> <span class="op">-&gt;</span> <span class="cf">if</span> <span class="fu">didWeWin</span> <span class="fu">model</span></span>
+<span id="update-5"><a href="#update-5"></a>                   <span class="cf">then</span> { <span class="fu">model</span></span>
+<span id="update-6"><a href="#update-6"></a>                        <span class="op">|</span> <span class="fu">state</span> <span class="op">=</span> <span class="dt">Won</span> }</span>
+<span id="update-7"><a href="#update-7"></a>                   <span class="cf">else</span> { <span class="fu">model</span></span>
+<span id="update-8"><a href="#update-8"></a>                        <span class="op">|</span> <span class="fu">snitchTime</span> <span class="op">=</span> <span class="fu">snitchTime</span> <span class="op">-</span> <span class="fu">dt</span></span>
+<span id="update-9"><a href="#update-9"></a>                        <span class="op">,</span> <span class="fu">actors</span> <span class="op">=</span></span>
+<span id="update-10"><a href="#update-10"></a>                            { <span class="fu">actors</span></span>
+<span id="update-11"><a href="#update-11"></a>                            <span class="op">|</span> <span class="fu">player</span> <span class="op">=</span> <span class="fu">updateActor</span> <span class="fu">grid</span> <span class="fu">dt</span> <span class="fu">actors</span><span class="op">.</span><span class="fu">player</span> } }</span>
+<span id="update-12"><a href="#update-12"></a>        <span class="fu">_</span>       <span class="op">-&gt;</span> <span class="fu">model</span></span></code></pre></div>
 <h4 id="did-we-win">Did we win?</h4>
 <p><em>«update»=+</em></p>
-<pre id="update" class="elm"><code>didWeWin : Model -&gt; Bool
-didWeWin ({actors} as model) =
-    activeCell actors.snitch == activeCell actors.player</code></pre>
+<div class="sourceCode" id="update"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="update-1"><a href="#update-1"></a><span class="fu">didWeWin</span> : <span class="dt">Model</span> <span class="op">-&gt;</span> <span class="dt">Bool</span></span>
+<span id="update-2"><a href="#update-2"></a><span class="fu">didWeWin</span> ({<span class="fu">actors</span>} <span class="kw">as</span> <span class="fu">model</span>) <span class="op">=</span></span>
+<span id="update-3"><a href="#update-3"></a>    <span class="fu">activeCell</span> <span class="fu">actors</span><span class="op">.</span><span class="fu">snitch</span> <span class="op">==</span> <span class="fu">activeCell</span> <span class="fu">actors</span><span class="op">.</span><span class="fu">player</span></span></code></pre></div>
 <h4 id="update-actors">Update actors</h4>
 <p>Updating an actor is a bit of boring bookkeeping. We check whether the actor’s active grid cell changes. This happens when the actor moves across the center of a cell. If the active cell changed, potentially the actor bounced off a (back)slash or a wall.</p>
 <p><em>«update»=+</em></p>
-<pre id="update" class="elm"><code>updateActor : Grid -&gt; Float -&gt; Actor -&gt; Actor
-updateActor grid dt actor =
-    let a = activeCell actor
-        b = activeCell &lt;| moveActor dt actor 
-    in if a /= b then case (gridRef a grid) of
-        Slash     -&gt; bounceActor dt Slash actor
-        BackSlash -&gt; bounceActor dt BackSlash actor
-        Empty     -&gt; if inRange b 
-            then moveActor dt actor
-            else bounceOffWall dt actor
-    else
-        moveActor dt actor</code></pre>
+<div class="sourceCode" id="update"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="update-1"><a href="#update-1"></a><span class="fu">updateActor</span> : <span class="dt">Grid</span> <span class="op">-&gt;</span> <span class="dt">Float</span> <span class="op">-&gt;</span> <span class="dt">Actor</span> <span class="op">-&gt;</span> <span class="dt">Actor</span></span>
+<span id="update-2"><a href="#update-2"></a><span class="fu">updateActor</span> <span class="fu">grid</span> <span class="fu">dt</span> <span class="fu">actor</span> <span class="op">=</span></span>
+<span id="update-3"><a href="#update-3"></a>    <span class="kw">let</span> <span class="fu">a</span> <span class="op">=</span> <span class="fu">activeCell</span> <span class="fu">actor</span></span>
+<span id="update-4"><a href="#update-4"></a>        <span class="fu">b</span> <span class="op">=</span> <span class="fu">activeCell</span> <span class="op">&lt;|</span> <span class="fu">moveActor</span> <span class="fu">dt</span> <span class="fu">actor</span> </span>
+<span id="update-5"><a href="#update-5"></a>    <span class="kw">in</span> <span class="cf">if</span> <span class="fu">a</span> <span class="op">/=</span> <span class="fu">b</span> <span class="cf">then</span> <span class="cf">case</span> (<span class="fu">gridRef</span> <span class="fu">a</span> <span class="fu">grid</span>) <span class="cf">of</span></span>
+<span id="update-6"><a href="#update-6"></a>        <span class="dt">Slash</span>     <span class="op">-&gt;</span> <span class="fu">bounceActor</span> <span class="fu">dt</span> <span class="dt">Slash</span> <span class="fu">actor</span></span>
+<span id="update-7"><a href="#update-7"></a>        <span class="dt">BackSlash</span> <span class="op">-&gt;</span> <span class="fu">bounceActor</span> <span class="fu">dt</span> <span class="dt">BackSlash</span> <span class="fu">actor</span></span>
+<span id="update-8"><a href="#update-8"></a>        <span class="dt">Empty</span>     <span class="op">-&gt;</span> <span class="cf">if</span> <span class="fu">inRange</span> <span class="fu">b</span> </span>
+<span id="update-9"><a href="#update-9"></a>            <span class="cf">then</span> <span class="fu">moveActor</span> <span class="fu">dt</span> <span class="fu">actor</span></span>
+<span id="update-10"><a href="#update-10"></a>            <span class="cf">else</span> <span class="fu">bounceOffWall</span> <span class="fu">dt</span> <span class="fu">actor</span></span>
+<span id="update-11"><a href="#update-11"></a>    <span class="cf">else</span></span>
+<span id="update-12"><a href="#update-12"></a>        <span class="fu">moveActor</span> <span class="fu">dt</span> <span class="fu">actor</span></span></code></pre></div>
 <h5 id="active-cell">Active cell</h5>
 <p>To get a smooth flying experience the actors have floating point coordinates. From the coordinates we need to compute the integer indices into the grid.</p>
 <p><em>«update»=+</em></p>
-<pre id="update" class="elm"><code>activeCell : Actor -&gt; (Int, Int)
-activeCell actor =
-    let (x, y) = actor.location
-    in case (actorDirection actor) of
-        East  -&gt; (round x, floor y)
-        West  -&gt; (round (x - 1.0), floor y)
-        North -&gt; (floor x, round (y - 1.0))
-        South -&gt; (floor x, round y)            </code></pre>
+<div class="sourceCode" id="update"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="update-1"><a href="#update-1"></a><span class="fu">activeCell</span> : <span class="dt">Actor</span> <span class="op">-&gt;</span> (<span class="dt">Int</span><span class="op">,</span> <span class="dt">Int</span>)</span>
+<span id="update-2"><a href="#update-2"></a><span class="fu">activeCell</span> <span class="fu">actor</span> <span class="op">=</span></span>
+<span id="update-3"><a href="#update-3"></a>    <span class="kw">let</span> (<span class="fu">x</span><span class="op">,</span> <span class="fu">y</span>) <span class="op">=</span> <span class="fu">actor</span><span class="op">.</span><span class="fu">location</span></span>
+<span id="update-4"><a href="#update-4"></a>    <span class="kw">in</span> <span class="cf">case</span> (<span class="fu">actorDirection</span> <span class="fu">actor</span>) <span class="cf">of</span></span>
+<span id="update-5"><a href="#update-5"></a>        <span class="dt">East</span>  <span class="op">-&gt;</span> (<span class="fu">round</span> <span class="fu">x</span><span class="op">,</span> <span class="fu">floor</span> <span class="fu">y</span>)</span>
+<span id="update-6"><a href="#update-6"></a>        <span class="dt">West</span>  <span class="op">-&gt;</span> (<span class="fu">round</span> (<span class="fu">x</span> <span class="op">-</span> <span class="dv">1</span><span class="op">.</span><span class="dv">0</span>)<span class="op">,</span> <span class="fu">floor</span> <span class="fu">y</span>)</span>
+<span id="update-7"><a href="#update-7"></a>        <span class="dt">North</span> <span class="op">-&gt;</span> (<span class="fu">floor</span> <span class="fu">x</span><span class="op">,</span> <span class="fu">round</span> (<span class="fu">y</span> <span class="op">-</span> <span class="dv">1</span><span class="op">.</span><span class="dv">0</span>))</span>
+<span id="update-8"><a href="#update-8"></a>        <span class="dt">South</span> <span class="op">-&gt;</span> (<span class="fu">floor</span> <span class="fu">x</span><span class="op">,</span> <span class="fu">round</span> <span class="fu">y</span>)            </span></code></pre></div>
 <h5 id="direction">Direction</h5>
 <p>From the velocity we often need to know in which of the four cardinal directions an actor is moving.</p>
 <p><em>«update»=+</em></p>
-<pre id="update" class="elm"><code>type Direction = North | East | South | West
-
-actorDirection : Actor -&gt; Direction
-actorDirection actor =
-    let (vx, vy) = actor.velocity
-    in if (abs vx) &gt; (abs vy) then
-        if vx &gt; 0 then East else West
-    else
-        if vy &gt; 0 then South else North</code></pre>
+<div class="sourceCode" id="update"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="update-1"><a href="#update-1"></a><span class="kw">type</span> <span class="dt">Direction</span> <span class="op">=</span> <span class="dt">North</span> <span class="op">|</span> <span class="dt">East</span> <span class="op">|</span> <span class="dt">South</span> <span class="op">|</span> <span class="dt">West</span></span>
+<span id="update-2"><a href="#update-2"></a></span>
+<span id="update-3"><a href="#update-3"></a><span class="fu">actorDirection</span> : <span class="dt">Actor</span> <span class="op">-&gt;</span> <span class="dt">Direction</span></span>
+<span id="update-4"><a href="#update-4"></a><span class="fu">actorDirection</span> <span class="fu">actor</span> <span class="op">=</span></span>
+<span id="update-5"><a href="#update-5"></a>    <span class="kw">let</span> (<span class="fu">vx</span><span class="op">,</span> <span class="fu">vy</span>) <span class="op">=</span> <span class="fu">actor</span><span class="op">.</span><span class="fu">velocity</span></span>
+<span id="update-6"><a href="#update-6"></a>    <span class="kw">in</span> <span class="cf">if</span> (<span class="fu">abs</span> <span class="fu">vx</span>) <span class="op">&gt;</span> (<span class="fu">abs</span> <span class="fu">vy</span>) <span class="cf">then</span></span>
+<span id="update-7"><a href="#update-7"></a>        <span class="cf">if</span> <span class="fu">vx</span> <span class="op">&gt;</span> <span class="dv">0</span> <span class="cf">then</span> <span class="dt">East</span> <span class="cf">else</span> <span class="dt">West</span></span>
+<span id="update-8"><a href="#update-8"></a>    <span class="cf">else</span></span>
+<span id="update-9"><a href="#update-9"></a>        <span class="cf">if</span> <span class="fu">vy</span> <span class="op">&gt;</span> <span class="dv">0</span> <span class="cf">then</span> <span class="dt">South</span> <span class="cf">else</span> <span class="dt">North</span></span></code></pre></div>
 <h5 id="actor-dynamics">Actor dynamics</h5>
 <p>When an actor moves, it may do so in one of three ways:</p>
 <ul>
@@ -352,320 +357,320 @@ actorDirection actor =
 </ul>
 <p>For each of these cases we have a separate function.</p>
 <p><em>«update»=+</em></p>
-<pre id="update" class="elm"><code>moveActor : Float -&gt; Actor -&gt; Actor
-moveActor dt actor =
-    let (x, y)   = actor.location
-        (vx, vy) = actor.velocity
-    in { actor | location = (x + dt * vx, y + dt * vy) }
-
-bounceActor : Float -&gt; Cell -&gt; Actor -&gt; Actor
-bounceActor dt cell actor =
-    let (i, j)   = activeCell actor
-        (vx, vy) = actor.velocity
-        newloc   = ((toFloat i) + 0.5, (toFloat j) + 0.5)
-    in case cell of
-        Slash     -&gt; moveActor dt { location = newloc, velocity = (-vy, -vx) }
-        BackSlash -&gt; moveActor dt { location = newloc, velocity = (vy, vx) }
-        Empty     -&gt; actor
-
-bounceOffWall : Float -&gt; Actor -&gt; Actor
-bounceOffWall dt actor =
-    let (x, y)   = actor.location
-        (vx, vy) = actor.velocity
-        newloc   = case actorDirection actor of
-            North -&gt; (x, 0.0)
-            South -&gt; (x, 50.0)
-            East  -&gt; (80.0, y)
-            West  -&gt; (0.0, y)
-    in moveActor dt { location = newloc, velocity = (-vx, -vy) }</code></pre>
+<div class="sourceCode" id="update"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="update-1"><a href="#update-1"></a><span class="fu">moveActor</span> : <span class="dt">Float</span> <span class="op">-&gt;</span> <span class="dt">Actor</span> <span class="op">-&gt;</span> <span class="dt">Actor</span></span>
+<span id="update-2"><a href="#update-2"></a><span class="fu">moveActor</span> <span class="fu">dt</span> <span class="fu">actor</span> <span class="op">=</span></span>
+<span id="update-3"><a href="#update-3"></a>    <span class="kw">let</span> (<span class="fu">x</span><span class="op">,</span> <span class="fu">y</span>)   <span class="op">=</span> <span class="fu">actor</span><span class="op">.</span><span class="fu">location</span></span>
+<span id="update-4"><a href="#update-4"></a>        (<span class="fu">vx</span><span class="op">,</span> <span class="fu">vy</span>) <span class="op">=</span> <span class="fu">actor</span><span class="op">.</span><span class="fu">velocity</span></span>
+<span id="update-5"><a href="#update-5"></a>    <span class="kw">in</span> { <span class="fu">actor</span> <span class="op">|</span> <span class="fu">location</span> <span class="op">=</span> (<span class="fu">x</span> <span class="op">+</span> <span class="fu">dt</span> <span class="op">*</span> <span class="fu">vx</span><span class="op">,</span> <span class="fu">y</span> <span class="op">+</span> <span class="fu">dt</span> <span class="op">*</span> <span class="fu">vy</span>) }</span>
+<span id="update-6"><a href="#update-6"></a></span>
+<span id="update-7"><a href="#update-7"></a><span class="fu">bounceActor</span> : <span class="dt">Float</span> <span class="op">-&gt;</span> <span class="dt">Cell</span> <span class="op">-&gt;</span> <span class="dt">Actor</span> <span class="op">-&gt;</span> <span class="dt">Actor</span></span>
+<span id="update-8"><a href="#update-8"></a><span class="fu">bounceActor</span> <span class="fu">dt</span> <span class="fu">cell</span> <span class="fu">actor</span> <span class="op">=</span></span>
+<span id="update-9"><a href="#update-9"></a>    <span class="kw">let</span> (<span class="fu">i</span><span class="op">,</span> <span class="fu">j</span>)   <span class="op">=</span> <span class="fu">activeCell</span> <span class="fu">actor</span></span>
+<span id="update-10"><a href="#update-10"></a>        (<span class="fu">vx</span><span class="op">,</span> <span class="fu">vy</span>) <span class="op">=</span> <span class="fu">actor</span><span class="op">.</span><span class="fu">velocity</span></span>
+<span id="update-11"><a href="#update-11"></a>        <span class="fu">newloc</span>   <span class="op">=</span> ((<span class="fu">toFloat</span> <span class="fu">i</span>) <span class="op">+</span> <span class="dv">0</span><span class="op">.</span><span class="dv">5</span><span class="op">,</span> (<span class="fu">toFloat</span> <span class="fu">j</span>) <span class="op">+</span> <span class="dv">0</span><span class="op">.</span><span class="dv">5</span>)</span>
+<span id="update-12"><a href="#update-12"></a>    <span class="kw">in</span> <span class="cf">case</span> <span class="fu">cell</span> <span class="cf">of</span></span>
+<span id="update-13"><a href="#update-13"></a>        <span class="dt">Slash</span>     <span class="op">-&gt;</span> <span class="fu">moveActor</span> <span class="fu">dt</span> { <span class="fu">location</span> <span class="op">=</span> <span class="fu">newloc</span><span class="op">,</span> <span class="fu">velocity</span> <span class="op">=</span> (<span class="op">-</span><span class="fu">vy</span><span class="op">,</span> <span class="op">-</span><span class="fu">vx</span>) }</span>
+<span id="update-14"><a href="#update-14"></a>        <span class="dt">BackSlash</span> <span class="op">-&gt;</span> <span class="fu">moveActor</span> <span class="fu">dt</span> { <span class="fu">location</span> <span class="op">=</span> <span class="fu">newloc</span><span class="op">,</span> <span class="fu">velocity</span> <span class="op">=</span> (<span class="fu">vy</span><span class="op">,</span> <span class="fu">vx</span>) }</span>
+<span id="update-15"><a href="#update-15"></a>        <span class="dt">Empty</span>     <span class="op">-&gt;</span> <span class="fu">actor</span></span>
+<span id="update-16"><a href="#update-16"></a></span>
+<span id="update-17"><a href="#update-17"></a><span class="fu">bounceOffWall</span> : <span class="dt">Float</span> <span class="op">-&gt;</span> <span class="dt">Actor</span> <span class="op">-&gt;</span> <span class="dt">Actor</span></span>
+<span id="update-18"><a href="#update-18"></a><span class="fu">bounceOffWall</span> <span class="fu">dt</span> <span class="fu">actor</span> <span class="op">=</span></span>
+<span id="update-19"><a href="#update-19"></a>    <span class="kw">let</span> (<span class="fu">x</span><span class="op">,</span> <span class="fu">y</span>)   <span class="op">=</span> <span class="fu">actor</span><span class="op">.</span><span class="fu">location</span></span>
+<span id="update-20"><a href="#update-20"></a>        (<span class="fu">vx</span><span class="op">,</span> <span class="fu">vy</span>) <span class="op">=</span> <span class="fu">actor</span><span class="op">.</span><span class="fu">velocity</span></span>
+<span id="update-21"><a href="#update-21"></a>        <span class="fu">newloc</span>   <span class="op">=</span> <span class="cf">case</span> <span class="fu">actorDirection</span> <span class="fu">actor</span> <span class="cf">of</span></span>
+<span id="update-22"><a href="#update-22"></a>            <span class="dt">North</span> <span class="op">-&gt;</span> (<span class="fu">x</span><span class="op">,</span> <span class="dv">0</span><span class="op">.</span><span class="dv">0</span>)</span>
+<span id="update-23"><a href="#update-23"></a>            <span class="dt">South</span> <span class="op">-&gt;</span> (<span class="fu">x</span><span class="op">,</span> <span class="dv">50</span><span class="op">.</span><span class="dv">0</span>)</span>
+<span id="update-24"><a href="#update-24"></a>            <span class="dt">East</span>  <span class="op">-&gt;</span> (<span class="dv">80</span><span class="op">.</span><span class="dv">0</span><span class="op">,</span> <span class="fu">y</span>)</span>
+<span id="update-25"><a href="#update-25"></a>            <span class="dt">West</span>  <span class="op">-&gt;</span> (<span class="dv">0</span><span class="op">.</span><span class="dv">0</span><span class="op">,</span> <span class="fu">y</span>)</span>
+<span id="update-26"><a href="#update-26"></a>    <span class="kw">in</span> <span class="fu">moveActor</span> <span class="fu">dt</span> { <span class="fu">location</span> <span class="op">=</span> <span class="fu">newloc</span><span class="op">,</span> <span class="fu">velocity</span> <span class="op">=</span> (<span class="op">-</span><span class="fu">vx</span><span class="op">,</span> <span class="op">-</span><span class="fu">vy</span>) }</span></code></pre></div>
 <h3 id="snitch-time">Snitch time</h3>
 <p>Each time step we decreased the <code>snitchTime</code> field. If it drops below 0, we ask the Elm runtime for a new random snitch location.</p>
 <p><em>«update»=+</em></p>
-<pre id="update" class="elm"><code>checkSnitchTime : Model -&gt; Cmd Msg
-checkSnitchTime {snitchTime} =
-    let (w, h) = config.gridSize
-    in if snitchTime &lt; 0.0 
-    then Random.generate
-            PlaceSnitch
-            (Random.pair (Random.int 0 (w - 1))
-                         (Random.int 0 (h - 1)))
-    else Cmd.none</code></pre>
+<div class="sourceCode" id="update"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="update-1"><a href="#update-1"></a><span class="fu">checkSnitchTime</span> : <span class="dt">Model</span> <span class="op">-&gt;</span> <span class="dt">Cmd</span> <span class="dt">Msg</span></span>
+<span id="update-2"><a href="#update-2"></a><span class="fu">checkSnitchTime</span> {<span class="fu">snitchTime</span>} <span class="op">=</span></span>
+<span id="update-3"><a href="#update-3"></a>    <span class="kw">let</span> (<span class="fu">w</span><span class="op">,</span> <span class="fu">h</span>) <span class="op">=</span> <span class="fu">config</span><span class="op">.</span><span class="fu">gridSize</span></span>
+<span id="update-4"><a href="#update-4"></a>    <span class="kw">in</span> <span class="cf">if</span> <span class="fu">snitchTime</span> <span class="op">&lt;</span> <span class="dv">0</span><span class="op">.</span><span class="dv">0</span> </span>
+<span id="update-5"><a href="#update-5"></a>    <span class="cf">then</span> <span class="dt">Random</span><span class="op">.</span><span class="fu">generate</span></span>
+<span id="update-6"><a href="#update-6"></a>            <span class="dt">PlaceSnitch</span></span>
+<span id="update-7"><a href="#update-7"></a>            (<span class="dt">Random</span><span class="op">.</span><span class="fu">pair</span> (<span class="dt">Random</span><span class="op">.</span><span class="fu">int</span> <span class="dv">0</span> (<span class="fu">w</span> <span class="op">-</span> <span class="dv">1</span>))</span>
+<span id="update-8"><a href="#update-8"></a>                         (<span class="dt">Random</span><span class="op">.</span><span class="fu">int</span> <span class="dv">0</span> (<span class="fu">h</span> <span class="op">-</span> <span class="dv">1</span>)))</span>
+<span id="update-9"><a href="#update-9"></a>    <span class="cf">else</span> <span class="dt">Cmd</span><span class="op">.</span><span class="fu">none</span></span></code></pre></div>
 <h4 id="moving-the-snitch">Moving the snitch</h4>
 <p>When the snitch is placed we reset the <code>snitchTime</code> to the configured value</p>
 <p><em>«update»=+</em></p>
-<pre id="update" class="elm"><code>placeSnitch : (Int, Int) -&gt; Model -&gt; Model
-placeSnitch (x, y) ({actors} as model) = 
-    { model
-    | snitchTime = config.snitchTime
-    , actors = 
-        { actors 
-        | snitch =
-            { location = ((toFloat x) + 0.5, (toFloat y) + 0.5)
-            , velocity = (0.0, 0.0) } } }</code></pre>
+<div class="sourceCode" id="update"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="update-1"><a href="#update-1"></a><span class="fu">placeSnitch</span> : (<span class="dt">Int</span><span class="op">,</span> <span class="dt">Int</span>) <span class="op">-&gt;</span> <span class="dt">Model</span> <span class="op">-&gt;</span> <span class="dt">Model</span></span>
+<span id="update-2"><a href="#update-2"></a><span class="fu">placeSnitch</span> (<span class="fu">x</span><span class="op">,</span> <span class="fu">y</span>) ({<span class="fu">actors</span>} <span class="kw">as</span> <span class="fu">model</span>) <span class="op">=</span> </span>
+<span id="update-3"><a href="#update-3"></a>    { <span class="fu">model</span></span>
+<span id="update-4"><a href="#update-4"></a>    <span class="op">|</span> <span class="fu">snitchTime</span> <span class="op">=</span> <span class="fu">config</span><span class="op">.</span><span class="fu">snitchTime</span></span>
+<span id="update-5"><a href="#update-5"></a>    <span class="op">,</span> <span class="fu">actors</span> <span class="op">=</span> </span>
+<span id="update-6"><a href="#update-6"></a>        { <span class="fu">actors</span> </span>
+<span id="update-7"><a href="#update-7"></a>        <span class="op">|</span> <span class="fu">snitch</span> <span class="op">=</span></span>
+<span id="update-8"><a href="#update-8"></a>            { <span class="fu">location</span> <span class="op">=</span> ((<span class="fu">toFloat</span> <span class="fu">x</span>) <span class="op">+</span> <span class="dv">0</span><span class="op">.</span><span class="dv">5</span><span class="op">,</span> (<span class="fu">toFloat</span> <span class="fu">y</span>) <span class="op">+</span> <span class="dv">0</span><span class="op">.</span><span class="dv">5</span>)</span>
+<span id="update-9"><a href="#update-9"></a>            <span class="op">,</span> <span class="fu">velocity</span> <span class="op">=</span> (<span class="dv">0</span><span class="op">.</span><span class="dv">0</span><span class="op">,</span> <span class="dv">0</span><span class="op">.</span><span class="dv">0</span>) } } }</span></code></pre></div>
 <h3 id="keymap">Keymap</h3>
 <p>We listen to three keys: space, left arrow and right arrow. We could have listened for <code>\</code> and <code>/</code> keys, but in Firefox the <code>/</code> key also activates quick search. We could work around this, but it is a bit of a hassle.</p>
 <p><em>«update»=+</em></p>
-<pre id="update" class="elm"><code>keyMap : String -&gt; Model -&gt; Model
-keyMap k ({state} as model) =
-    let slash cell = if state == Running
-                     then place cell model
-                     else model
-    in case k of
-        &quot; &quot; -&gt; let newState = case state of
-                    Running -&gt; Pause
-                    Start   -&gt; Running
-                    Pause   -&gt; Running
-                    Won     -&gt; Won
-               in { model | state = newState }
-        &quot;ArrowLeft&quot;  -&gt; slash BackSlash
-        &quot;ArrowRight&quot; -&gt; slash Slash
-        _            -&gt; model</code></pre>
+<div class="sourceCode" id="update"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="update-1"><a href="#update-1"></a><span class="fu">keyMap</span> : <span class="dt">String</span> <span class="op">-&gt;</span> <span class="dt">Model</span> <span class="op">-&gt;</span> <span class="dt">Model</span></span>
+<span id="update-2"><a href="#update-2"></a><span class="fu">keyMap</span> <span class="fu">k</span> ({<span class="fu">state</span>} <span class="kw">as</span> <span class="fu">model</span>) <span class="op">=</span></span>
+<span id="update-3"><a href="#update-3"></a>    <span class="kw">let</span> <span class="fu">slash</span> <span class="fu">cell</span> <span class="op">=</span> <span class="cf">if</span> <span class="fu">state</span> <span class="op">==</span> <span class="dt">Running</span></span>
+<span id="update-4"><a href="#update-4"></a>                     <span class="cf">then</span> <span class="fu">place</span> <span class="fu">cell</span> <span class="fu">model</span></span>
+<span id="update-5"><a href="#update-5"></a>                     <span class="cf">else</span> <span class="fu">model</span></span>
+<span id="update-6"><a href="#update-6"></a>    <span class="kw">in</span> <span class="cf">case</span> <span class="fu">k</span> <span class="cf">of</span></span>
+<span id="update-7"><a href="#update-7"></a>        <span class="st">&quot; &quot;</span> <span class="op">-&gt;</span> <span class="kw">let</span> <span class="fu">newState</span> <span class="op">=</span> <span class="cf">case</span> <span class="fu">state</span> <span class="cf">of</span></span>
+<span id="update-8"><a href="#update-8"></a>                    <span class="dt">Running</span> <span class="op">-&gt;</span> <span class="dt">Pause</span></span>
+<span id="update-9"><a href="#update-9"></a>                    <span class="dt">Start</span>   <span class="op">-&gt;</span> <span class="dt">Running</span></span>
+<span id="update-10"><a href="#update-10"></a>                    <span class="dt">Pause</span>   <span class="op">-&gt;</span> <span class="dt">Running</span></span>
+<span id="update-11"><a href="#update-11"></a>                    <span class="dt">Won</span>     <span class="op">-&gt;</span> <span class="dt">Won</span></span>
+<span id="update-12"><a href="#update-12"></a>               <span class="kw">in</span> { <span class="fu">model</span> <span class="op">|</span> <span class="fu">state</span> <span class="op">=</span> <span class="fu">newState</span> }</span>
+<span id="update-13"><a href="#update-13"></a>        <span class="st">&quot;ArrowLeft&quot;</span>  <span class="op">-&gt;</span> <span class="fu">slash</span> <span class="dt">BackSlash</span></span>
+<span id="update-14"><a href="#update-14"></a>        <span class="st">&quot;ArrowRight&quot;</span> <span class="op">-&gt;</span> <span class="fu">slash</span> <span class="dt">Slash</span></span>
+<span id="update-15"><a href="#update-15"></a>        <span class="fu">_</span>            <span class="op">-&gt;</span> <span class="fu">model</span></span></code></pre></div>
 <h4 id="placing-a-backslash">Placing a (back)slash</h4>
 <p><em>«update»=+</em></p>
-<pre id="update" class="elm"><code>place : Cell -&gt; Model -&gt; Model
-place cell ({actors, grid} as model) =
-    let loc = activeCell actors.player
-    in { model | grid = gridSet loc cell grid }</code></pre>
+<div class="sourceCode" id="update"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="update-1"><a href="#update-1"></a><span class="fu">place</span> : <span class="dt">Cell</span> <span class="op">-&gt;</span> <span class="dt">Model</span> <span class="op">-&gt;</span> <span class="dt">Model</span></span>
+<span id="update-2"><a href="#update-2"></a><span class="fu">place</span> <span class="fu">cell</span> ({<span class="fu">actors</span><span class="op">,</span> <span class="fu">grid</span>} <span class="kw">as</span> <span class="fu">model</span>) <span class="op">=</span></span>
+<span id="update-3"><a href="#update-3"></a>    <span class="kw">let</span> <span class="fu">loc</span> <span class="op">=</span> <span class="fu">activeCell</span> <span class="fu">actors</span><span class="op">.</span><span class="fu">player</span></span>
+<span id="update-4"><a href="#update-4"></a>    <span class="kw">in</span> { <span class="fu">model</span> <span class="op">|</span> <span class="fu">grid</span> <span class="op">=</span> <span class="fu">gridSet</span> <span class="fu">loc</span> <span class="fu">cell</span> <span class="fu">grid</span> }</span></code></pre></div>
 <h2 id="view">View</h2>
 <p><em>«view»=</em></p>
-<pre id="view" class="elm"><code>scale : Int
-scale = config.scale
-
-fScale : Float
-fScale = toFloat scale
-
-viewCell : (Int, Int) -&gt; Cell -&gt; List (Html Msg)
-viewCell (i, j) c =
-    case c of
-        Slash -&gt;     [ line [ x1 (String.fromInt (scale * i + scale))
-                            , y1 (String.fromInt (scale * j))
-                            , x2 (String.fromInt (scale * i))
-                            , y2 (String.fromInt (scale * j + scale))
-                            , class &quot;slash&quot; ] [] ]
-        BackSlash -&gt; [ line [ x1 (String.fromInt (scale * i))
-                            , y1 (String.fromInt (scale * j))
-                            , x2 (String.fromInt (scale * i + scale))
-                            , y2 (String.fromInt (scale * j + scale))
-                            , class &quot;slash&quot; ] [] ]
-        Empty -&gt;     []
-
-formatPath : List (Float, Float) -&gt; String
-formatPath pts = case pts of
-    []           -&gt; &quot;&quot;
-    (x, y)::rest -&gt; (String.fromFloat &lt;| x * fScale) ++ &quot;,&quot; ++
-                    (String.fromFloat &lt;| y * fScale) ++ &quot; &quot; ++ formatPath rest
-
-viewHero : Actor -&gt; Html Msg
-viewHero actor =
-    let (x, y) = actor.location
-        path   = case actorDirection actor of
-            South -&gt; [ (x, y)
-                     , (x + 0.3, y - 1)
-                     , (x - 0.3, y - 1) ]
-            North -&gt; [ (x, y)
-                     , (x + 0.3, y + 1)
-                     , (x - 0.3, y + 1) ]
-            West  -&gt; [ (x, y)
-                     , (x + 1, y + 0.3)
-                     , (x + 1, y - 0.3) ]
-            East  -&gt; [ (x, y)
-                     , (x - 1, y + 0.3)
-                     , (x - 1, y - 0.3) ]
-    in polygon [ points &lt;| formatPath path, class &quot;hero&quot; ] []
-
-viewSnitch : Actor -&gt; Html Msg
-viewSnitch actor =
-    let (x, y) = actor.location
-    in circle [ cx (String.fromFloat &lt;| x * fScale)
-              , cy (String.fromFloat &lt;| y * fScale)
-              , r (String.fromInt &lt;| scale // 2)
-              , class &quot;snitch&quot; ] []
-
-viewOverlay : GameState -&gt; Html Msg
-viewOverlay state =
-    let (w, h)  = config.gridSize
-        sWidth  = (String.fromInt &lt;| config.scale * w)
-        sHeight = (String.fromInt &lt;| config.scale * h)
-        middleX = (String.fromInt &lt;| config.scale * w // 2)
-        middleY = (String.fromInt &lt;| config.scale * h // 2)
-        rectA   = rect [ x &quot;0&quot;, y &quot;0&quot;, width sWidth
-                       , height sHeight
-                       , rx (String.fromInt &lt;| scale)
-                       , ry (String.fromInt &lt;| scale)
-                       , style &quot;fill: black&quot; ] []
-        textA s = text_ [ x middleX, y middleY, textAnchor &quot;middle&quot; ]
-                        [ text s ]
-        overlay s = g [ id &quot;overlay&quot; ] [ rectA, textA s ]
-    in case state of
-        Running -&gt; g [] []
-        Won     -&gt; overlay &quot;YOU WIN!&quot;
-        Start   -&gt; overlay &quot;press space to start&quot;
-        Pause   -&gt; overlay &quot;PAUSE&quot;
-
-viewSnitchBar : Float -&gt; Html Msg
-viewSnitchBar t =
-    let u       = t / config.snitchTime
-        (w, h)  = config.gridSize
-        sWidth  = String.fromFloat &lt;| (toFloat w) * u * (toFloat config.scale)
-    in rect [ x &quot;0&quot;, y (String.fromInt &lt;| h * config.scale + 10)
-            , width sWidth, height (String.fromInt &lt;| config.scale // 2)
-            , id &quot;snitch-bar&quot; ] []
-
-viewArena : Model -&gt; Html Msg
-viewArena ({actors, grid, state, snitchTime} as model) =
-    let blurAtPause = class 
-                    &lt;| if state == Running
-                       then &quot;non-blurred&quot;
-                       else &quot;blurred&quot;
-    in svg [ width &quot;100%&quot;
-           , viewBox (&quot;-3 -3 &quot; ++ (String.fromInt &lt;| scale * 80 + 4) ++ &quot; &quot; ++    (String.fromInt &lt;| scale * 50 + 24))]
-           [ g [] [rect [ x &quot;0&quot;, y &quot;0&quot;
-                        , width (String.fromInt (scale * 80))
-                        , height (String.fromInt (scale * 50))
-                        , rx (String.fromInt &lt;| scale)
-                        , ry (String.fromInt &lt;| scale)
-                        , id &quot;box&quot; ] []]
-           , g [blurAtPause]
-               (concat (toList
-               (indexedMap 
-                   (\ y rows -&gt; (concat (toList (indexedMap 
-                               (\ x cell -&gt; viewCell (x, y) cell)
-                               rows))))
-                   grid)))
-           , g [blurAtPause] [ viewHero actors.player
-                  , viewSnitch actors.snitch ]
-           , (viewOverlay state)
-           , (viewSnitchBar snitchTime)
-           ]
-
-view : Model -&gt; Html Msg
-view model =
-    main_ []
-        [ div [ id &quot;header&quot; ] [ text &quot;\\ \\ S L A S H E R / /&quot; ]
-        , div [ id &quot;arena&quot; ] [ viewArena model ]
-        , div [ id &quot;help&quot; ] [ text &quot;keys: Left \\ | Right / | Space pause&quot; ]
-        , div [ id &quot;footer&quot; ]
-        [ text &quot;Use the source, at &quot;
-        , a [ href &quot;https://jhidding.github.io/enTangleD&quot; ]
-            [ text &quot;enTangleD!&quot; ] ]
-        ]</code></pre>
+<div class="sourceCode" id="view"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="view-1"><a href="#view-1"></a><span class="fu">scale</span> : <span class="dt">Int</span></span>
+<span id="view-2"><a href="#view-2"></a><span class="fu">scale</span> <span class="op">=</span> <span class="fu">config</span><span class="op">.</span><span class="fu">scale</span></span>
+<span id="view-3"><a href="#view-3"></a></span>
+<span id="view-4"><a href="#view-4"></a><span class="fu">fScale</span> : <span class="dt">Float</span></span>
+<span id="view-5"><a href="#view-5"></a><span class="fu">fScale</span> <span class="op">=</span> <span class="fu">toFloat</span> <span class="fu">scale</span></span>
+<span id="view-6"><a href="#view-6"></a></span>
+<span id="view-7"><a href="#view-7"></a><span class="fu">viewCell</span> : (<span class="dt">Int</span><span class="op">,</span> <span class="dt">Int</span>) <span class="op">-&gt;</span> <span class="dt">Cell</span> <span class="op">-&gt;</span> <span class="dt">List</span> (<span class="dt">Html</span> <span class="dt">Msg</span>)</span>
+<span id="view-8"><a href="#view-8"></a><span class="fu">viewCell</span> (<span class="fu">i</span><span class="op">,</span> <span class="fu">j</span>) <span class="fu">c</span> <span class="op">=</span></span>
+<span id="view-9"><a href="#view-9"></a>    <span class="cf">case</span> <span class="fu">c</span> <span class="cf">of</span></span>
+<span id="view-10"><a href="#view-10"></a>        <span class="dt">Slash</span> <span class="op">-&gt;</span>     [ <span class="fu">line</span> [ <span class="fu">x1</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromInt</span> (<span class="fu">scale</span> <span class="op">*</span> <span class="fu">i</span> <span class="op">+</span> <span class="fu">scale</span>))</span>
+<span id="view-11"><a href="#view-11"></a>                            <span class="op">,</span> <span class="fu">y1</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromInt</span> (<span class="fu">scale</span> <span class="op">*</span> <span class="fu">j</span>))</span>
+<span id="view-12"><a href="#view-12"></a>                            <span class="op">,</span> <span class="fu">x2</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromInt</span> (<span class="fu">scale</span> <span class="op">*</span> <span class="fu">i</span>))</span>
+<span id="view-13"><a href="#view-13"></a>                            <span class="op">,</span> <span class="fu">y2</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromInt</span> (<span class="fu">scale</span> <span class="op">*</span> <span class="fu">j</span> <span class="op">+</span> <span class="fu">scale</span>))</span>
+<span id="view-14"><a href="#view-14"></a>                            <span class="op">,</span> <span class="fu">class</span> <span class="st">&quot;slash&quot;</span> ] [] ]</span>
+<span id="view-15"><a href="#view-15"></a>        <span class="dt">BackSlash</span> <span class="op">-&gt;</span> [ <span class="fu">line</span> [ <span class="fu">x1</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromInt</span> (<span class="fu">scale</span> <span class="op">*</span> <span class="fu">i</span>))</span>
+<span id="view-16"><a href="#view-16"></a>                            <span class="op">,</span> <span class="fu">y1</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromInt</span> (<span class="fu">scale</span> <span class="op">*</span> <span class="fu">j</span>))</span>
+<span id="view-17"><a href="#view-17"></a>                            <span class="op">,</span> <span class="fu">x2</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromInt</span> (<span class="fu">scale</span> <span class="op">*</span> <span class="fu">i</span> <span class="op">+</span> <span class="fu">scale</span>))</span>
+<span id="view-18"><a href="#view-18"></a>                            <span class="op">,</span> <span class="fu">y2</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromInt</span> (<span class="fu">scale</span> <span class="op">*</span> <span class="fu">j</span> <span class="op">+</span> <span class="fu">scale</span>))</span>
+<span id="view-19"><a href="#view-19"></a>                            <span class="op">,</span> <span class="fu">class</span> <span class="st">&quot;slash&quot;</span> ] [] ]</span>
+<span id="view-20"><a href="#view-20"></a>        <span class="dt">Empty</span> <span class="op">-&gt;</span>     []</span>
+<span id="view-21"><a href="#view-21"></a></span>
+<span id="view-22"><a href="#view-22"></a><span class="fu">formatPath</span> : <span class="dt">List</span> (<span class="dt">Float</span><span class="op">,</span> <span class="dt">Float</span>) <span class="op">-&gt;</span> <span class="dt">String</span></span>
+<span id="view-23"><a href="#view-23"></a><span class="fu">formatPath</span> <span class="fu">pts</span> <span class="op">=</span> <span class="cf">case</span> <span class="fu">pts</span> <span class="cf">of</span></span>
+<span id="view-24"><a href="#view-24"></a>    []           <span class="op">-&gt;</span> <span class="st">&quot;&quot;</span></span>
+<span id="view-25"><a href="#view-25"></a>    (<span class="fu">x</span><span class="op">,</span> <span class="fu">y</span>)<span class="op">::</span><span class="fu">rest</span> <span class="op">-&gt;</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromFloat</span> <span class="op">&lt;|</span> <span class="fu">x</span> <span class="op">*</span> <span class="fu">fScale</span>) <span class="op">++</span> <span class="st">&quot;,&quot;</span> <span class="op">++</span></span>
+<span id="view-26"><a href="#view-26"></a>                    (<span class="dt">String</span><span class="op">.</span><span class="fu">fromFloat</span> <span class="op">&lt;|</span> <span class="fu">y</span> <span class="op">*</span> <span class="fu">fScale</span>) <span class="op">++</span> <span class="st">&quot; &quot;</span> <span class="op">++</span> <span class="fu">formatPath</span> <span class="fu">rest</span></span>
+<span id="view-27"><a href="#view-27"></a></span>
+<span id="view-28"><a href="#view-28"></a><span class="fu">viewHero</span> : <span class="dt">Actor</span> <span class="op">-&gt;</span> <span class="dt">Html</span> <span class="dt">Msg</span></span>
+<span id="view-29"><a href="#view-29"></a><span class="fu">viewHero</span> <span class="fu">actor</span> <span class="op">=</span></span>
+<span id="view-30"><a href="#view-30"></a>    <span class="kw">let</span> (<span class="fu">x</span><span class="op">,</span> <span class="fu">y</span>) <span class="op">=</span> <span class="fu">actor</span><span class="op">.</span><span class="fu">location</span></span>
+<span id="view-31"><a href="#view-31"></a>        <span class="fu">path</span>   <span class="op">=</span> <span class="cf">case</span> <span class="fu">actorDirection</span> <span class="fu">actor</span> <span class="cf">of</span></span>
+<span id="view-32"><a href="#view-32"></a>            <span class="dt">South</span> <span class="op">-&gt;</span> [ (<span class="fu">x</span><span class="op">,</span> <span class="fu">y</span>)</span>
+<span id="view-33"><a href="#view-33"></a>                     <span class="op">,</span> (<span class="fu">x</span> <span class="op">+</span> <span class="dv">0</span><span class="op">.</span><span class="dv">3</span><span class="op">,</span> <span class="fu">y</span> <span class="op">-</span> <span class="dv">1</span>)</span>
+<span id="view-34"><a href="#view-34"></a>                     <span class="op">,</span> (<span class="fu">x</span> <span class="op">-</span> <span class="dv">0</span><span class="op">.</span><span class="dv">3</span><span class="op">,</span> <span class="fu">y</span> <span class="op">-</span> <span class="dv">1</span>) ]</span>
+<span id="view-35"><a href="#view-35"></a>            <span class="dt">North</span> <span class="op">-&gt;</span> [ (<span class="fu">x</span><span class="op">,</span> <span class="fu">y</span>)</span>
+<span id="view-36"><a href="#view-36"></a>                     <span class="op">,</span> (<span class="fu">x</span> <span class="op">+</span> <span class="dv">0</span><span class="op">.</span><span class="dv">3</span><span class="op">,</span> <span class="fu">y</span> <span class="op">+</span> <span class="dv">1</span>)</span>
+<span id="view-37"><a href="#view-37"></a>                     <span class="op">,</span> (<span class="fu">x</span> <span class="op">-</span> <span class="dv">0</span><span class="op">.</span><span class="dv">3</span><span class="op">,</span> <span class="fu">y</span> <span class="op">+</span> <span class="dv">1</span>) ]</span>
+<span id="view-38"><a href="#view-38"></a>            <span class="dt">West</span>  <span class="op">-&gt;</span> [ (<span class="fu">x</span><span class="op">,</span> <span class="fu">y</span>)</span>
+<span id="view-39"><a href="#view-39"></a>                     <span class="op">,</span> (<span class="fu">x</span> <span class="op">+</span> <span class="dv">1</span><span class="op">,</span> <span class="fu">y</span> <span class="op">+</span> <span class="dv">0</span><span class="op">.</span><span class="dv">3</span>)</span>
+<span id="view-40"><a href="#view-40"></a>                     <span class="op">,</span> (<span class="fu">x</span> <span class="op">+</span> <span class="dv">1</span><span class="op">,</span> <span class="fu">y</span> <span class="op">-</span> <span class="dv">0</span><span class="op">.</span><span class="dv">3</span>) ]</span>
+<span id="view-41"><a href="#view-41"></a>            <span class="dt">East</span>  <span class="op">-&gt;</span> [ (<span class="fu">x</span><span class="op">,</span> <span class="fu">y</span>)</span>
+<span id="view-42"><a href="#view-42"></a>                     <span class="op">,</span> (<span class="fu">x</span> <span class="op">-</span> <span class="dv">1</span><span class="op">,</span> <span class="fu">y</span> <span class="op">+</span> <span class="dv">0</span><span class="op">.</span><span class="dv">3</span>)</span>
+<span id="view-43"><a href="#view-43"></a>                     <span class="op">,</span> (<span class="fu">x</span> <span class="op">-</span> <span class="dv">1</span><span class="op">,</span> <span class="fu">y</span> <span class="op">-</span> <span class="dv">0</span><span class="op">.</span><span class="dv">3</span>) ]</span>
+<span id="view-44"><a href="#view-44"></a>    <span class="kw">in</span> <span class="fu">polygon</span> [ <span class="fu">points</span> <span class="op">&lt;|</span> <span class="fu">formatPath</span> <span class="fu">path</span><span class="op">,</span> <span class="fu">class</span> <span class="st">&quot;hero&quot;</span> ] []</span>
+<span id="view-45"><a href="#view-45"></a></span>
+<span id="view-46"><a href="#view-46"></a><span class="fu">viewSnitch</span> : <span class="dt">Actor</span> <span class="op">-&gt;</span> <span class="dt">Html</span> <span class="dt">Msg</span></span>
+<span id="view-47"><a href="#view-47"></a><span class="fu">viewSnitch</span> <span class="fu">actor</span> <span class="op">=</span></span>
+<span id="view-48"><a href="#view-48"></a>    <span class="kw">let</span> (<span class="fu">x</span><span class="op">,</span> <span class="fu">y</span>) <span class="op">=</span> <span class="fu">actor</span><span class="op">.</span><span class="fu">location</span></span>
+<span id="view-49"><a href="#view-49"></a>    <span class="kw">in</span> <span class="fu">circle</span> [ <span class="fu">cx</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromFloat</span> <span class="op">&lt;|</span> <span class="fu">x</span> <span class="op">*</span> <span class="fu">fScale</span>)</span>
+<span id="view-50"><a href="#view-50"></a>              <span class="op">,</span> <span class="fu">cy</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromFloat</span> <span class="op">&lt;|</span> <span class="fu">y</span> <span class="op">*</span> <span class="fu">fScale</span>)</span>
+<span id="view-51"><a href="#view-51"></a>              <span class="op">,</span> <span class="fu">r</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromInt</span> <span class="op">&lt;|</span> <span class="fu">scale</span> <span class="op">//</span> <span class="dv">2</span>)</span>
+<span id="view-52"><a href="#view-52"></a>              <span class="op">,</span> <span class="fu">class</span> <span class="st">&quot;snitch&quot;</span> ] []</span>
+<span id="view-53"><a href="#view-53"></a></span>
+<span id="view-54"><a href="#view-54"></a><span class="fu">viewOverlay</span> : <span class="dt">GameState</span> <span class="op">-&gt;</span> <span class="dt">Html</span> <span class="dt">Msg</span></span>
+<span id="view-55"><a href="#view-55"></a><span class="fu">viewOverlay</span> <span class="fu">state</span> <span class="op">=</span></span>
+<span id="view-56"><a href="#view-56"></a>    <span class="kw">let</span> (<span class="fu">w</span><span class="op">,</span> <span class="fu">h</span>)  <span class="op">=</span> <span class="fu">config</span><span class="op">.</span><span class="fu">gridSize</span></span>
+<span id="view-57"><a href="#view-57"></a>        <span class="fu">sWidth</span>  <span class="op">=</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromInt</span> <span class="op">&lt;|</span> <span class="fu">config</span><span class="op">.</span><span class="fu">scale</span> <span class="op">*</span> <span class="fu">w</span>)</span>
+<span id="view-58"><a href="#view-58"></a>        <span class="fu">sHeight</span> <span class="op">=</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromInt</span> <span class="op">&lt;|</span> <span class="fu">config</span><span class="op">.</span><span class="fu">scale</span> <span class="op">*</span> <span class="fu">h</span>)</span>
+<span id="view-59"><a href="#view-59"></a>        <span class="fu">middleX</span> <span class="op">=</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromInt</span> <span class="op">&lt;|</span> <span class="fu">config</span><span class="op">.</span><span class="fu">scale</span> <span class="op">*</span> <span class="fu">w</span> <span class="op">//</span> <span class="dv">2</span>)</span>
+<span id="view-60"><a href="#view-60"></a>        <span class="fu">middleY</span> <span class="op">=</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromInt</span> <span class="op">&lt;|</span> <span class="fu">config</span><span class="op">.</span><span class="fu">scale</span> <span class="op">*</span> <span class="fu">h</span> <span class="op">//</span> <span class="dv">2</span>)</span>
+<span id="view-61"><a href="#view-61"></a>        <span class="fu">rectA</span>   <span class="op">=</span> <span class="fu">rect</span> [ <span class="fu">x</span> <span class="st">&quot;0&quot;</span><span class="op">,</span> <span class="fu">y</span> <span class="st">&quot;0&quot;</span><span class="op">,</span> <span class="fu">width</span> <span class="fu">sWidth</span></span>
+<span id="view-62"><a href="#view-62"></a>                       <span class="op">,</span> <span class="fu">height</span> <span class="fu">sHeight</span></span>
+<span id="view-63"><a href="#view-63"></a>                       <span class="op">,</span> <span class="fu">rx</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromInt</span> <span class="op">&lt;|</span> <span class="fu">scale</span>)</span>
+<span id="view-64"><a href="#view-64"></a>                       <span class="op">,</span> <span class="fu">ry</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromInt</span> <span class="op">&lt;|</span> <span class="fu">scale</span>)</span>
+<span id="view-65"><a href="#view-65"></a>                       <span class="op">,</span> <span class="fu">style</span> <span class="st">&quot;fill: black&quot;</span> ] []</span>
+<span id="view-66"><a href="#view-66"></a>        <span class="fu">textA</span> <span class="fu">s</span> <span class="op">=</span> <span class="fu">text_</span> [ <span class="fu">x</span> <span class="fu">middleX</span><span class="op">,</span> <span class="fu">y</span> <span class="fu">middleY</span><span class="op">,</span> <span class="fu">textAnchor</span> <span class="st">&quot;middle&quot;</span> ]</span>
+<span id="view-67"><a href="#view-67"></a>                        [ <span class="fu">text</span> <span class="fu">s</span> ]</span>
+<span id="view-68"><a href="#view-68"></a>        <span class="fu">overlay</span> <span class="fu">s</span> <span class="op">=</span> <span class="fu">g</span> [ <span class="fu">id</span> <span class="st">&quot;overlay&quot;</span> ] [ <span class="fu">rectA</span><span class="op">,</span> <span class="fu">textA</span> <span class="fu">s</span> ]</span>
+<span id="view-69"><a href="#view-69"></a>    <span class="kw">in</span> <span class="cf">case</span> <span class="fu">state</span> <span class="cf">of</span></span>
+<span id="view-70"><a href="#view-70"></a>        <span class="dt">Running</span> <span class="op">-&gt;</span> <span class="fu">g</span> [] []</span>
+<span id="view-71"><a href="#view-71"></a>        <span class="dt">Won</span>     <span class="op">-&gt;</span> <span class="fu">overlay</span> <span class="st">&quot;YOU WIN!&quot;</span></span>
+<span id="view-72"><a href="#view-72"></a>        <span class="dt">Start</span>   <span class="op">-&gt;</span> <span class="fu">overlay</span> <span class="st">&quot;press space to start&quot;</span></span>
+<span id="view-73"><a href="#view-73"></a>        <span class="dt">Pause</span>   <span class="op">-&gt;</span> <span class="fu">overlay</span> <span class="st">&quot;PAUSE&quot;</span></span>
+<span id="view-74"><a href="#view-74"></a></span>
+<span id="view-75"><a href="#view-75"></a><span class="fu">viewSnitchBar</span> : <span class="dt">Float</span> <span class="op">-&gt;</span> <span class="dt">Html</span> <span class="dt">Msg</span></span>
+<span id="view-76"><a href="#view-76"></a><span class="fu">viewSnitchBar</span> <span class="fu">t</span> <span class="op">=</span></span>
+<span id="view-77"><a href="#view-77"></a>    <span class="kw">let</span> <span class="fu">u</span>       <span class="op">=</span> <span class="fu">t</span> <span class="op">/</span> <span class="fu">config</span><span class="op">.</span><span class="fu">snitchTime</span></span>
+<span id="view-78"><a href="#view-78"></a>        (<span class="fu">w</span><span class="op">,</span> <span class="fu">h</span>)  <span class="op">=</span> <span class="fu">config</span><span class="op">.</span><span class="fu">gridSize</span></span>
+<span id="view-79"><a href="#view-79"></a>        <span class="fu">sWidth</span>  <span class="op">=</span> <span class="dt">String</span><span class="op">.</span><span class="fu">fromFloat</span> <span class="op">&lt;|</span> (<span class="fu">toFloat</span> <span class="fu">w</span>) <span class="op">*</span> <span class="fu">u</span> <span class="op">*</span> (<span class="fu">toFloat</span> <span class="fu">config</span><span class="op">.</span><span class="fu">scale</span>)</span>
+<span id="view-80"><a href="#view-80"></a>    <span class="kw">in</span> <span class="fu">rect</span> [ <span class="fu">x</span> <span class="st">&quot;0&quot;</span><span class="op">,</span> <span class="fu">y</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromInt</span> <span class="op">&lt;|</span> <span class="fu">h</span> <span class="op">*</span> <span class="fu">config</span><span class="op">.</span><span class="fu">scale</span> <span class="op">+</span> <span class="dv">10</span>)</span>
+<span id="view-81"><a href="#view-81"></a>            <span class="op">,</span> <span class="fu">width</span> <span class="fu">sWidth</span><span class="op">,</span> <span class="fu">height</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromInt</span> <span class="op">&lt;|</span> <span class="fu">config</span><span class="op">.</span><span class="fu">scale</span> <span class="op">//</span> <span class="dv">2</span>)</span>
+<span id="view-82"><a href="#view-82"></a>            <span class="op">,</span> <span class="fu">id</span> <span class="st">&quot;snitch-bar&quot;</span> ] []</span>
+<span id="view-83"><a href="#view-83"></a></span>
+<span id="view-84"><a href="#view-84"></a><span class="fu">viewArena</span> : <span class="dt">Model</span> <span class="op">-&gt;</span> <span class="dt">Html</span> <span class="dt">Msg</span></span>
+<span id="view-85"><a href="#view-85"></a><span class="fu">viewArena</span> ({<span class="fu">actors</span><span class="op">,</span> <span class="fu">grid</span><span class="op">,</span> <span class="fu">state</span><span class="op">,</span> <span class="fu">snitchTime</span>} <span class="kw">as</span> <span class="fu">model</span>) <span class="op">=</span></span>
+<span id="view-86"><a href="#view-86"></a>    <span class="kw">let</span> <span class="fu">blurAtPause</span> <span class="op">=</span> <span class="fu">class</span> </span>
+<span id="view-87"><a href="#view-87"></a>                    <span class="op">&lt;|</span> <span class="cf">if</span> <span class="fu">state</span> <span class="op">==</span> <span class="dt">Running</span></span>
+<span id="view-88"><a href="#view-88"></a>                       <span class="cf">then</span> <span class="st">&quot;non-blurred&quot;</span></span>
+<span id="view-89"><a href="#view-89"></a>                       <span class="cf">else</span> <span class="st">&quot;blurred&quot;</span></span>
+<span id="view-90"><a href="#view-90"></a>    <span class="kw">in</span> <span class="fu">svg</span> [ <span class="fu">width</span> <span class="st">&quot;100%&quot;</span></span>
+<span id="view-91"><a href="#view-91"></a>           <span class="op">,</span> <span class="fu">viewBox</span> (<span class="st">&quot;-3 -3 &quot;</span> <span class="op">++</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromInt</span> <span class="op">&lt;|</span> <span class="fu">scale</span> <span class="op">*</span> <span class="dv">80</span> <span class="op">+</span> <span class="dv">4</span>) <span class="op">++</span> <span class="st">&quot; &quot;</span> <span class="op">++</span>    (<span class="dt">String</span><span class="op">.</span><span class="fu">fromInt</span> <span class="op">&lt;|</span> <span class="fu">scale</span> <span class="op">*</span> <span class="dv">50</span> <span class="op">+</span> <span class="dv">24</span>))]</span>
+<span id="view-92"><a href="#view-92"></a>           [ <span class="fu">g</span> [] [<span class="fu">rect</span> [ <span class="fu">x</span> <span class="st">&quot;0&quot;</span><span class="op">,</span> <span class="fu">y</span> <span class="st">&quot;0&quot;</span></span>
+<span id="view-93"><a href="#view-93"></a>                        <span class="op">,</span> <span class="fu">width</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromInt</span> (<span class="fu">scale</span> <span class="op">*</span> <span class="dv">80</span>))</span>
+<span id="view-94"><a href="#view-94"></a>                        <span class="op">,</span> <span class="fu">height</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromInt</span> (<span class="fu">scale</span> <span class="op">*</span> <span class="dv">50</span>))</span>
+<span id="view-95"><a href="#view-95"></a>                        <span class="op">,</span> <span class="fu">rx</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromInt</span> <span class="op">&lt;|</span> <span class="fu">scale</span>)</span>
+<span id="view-96"><a href="#view-96"></a>                        <span class="op">,</span> <span class="fu">ry</span> (<span class="dt">String</span><span class="op">.</span><span class="fu">fromInt</span> <span class="op">&lt;|</span> <span class="fu">scale</span>)</span>
+<span id="view-97"><a href="#view-97"></a>                        <span class="op">,</span> <span class="fu">id</span> <span class="st">&quot;box&quot;</span> ] []]</span>
+<span id="view-98"><a href="#view-98"></a>           <span class="op">,</span> <span class="fu">g</span> [<span class="fu">blurAtPause</span>]</span>
+<span id="view-99"><a href="#view-99"></a>               (<span class="fu">concat</span> (<span class="fu">toList</span></span>
+<span id="view-100"><a href="#view-100"></a>               (<span class="fu">indexedMap</span> </span>
+<span id="view-101"><a href="#view-101"></a>                   (\ <span class="fu">y</span> <span class="fu">rows</span> <span class="op">-&gt;</span> (<span class="fu">concat</span> (<span class="fu">toList</span> (<span class="fu">indexedMap</span> </span>
+<span id="view-102"><a href="#view-102"></a>                               (\ <span class="fu">x</span> <span class="fu">cell</span> <span class="op">-&gt;</span> <span class="fu">viewCell</span> (<span class="fu">x</span><span class="op">,</span> <span class="fu">y</span>) <span class="fu">cell</span>)</span>
+<span id="view-103"><a href="#view-103"></a>                               <span class="fu">rows</span>))))</span>
+<span id="view-104"><a href="#view-104"></a>                   <span class="fu">grid</span>)))</span>
+<span id="view-105"><a href="#view-105"></a>           <span class="op">,</span> <span class="fu">g</span> [<span class="fu">blurAtPause</span>] [ <span class="fu">viewHero</span> <span class="fu">actors</span><span class="op">.</span><span class="fu">player</span></span>
+<span id="view-106"><a href="#view-106"></a>                  <span class="op">,</span> <span class="fu">viewSnitch</span> <span class="fu">actors</span><span class="op">.</span><span class="fu">snitch</span> ]</span>
+<span id="view-107"><a href="#view-107"></a>           <span class="op">,</span> (<span class="fu">viewOverlay</span> <span class="fu">state</span>)</span>
+<span id="view-108"><a href="#view-108"></a>           <span class="op">,</span> (<span class="fu">viewSnitchBar</span> <span class="fu">snitchTime</span>)</span>
+<span id="view-109"><a href="#view-109"></a>           ]</span>
+<span id="view-110"><a href="#view-110"></a></span>
+<span id="view-111"><a href="#view-111"></a><span class="fu">view</span> : <span class="dt">Model</span> <span class="op">-&gt;</span> <span class="dt">Html</span> <span class="dt">Msg</span></span>
+<span id="view-112"><a href="#view-112"></a><span class="fu">view</span> <span class="fu">model</span> <span class="op">=</span></span>
+<span id="view-113"><a href="#view-113"></a>    <span class="fu">main_</span> []</span>
+<span id="view-114"><a href="#view-114"></a>        [ <span class="fu">div</span> [ <span class="fu">id</span> <span class="st">&quot;header&quot;</span> ] [ <span class="fu">text</span> <span class="st">&quot;\\ \\ S L A S H E R / /&quot;</span> ]</span>
+<span id="view-115"><a href="#view-115"></a>        <span class="op">,</span> <span class="fu">div</span> [ <span class="fu">id</span> <span class="st">&quot;arena&quot;</span> ] [ <span class="fu">viewArena</span> <span class="fu">model</span> ]</span>
+<span id="view-116"><a href="#view-116"></a>        <span class="op">,</span> <span class="fu">div</span> [ <span class="fu">id</span> <span class="st">&quot;help&quot;</span> ] [ <span class="fu">text</span> <span class="st">&quot;keys: Left \\ | Right / | Space pause&quot;</span> ]</span>
+<span id="view-117"><a href="#view-117"></a>        <span class="op">,</span> <span class="fu">div</span> [ <span class="fu">id</span> <span class="st">&quot;footer&quot;</span> ]</span>
+<span id="view-118"><a href="#view-118"></a>        [ <span class="fu">text</span> <span class="st">&quot;Use the source, at &quot;</span></span>
+<span id="view-119"><a href="#view-119"></a>        <span class="op">,</span> <span class="fu">a</span> [ <span class="fu">href</span> <span class="st">&quot;https://jhidding.github.io/enTangleD&quot;</span> ]</span>
+<span id="view-120"><a href="#view-120"></a>            [ <span class="fu">text</span> <span class="st">&quot;enTangleD!&quot;</span> ] ]</span>
+<span id="view-121"><a href="#view-121"></a>        ]</span></code></pre></div>
 <h2 id="completing-the-game">Completing the game</h2>
 <p>From the code we can either build a HTML or a JavaScript file for embedding. We will manually create the HTML so that we can also create a stylesheet. Here’s the <code>Makefile</code> for creating an optimized and uglified version of <code>slasher</code> (you can install <code>uglifyjs</code> with <code>npm install -g uglify-js</code>):</p>
 <p><em>file: «Makefile»=</em></p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode makefile"><code class="sourceCode makefile"><a class="sourceLine" id="cb2-1" title="1"><span class="dt">.RECIPEPREFIX </span><span class="ch">+=</span></a>
-<a class="sourceLine" id="cb2-2" title="2"><span class="ot">.PHONY:</span><span class="dt"> build</span></a>
-<a class="sourceLine" id="cb2-3" title="3"></a>
-<a class="sourceLine" id="cb2-4" title="4"><span class="dv">build:</span><span class="dt"> slasher.min.js</span></a>
-<a class="sourceLine" id="cb2-5" title="5"></a>
-<a class="sourceLine" id="cb2-6" title="6"><span class="dv">slasher.js:</span><span class="dt"> src/Main.elm</span></a>
-<a class="sourceLine" id="cb2-7" title="7">    elm make src/Main.elm --output=slasher.js --optimize</a>
-<a class="sourceLine" id="cb2-8" title="8"></a>
-<a class="sourceLine" id="cb2-9" title="9"><span class="dv">slasher.min.js:</span><span class="dt"> slasher.js</span></a>
-<a class="sourceLine" id="cb2-10" title="10">    uglifyjs slasher.js --compress <span class="st">&#39;pure_funcs=&quot;F2,F3,F4,F5,F6,F7,F8,F9,A2,A3,A4,A5,A6,A7,A8,A9&quot;,pure_getters,keep_fargs=false,unsafe_comps,unsafe&#39;</span> | uglifyjs --mangle --output=slasher.min.js</a></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode makefile"><code class="sourceCode makefile"><span id="cb2-1"><a href="#cb2-1"></a><span class="dt">.RECIPEPREFIX </span><span class="ch">+=</span></span>
+<span id="cb2-2"><a href="#cb2-2"></a><span class="ot">.PHONY:</span><span class="dt"> build</span></span>
+<span id="cb2-3"><a href="#cb2-3"></a></span>
+<span id="cb2-4"><a href="#cb2-4"></a><span class="dv">build:</span><span class="dt"> slasher.min.js</span></span>
+<span id="cb2-5"><a href="#cb2-5"></a></span>
+<span id="cb2-6"><a href="#cb2-6"></a><span class="dv">slasher.js:</span><span class="dt"> src/Main.elm</span></span>
+<span id="cb2-7"><a href="#cb2-7"></a>    elm make src/Main.elm --output=slasher.js --optimize</span>
+<span id="cb2-8"><a href="#cb2-8"></a></span>
+<span id="cb2-9"><a href="#cb2-9"></a><span class="dv">slasher.min.js:</span><span class="dt"> slasher.js</span></span>
+<span id="cb2-10"><a href="#cb2-10"></a>    uglifyjs slasher.js --compress <span class="st">&#39;pure_funcs=&quot;F2,F3,F4,F5,F6,F7,F8,F9,A2,A3,A4,A5,A6,A7,A8,A9&quot;,pure_getters,keep_fargs=false,unsafe_comps,unsafe&#39;</span> | uglifyjs --mangle --output=slasher.min.js</span></code></pre></div>
 <p>The HTML can be very short now:</p>
 <p><em>file: «slasher.html»=</em></p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode html"><code class="sourceCode html"><a class="sourceLine" id="cb3-1" title="1"><span class="dt">&lt;!DOCTYPE </span>html<span class="dt">&gt;</span></a>
-<a class="sourceLine" id="cb3-2" title="2"><span class="kw">&lt;html&gt;</span></a>
-<a class="sourceLine" id="cb3-3" title="3">  <span class="kw">&lt;head&gt;</span></a>
-<a class="sourceLine" id="cb3-4" title="4">    <span class="kw">&lt;title&gt;</span>Slasher<span class="kw">&lt;/title&gt;</span></a>
-<a class="sourceLine" id="cb3-5" title="5">    <span class="kw">&lt;meta</span><span class="ot"> charset=</span><span class="st">&quot;UTF-8&quot;</span><span class="kw">&gt;</span> </a>
-<a class="sourceLine" id="cb3-6" title="6">    <span class="er">&lt;</span><span class="kw">&lt;google-font&gt;</span>&gt; </a>
-<a class="sourceLine" id="cb3-7" title="7">    <span class="kw">&lt;link</span><span class="ot"> rel=</span><span class="st">&quot;stylesheet&quot;</span><span class="ot"> href=</span><span class="st">&quot;slasher.css&quot;</span><span class="kw">&gt;</span></a>
-<a class="sourceLine" id="cb3-8" title="8">  <span class="kw">&lt;/head&gt;</span></a>
-<a class="sourceLine" id="cb3-9" title="9"></a>
-<a class="sourceLine" id="cb3-10" title="10">  <span class="kw">&lt;body&gt;</span></a>
-<a class="sourceLine" id="cb3-11" title="11">    <span class="kw">&lt;div</span><span class="ot"> id=</span><span class="st">&quot;slasher&quot;</span><span class="kw">&gt;&lt;/div&gt;</span></a>
-<a class="sourceLine" id="cb3-12" title="12"></a>
-<a class="sourceLine" id="cb3-13" title="13">    <span class="kw">&lt;script</span><span class="ot"> src=</span><span class="st">&quot;slasher.min.js&quot;</span><span class="kw">&gt;&lt;/script&gt;</span></a>
-<a class="sourceLine" id="cb3-14" title="14">    <span class="kw">&lt;script&gt;</span></a>
-<a class="sourceLine" id="cb3-15" title="15">      <span class="va">Elm</span>.<span class="va">Main</span>.<span class="at">init</span>(<span class="op">{</span> <span class="dt">node</span><span class="op">:</span> <span class="va">document</span>.<span class="at">getElementById</span>(<span class="st">&quot;slasher&quot;</span>) <span class="op">}</span>)<span class="op">;</span></a>
-<a class="sourceLine" id="cb3-16" title="16">    <span class="kw">&lt;/script&gt;</span></a>
-<a class="sourceLine" id="cb3-17" title="17">  <span class="kw">&lt;/body&gt;</span></a>
-<a class="sourceLine" id="cb3-18" title="18"><span class="kw">&lt;/html&gt;</span></a></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode html"><code class="sourceCode html"><span id="cb3-1"><a href="#cb3-1"></a><span class="dt">&lt;!DOCTYPE </span>html<span class="dt">&gt;</span></span>
+<span id="cb3-2"><a href="#cb3-2"></a><span class="kw">&lt;html&gt;</span></span>
+<span id="cb3-3"><a href="#cb3-3"></a>  <span class="kw">&lt;head&gt;</span></span>
+<span id="cb3-4"><a href="#cb3-4"></a>    <span class="kw">&lt;title&gt;</span>Slasher<span class="kw">&lt;/title&gt;</span></span>
+<span id="cb3-5"><a href="#cb3-5"></a>    <span class="kw">&lt;meta</span><span class="ot"> charset=</span><span class="st">&quot;UTF-8&quot;</span><span class="kw">&gt;</span> </span>
+<span id="cb3-6"><a href="#cb3-6"></a>    <span class="er">&lt;</span><span class="kw">&lt;google-font&gt;</span>&gt; </span>
+<span id="cb3-7"><a href="#cb3-7"></a>    <span class="kw">&lt;link</span><span class="ot"> rel=</span><span class="st">&quot;stylesheet&quot;</span><span class="ot"> href=</span><span class="st">&quot;slasher.css&quot;</span><span class="kw">&gt;</span></span>
+<span id="cb3-8"><a href="#cb3-8"></a>  <span class="kw">&lt;/head&gt;</span></span>
+<span id="cb3-9"><a href="#cb3-9"></a></span>
+<span id="cb3-10"><a href="#cb3-10"></a>  <span class="kw">&lt;body&gt;</span></span>
+<span id="cb3-11"><a href="#cb3-11"></a>    <span class="kw">&lt;div</span><span class="ot"> id=</span><span class="st">&quot;slasher&quot;</span><span class="kw">&gt;&lt;/div&gt;</span></span>
+<span id="cb3-12"><a href="#cb3-12"></a></span>
+<span id="cb3-13"><a href="#cb3-13"></a>    <span class="kw">&lt;script</span><span class="ot"> src=</span><span class="st">&quot;slasher.min.js&quot;</span><span class="kw">&gt;&lt;/script&gt;</span></span>
+<span id="cb3-14"><a href="#cb3-14"></a>    <span class="kw">&lt;script&gt;</span></span>
+<span id="cb3-15"><a href="#cb3-15"></a>      <span class="va">Elm</span>.<span class="va">Main</span>.<span class="at">init</span>(<span class="op">{</span> <span class="dt">node</span><span class="op">:</span> <span class="va">document</span>.<span class="at">getElementById</span>(<span class="st">&quot;slasher&quot;</span>) <span class="op">}</span>)<span class="op">;</span></span>
+<span id="cb3-16"><a href="#cb3-16"></a>    <span class="kw">&lt;/script&gt;</span></span>
+<span id="cb3-17"><a href="#cb3-17"></a>  <span class="kw">&lt;/body&gt;</span></span>
+<span id="cb3-18"><a href="#cb3-18"></a><span class="kw">&lt;/html&gt;</span></span></code></pre></div>
 <p>Browse Google fonts for a nice slashery font:</p>
 <p><em>«google-font»=</em></p>
-<div class="sourceCode" id="google-font"><pre class="sourceCode html"><code class="sourceCode html"><a class="sourceLine" id="google-font-1" title="1"><span class="kw">&lt;link</span><span class="ot"> href=</span><span class="st">&quot;https://fonts.googleapis.com/css?family=Love+Ya+Like+A+Sister&quot;</span><span class="ot"> rel=</span><span class="st">&quot;stylesheet&quot;</span><span class="kw">&gt;</span></a></code></pre></div>
+<div class="sourceCode" id="google-font"><pre class="sourceCode html"><code class="sourceCode html"><span id="google-font-1"><a href="#google-font-1"></a><span class="kw">&lt;link</span><span class="ot"> href=</span><span class="st">&quot;https://fonts.googleapis.com/css?family=Love+Ya+Like+A+Sister&quot;</span><span class="ot"> rel=</span><span class="st">&quot;stylesheet&quot;</span><span class="kw">&gt;</span></span></code></pre></div>
 <p>And add some style</p>
 <p><em>file: «slasher.css»=</em></p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode css"><code class="sourceCode css"><a class="sourceLine" id="cb4-1" title="1">body {</a>
-<a class="sourceLine" id="cb4-2" title="2">    <span class="kw">font-family</span>: <span class="st">&quot;Love Ya Like A Sister&quot;</span><span class="op">,</span> sans <span class="dv">serif</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-3" title="3">    <span class="kw">background-image</span>: <span class="fu">radial-gradient(</span><span class="dv">circle</span><span class="op">,</span> <span class="cn">#112233</span><span class="op">,</span> <span class="cn">#000033</span><span class="fu">)</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-4" title="4">    <span class="kw">color</span>: <span class="cn">white</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-5" title="5">}</a>
-<a class="sourceLine" id="cb4-6" title="6"></a>
-<a class="sourceLine" id="cb4-7" title="7"><span class="pp">#arena</span> svg {</a>
-<a class="sourceLine" id="cb4-8" title="8">    <span class="kw">max-height</span>: <span class="dv">80</span><span class="dt">vh</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-9" title="9">}</a>
-<a class="sourceLine" id="cb4-10" title="10"></a>
-<a class="sourceLine" id="cb4-11" title="11"><span class="pp">#header</span> {</a>
-<a class="sourceLine" id="cb4-12" title="12">    <span class="kw">font-size</span>: <span class="dv">20</span><span class="dt">pt</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-13" title="13">    <span class="kw">text-align</span>: <span class="dv">center</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-14" title="14">    <span class="kw">margin-bottom</span>: <span class="dv">5</span><span class="dt">pt</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-15" title="15">}</a>
-<a class="sourceLine" id="cb4-16" title="16"></a>
-<a class="sourceLine" id="cb4-17" title="17"><span class="pp">#help</span> {</a>
-<a class="sourceLine" id="cb4-18" title="18">    <span class="kw">text-align</span>: <span class="dv">center</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-19" title="19">}</a>
-<a class="sourceLine" id="cb4-20" title="20"></a>
-<a class="sourceLine" id="cb4-21" title="21"><span class="pp">#footer</span> {</a>
-<a class="sourceLine" id="cb4-22" title="22">    <span class="kw">font-family</span>: sans <span class="dv">serif</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-23" title="23">    <span class="kw">font-size</span>: <span class="dv">8</span><span class="dt">pt</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-24" title="24">    <span class="kw">background</span>: <span class="cn">#888</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-25" title="25">    <span class="kw">color</span>: <span class="cn">black</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-26" title="26">    <span class="kw">text-align</span>: <span class="dv">center</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-27" title="27">    <span class="kw">padding</span>: <span class="dv">4</span><span class="dt">pt</span> <span class="dv">0</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-28" title="28">    <span class="kw">margin</span>: <span class="dv">10</span><span class="dt">pt</span> <span class="dv">0</span> <span class="dv">0</span> <span class="dv">0</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-29" title="29">}</a>
-<a class="sourceLine" id="cb4-30" title="30"></a>
-<a class="sourceLine" id="cb4-31" title="31"><span class="pp">#footer</span> a {</a>
-<a class="sourceLine" id="cb4-32" title="32">    <span class="kw">color</span>: <span class="cn">#008</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-33" title="33">}</a>
-<a class="sourceLine" id="cb4-34" title="34"></a>
-<a class="sourceLine" id="cb4-35" title="35"><span class="fu">.blurred</span> {</a>
-<a class="sourceLine" id="cb4-36" title="36">    <span class="kw">filter</span>: <span class="fu">blur(</span><span class="dv">1</span><span class="dt">pt</span><span class="fu">)</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-37" title="37">}</a>
-<a class="sourceLine" id="cb4-38" title="38"></a>
-<a class="sourceLine" id="cb4-39" title="39"><span class="co">/* svg #overlay {</span></a>
-<a class="sourceLine" id="cb4-40" title="40"><span class="co">    filter: blur(1pt);</span></a>
-<a class="sourceLine" id="cb4-41" title="41"><span class="co">} */</span></a>
-<a class="sourceLine" id="cb4-42" title="42"></a>
-<a class="sourceLine" id="cb4-43" title="43">svg <span class="pp">#overlay</span> rect {</a>
-<a class="sourceLine" id="cb4-44" title="44">    <span class="kw">opacity</span>: <span class="dv">0.3</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-45" title="45">    <span class="kw">fill</span>: <span class="cn">black</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-46" title="46">}</a>
-<a class="sourceLine" id="cb4-47" title="47"></a>
-<a class="sourceLine" id="cb4-48" title="48">svg <span class="pp">#overlay</span> text {</a>
-<a class="sourceLine" id="cb4-49" title="49">    <span class="kw">font-size</span>: <span class="dv">70</span><span class="dt">pt</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-50" title="50">    <span class="kw">fill</span>: <span class="cn">white</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-51" title="51">}</a>
-<a class="sourceLine" id="cb4-52" title="52"></a>
-<a class="sourceLine" id="cb4-53" title="53">svg <span class="pp">#box</span> {</a>
-<a class="sourceLine" id="cb4-54" title="54">    <span class="kw">opacity</span>: <span class="dv">0.5</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-55" title="55">    stroke: <span class="cn">goldenrod</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-56" title="56">    stroke-width: <span class="dv">2</span><span class="dt">pt</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-57" title="57">    <span class="kw">fill</span>: <span class="dv">none</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-58" title="58">}</a>
-<a class="sourceLine" id="cb4-59" title="59"></a>
-<a class="sourceLine" id="cb4-60" title="60">svg line<span class="fu">.slash</span> {</a>
-<a class="sourceLine" id="cb4-61" title="61">    stroke: <span class="cn">#8888ff</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-62" title="62">    stroke-width: <span class="dv">2</span><span class="dt">pt</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-63" title="63">}</a>
-<a class="sourceLine" id="cb4-64" title="64"></a>
-<a class="sourceLine" id="cb4-65" title="65">svg <span class="fu">.hero</span> {</a>
-<a class="sourceLine" id="cb4-66" title="66">    <span class="kw">fill</span>: <span class="cn">red</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-67" title="67">    stroke: <span class="cn">black</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-68" title="68">}</a>
-<a class="sourceLine" id="cb4-69" title="69"></a>
-<a class="sourceLine" id="cb4-70" title="70">svg <span class="fu">.snitch</span> {</a>
-<a class="sourceLine" id="cb4-71" title="71">    <span class="kw">fill</span>: <span class="cn">gold</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-72" title="72">    stroke: <span class="cn">black</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-73" title="73">}</a>
-<a class="sourceLine" id="cb4-74" title="74"></a>
-<a class="sourceLine" id="cb4-75" title="75">svg <span class="pp">#snitch-bar</span> {</a>
-<a class="sourceLine" id="cb4-76" title="76">    <span class="kw">opacity</span>: <span class="dv">0.8</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-77" title="77">    <span class="kw">fill</span>: <span class="cn">gold</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-78" title="78">    stroke: <span class="cn">black</span><span class="op">;</span></a>
-<a class="sourceLine" id="cb4-79" title="79">}</a></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode css"><code class="sourceCode css"><span id="cb4-1"><a href="#cb4-1"></a>body {</span>
+<span id="cb4-2"><a href="#cb4-2"></a>    <span class="kw">font-family</span>: <span class="st">&quot;Love Ya Like A Sister&quot;</span><span class="op">,</span> sans <span class="dv">serif</span><span class="op">;</span></span>
+<span id="cb4-3"><a href="#cb4-3"></a>    <span class="kw">background-image</span>: <span class="fu">radial-gradient(</span><span class="dv">circle</span><span class="op">,</span> <span class="cn">#112233</span><span class="op">,</span> <span class="cn">#000033</span><span class="fu">)</span><span class="op">;</span></span>
+<span id="cb4-4"><a href="#cb4-4"></a>    <span class="kw">color</span>: <span class="cn">white</span><span class="op">;</span></span>
+<span id="cb4-5"><a href="#cb4-5"></a>}</span>
+<span id="cb4-6"><a href="#cb4-6"></a></span>
+<span id="cb4-7"><a href="#cb4-7"></a><span class="pp">#arena</span> svg {</span>
+<span id="cb4-8"><a href="#cb4-8"></a>    <span class="kw">max-height</span>: <span class="dv">80</span><span class="dt">vh</span><span class="op">;</span></span>
+<span id="cb4-9"><a href="#cb4-9"></a>}</span>
+<span id="cb4-10"><a href="#cb4-10"></a></span>
+<span id="cb4-11"><a href="#cb4-11"></a><span class="pp">#header</span> {</span>
+<span id="cb4-12"><a href="#cb4-12"></a>    <span class="kw">font-size</span>: <span class="dv">20</span><span class="dt">pt</span><span class="op">;</span></span>
+<span id="cb4-13"><a href="#cb4-13"></a>    <span class="kw">text-align</span>: <span class="dv">center</span><span class="op">;</span></span>
+<span id="cb4-14"><a href="#cb4-14"></a>    <span class="kw">margin-bottom</span>: <span class="dv">5</span><span class="dt">pt</span><span class="op">;</span></span>
+<span id="cb4-15"><a href="#cb4-15"></a>}</span>
+<span id="cb4-16"><a href="#cb4-16"></a></span>
+<span id="cb4-17"><a href="#cb4-17"></a><span class="pp">#help</span> {</span>
+<span id="cb4-18"><a href="#cb4-18"></a>    <span class="kw">text-align</span>: <span class="dv">center</span><span class="op">;</span></span>
+<span id="cb4-19"><a href="#cb4-19"></a>}</span>
+<span id="cb4-20"><a href="#cb4-20"></a></span>
+<span id="cb4-21"><a href="#cb4-21"></a><span class="pp">#footer</span> {</span>
+<span id="cb4-22"><a href="#cb4-22"></a>    <span class="kw">font-family</span>: sans <span class="dv">serif</span><span class="op">;</span></span>
+<span id="cb4-23"><a href="#cb4-23"></a>    <span class="kw">font-size</span>: <span class="dv">8</span><span class="dt">pt</span><span class="op">;</span></span>
+<span id="cb4-24"><a href="#cb4-24"></a>    <span class="kw">background</span>: <span class="cn">#888</span><span class="op">;</span></span>
+<span id="cb4-25"><a href="#cb4-25"></a>    <span class="kw">color</span>: <span class="cn">black</span><span class="op">;</span></span>
+<span id="cb4-26"><a href="#cb4-26"></a>    <span class="kw">text-align</span>: <span class="dv">center</span><span class="op">;</span></span>
+<span id="cb4-27"><a href="#cb4-27"></a>    <span class="kw">padding</span>: <span class="dv">4</span><span class="dt">pt</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb4-28"><a href="#cb4-28"></a>    <span class="kw">margin</span>: <span class="dv">10</span><span class="dt">pt</span> <span class="dv">0</span> <span class="dv">0</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb4-29"><a href="#cb4-29"></a>}</span>
+<span id="cb4-30"><a href="#cb4-30"></a></span>
+<span id="cb4-31"><a href="#cb4-31"></a><span class="pp">#footer</span> a {</span>
+<span id="cb4-32"><a href="#cb4-32"></a>    <span class="kw">color</span>: <span class="cn">#008</span><span class="op">;</span></span>
+<span id="cb4-33"><a href="#cb4-33"></a>}</span>
+<span id="cb4-34"><a href="#cb4-34"></a></span>
+<span id="cb4-35"><a href="#cb4-35"></a><span class="fu">.blurred</span> {</span>
+<span id="cb4-36"><a href="#cb4-36"></a>    <span class="kw">filter</span>: <span class="fu">blur(</span><span class="dv">1</span><span class="dt">pt</span><span class="fu">)</span><span class="op">;</span></span>
+<span id="cb4-37"><a href="#cb4-37"></a>}</span>
+<span id="cb4-38"><a href="#cb4-38"></a></span>
+<span id="cb4-39"><a href="#cb4-39"></a><span class="co">/* svg #overlay {</span></span>
+<span id="cb4-40"><a href="#cb4-40"></a><span class="co">    filter: blur(1pt);</span></span>
+<span id="cb4-41"><a href="#cb4-41"></a><span class="co">} */</span></span>
+<span id="cb4-42"><a href="#cb4-42"></a></span>
+<span id="cb4-43"><a href="#cb4-43"></a>svg <span class="pp">#overlay</span> rect {</span>
+<span id="cb4-44"><a href="#cb4-44"></a>    <span class="kw">opacity</span>: <span class="dv">0.3</span><span class="op">;</span></span>
+<span id="cb4-45"><a href="#cb4-45"></a>    <span class="kw">fill</span>: <span class="cn">black</span><span class="op">;</span></span>
+<span id="cb4-46"><a href="#cb4-46"></a>}</span>
+<span id="cb4-47"><a href="#cb4-47"></a></span>
+<span id="cb4-48"><a href="#cb4-48"></a>svg <span class="pp">#overlay</span> text {</span>
+<span id="cb4-49"><a href="#cb4-49"></a>    <span class="kw">font-size</span>: <span class="dv">70</span><span class="dt">pt</span><span class="op">;</span></span>
+<span id="cb4-50"><a href="#cb4-50"></a>    <span class="kw">fill</span>: <span class="cn">white</span><span class="op">;</span></span>
+<span id="cb4-51"><a href="#cb4-51"></a>}</span>
+<span id="cb4-52"><a href="#cb4-52"></a></span>
+<span id="cb4-53"><a href="#cb4-53"></a>svg <span class="pp">#box</span> {</span>
+<span id="cb4-54"><a href="#cb4-54"></a>    <span class="kw">opacity</span>: <span class="dv">0.5</span><span class="op">;</span></span>
+<span id="cb4-55"><a href="#cb4-55"></a>    stroke: <span class="cn">goldenrod</span><span class="op">;</span></span>
+<span id="cb4-56"><a href="#cb4-56"></a>    stroke-width: <span class="dv">2</span><span class="dt">pt</span><span class="op">;</span></span>
+<span id="cb4-57"><a href="#cb4-57"></a>    <span class="kw">fill</span>: <span class="dv">none</span><span class="op">;</span></span>
+<span id="cb4-58"><a href="#cb4-58"></a>}</span>
+<span id="cb4-59"><a href="#cb4-59"></a></span>
+<span id="cb4-60"><a href="#cb4-60"></a>svg line<span class="fu">.slash</span> {</span>
+<span id="cb4-61"><a href="#cb4-61"></a>    stroke: <span class="cn">#8888ff</span><span class="op">;</span></span>
+<span id="cb4-62"><a href="#cb4-62"></a>    stroke-width: <span class="dv">2</span><span class="dt">pt</span><span class="op">;</span></span>
+<span id="cb4-63"><a href="#cb4-63"></a>}</span>
+<span id="cb4-64"><a href="#cb4-64"></a></span>
+<span id="cb4-65"><a href="#cb4-65"></a>svg <span class="fu">.hero</span> {</span>
+<span id="cb4-66"><a href="#cb4-66"></a>    <span class="kw">fill</span>: <span class="cn">red</span><span class="op">;</span></span>
+<span id="cb4-67"><a href="#cb4-67"></a>    stroke: <span class="cn">black</span><span class="op">;</span></span>
+<span id="cb4-68"><a href="#cb4-68"></a>}</span>
+<span id="cb4-69"><a href="#cb4-69"></a></span>
+<span id="cb4-70"><a href="#cb4-70"></a>svg <span class="fu">.snitch</span> {</span>
+<span id="cb4-71"><a href="#cb4-71"></a>    <span class="kw">fill</span>: <span class="cn">gold</span><span class="op">;</span></span>
+<span id="cb4-72"><a href="#cb4-72"></a>    stroke: <span class="cn">black</span><span class="op">;</span></span>
+<span id="cb4-73"><a href="#cb4-73"></a>}</span>
+<span id="cb4-74"><a href="#cb4-74"></a></span>
+<span id="cb4-75"><a href="#cb4-75"></a>svg <span class="pp">#snitch-bar</span> {</span>
+<span id="cb4-76"><a href="#cb4-76"></a>    <span class="kw">opacity</span>: <span class="dv">0.8</span><span class="op">;</span></span>
+<span id="cb4-77"><a href="#cb4-77"></a>    <span class="kw">fill</span>: <span class="cn">gold</span><span class="op">;</span></span>
+<span id="cb4-78"><a href="#cb4-78"></a>    stroke: <span class="cn">black</span><span class="op">;</span></span>
+<span id="cb4-79"><a href="#cb4-79"></a>}</span></code></pre></div>
 <p><link href="https://fonts.googleapis.com/css?family=Dosis" rel="stylesheet"></p>
 </body>
 </html>

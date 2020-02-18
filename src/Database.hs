@@ -86,7 +86,7 @@ insertCodes docId codes = do
         liftIO $ executeMany conn "insert into `codes` values (?,?,?,?,?)" rows
         liftIO $ executeMany conn "insert into `classes` values (?,?,?)" classes
     where codeRow ( (ReferenceId (ReferenceName name) count)
-                  , (CodeBlock (KnownLanguage Language{languageName}) _ source) )
+                  , (CodeBlock (KnownLanguage languageName) _ source) )
               = Just (name, count, source, languageName, docId)
           codeRow _
               = Nothing
@@ -206,6 +206,6 @@ queryReferenceMap config = do
             case (languageFromName config lang) of
                 Nothing -> throwM $ DatabaseError $ "unknown language: " <> lang
                 Just l  -> return ( ReferenceId (ReferenceName name) ordinal
-                                  , CodeBlock (KnownLanguage l) [] source )
+                                  , CodeBlock (KnownLanguage lang) [] source )
 -- ------ end
 -- ------ end

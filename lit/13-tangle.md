@@ -17,7 +17,7 @@ import Data.Maybe (catMaybes)
 
 import ListStream (ListStream (..))
 import Document
-import Config (Config, lookupLanguage)
+import Config (Config, lookupLanguage, ConfigLanguage(..) )
 
 <<tangle-imports>>
 
@@ -193,7 +193,7 @@ getLanguage [] = return NoLanguage
 getLanguage (CodeClass cls : _)
     = maybe (UnknownClass cls) 
             KnownLanguage
-            <$> reader (\cfg -> lookupLanguage cfg cls)
+            <$> reader (\cfg -> languageName <$> lookupLanguage cfg cls)
 getLanguage (_ : xs) = getLanguage xs
 ```
 
@@ -440,6 +440,9 @@ module Comment where
 ```
 
 ``` {.haskell #comment-imports}
+import Control.Monad.Reader
+import Control.Monad.Except
+
 <<import-text>>
 ```
 
@@ -465,21 +468,26 @@ import Document
     ( ProgrammingLanguage(..)
     , EntangledError(..) )
 import Config
-    ( Language(..) )
+    ( Config(..), ConfigLanguage(..), ConfigComment(..), languageFromName )
 ```
 
 ``` {.haskell #generate-comment}
-comment :: ProgrammingLanguage
+comment :: (MonadReader Config m, MonadError EntangledError m)
+        => ProgrammingLanguage
         -> Text
-        -> Either EntangledError Text
-comment (UnknownClass cls) _ = Left $ UnknownLanguageClass cls
-comment NoLanguage         _ = Left $ MissingLanguageClass
-comment (KnownLanguage lang) text = Right $ formatComment lang text
+        -> m Text
+comment (UnknownClass cls) _ = throwError $ UnknownLanguageClass cls
+comment NoLanguage         _ = throwError $ MissingLanguageClass
+comment (KnownLanguage langName) text = do
+    cfg <- ask
+    maybe (throwError $ SystemError $ "language named " <> langName <> " is not in config.")
+          (\lang -> return $ formatComment lang text)
+          (languageFromName cfg langName)
 
-formatComment :: Language -> Text -> Text
+formatComment :: ConfigLanguage -> Text -> Text
 formatComment lang text = pre <> text <> post
-    where pre  = languageStartComment lang <> delim
-          post = maybe "" (" " <>) $ languageCloseComment lang
+    where pre  = (commentStart $ languageComment lang) <> delim
+          post = maybe "" (" " <>) $ commentEnd $ languageComment lang
 ```
 
 Using this we can write the `annotateComment` function. Given a `ReferenceId` this retrieves the code text and annotates it with a begin and end comment line.
@@ -492,7 +500,8 @@ import TextUtil (unlines')
 ```
 
 ``` {.haskell #generate-comment}
-annotateComment :: ReferenceMap -> ReferenceId -> Either EntangledError Text
+annotateComment :: (MonadReader Config m, MonadError EntangledError m)
+                => ReferenceMap -> ReferenceId -> m Text
 annotateComment refs ref = do
     let code = refs M.! ref
     pre <- comment (codeLanguage code)
@@ -501,7 +510,7 @@ annotateComment refs ref = do
     post <- comment (codeLanguage code) "end"
     return $ unlines' [pre, (codeSource code), post]
 
-headerComment :: Language -> FilePath -> Text
+headerComment :: ConfigLanguage -> FilePath -> Text
 headerComment lang path = formatComment lang
     $ "language=" <> languageName lang <> " filename=" <> T.pack path
 ```
@@ -534,12 +543,12 @@ Other parsers will always be combined with `commented`, giving the value of the 
 
 ``` {.haskell #parse-comment}
 commented :: (MonadParsec e Text m)
-          => Language -> m a -> m (a, Text)
+          => ConfigLanguage -> m a -> m (a, Text)
 commented lang p = do 
     indent <- takeWhileP (Just "initial indent") (`elem` (" \t" :: [Char]))
-    pre <- chunk $ (languageStartComment lang) <> delim
+    pre <- chunk $ (commentStart $ languageComment lang) <> delim
     x <- p
-    post <- chunk $ (maybe "" id $ languageCloseComment lang)
+    post <- chunk $ (maybe "" id $ commentEnd $ languageComment lang)
     space
     eof
     return (x, indent)

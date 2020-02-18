@@ -36,6 +36,7 @@ common deps
       array >=0.5 && <1
     , base >=4.7 && <5
     , containers >=0.5.9 && <0.7
+    , dhall >=1.29 && <2
     , directory >=1.3 && <2
     , either >=5 && <6
     , exceptions >=0.10 && <0.11
@@ -53,9 +54,12 @@ common deps
     , transformers >=0.5 && <0.6
     , text >=1.2 && <2
     , time >=1.8 && <2
-    , tomland >=1.2 && <2
     , uuid >=1.3 && <2
-  default-extensions: OverloadedStrings FlexibleContexts FlexibleInstances RecordWildCards TypeFamilies GeneralizedNewtypeDeriving NamedFieldPuns LambdaCase
+    , yaml >=0.11 && <0.12
+  default-extensions:
+        OverloadedStrings FlexibleContexts FlexibleInstances RecordWildCards
+        TypeFamilies GeneralizedNewtypeDeriving NamedFieldPuns LambdaCase
+        DeriveGeneric
   default-language: Haskell2010
   ghc-options:
 

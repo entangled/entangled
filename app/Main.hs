@@ -29,7 +29,7 @@ import Config
 import Daemon
 -- ------ end
 -- ------ begin <<main-imports>>[5]
-import qualified Toml
+import qualified Dhall
 -- ------ end
 -- ------ begin <<main-imports>>[6]
 import Database
@@ -183,7 +183,7 @@ run Args{..}
             CommandDaemon a -> runSession config
             -- ------ end
             -- ------ begin <<sub-runners>>[1]
-            CommandConfig -> T.IO.putStrLn $ Toml.encode configCodec config
+            CommandConfig -> T.IO.putStrLn "NYI" -- T.IO.putStrLn $ Toml.encode configCodec config
             -- ------ end
             -- ------ begin <<sub-runners>>[2]
             CommandInsert (InsertArgs SourceFile fs) -> printLogger $ runInsertSources config fs
@@ -218,7 +218,7 @@ runTangle cfg TangleArgs{..} = do
     withSQL dbPath $ do 
         createTables
         refs <- queryReferenceMap cfg
-        let annotate = if tangleDecorate then annotateComment else annotateNaked
+        let annotate = if tangleDecorate then (annotateComment' cfg) else annotateNaked
             codes = expandedCode annotate refs
             tangleRef tgt = case codes LM.!? tgt of
                 Nothing -> throwM $ TangleError $ "Reference `" <> tshow tgt <> "` not found."
@@ -227,9 +227,11 @@ runTangle cfg TangleArgs{..} = do
             tangleFile f = queryTargetRef f >>= \case
                 Nothing -> throwM $ TangleError $ "Target `" <> T.pack f <> "` not found."
                 Just ref -> do
-                    lang <- codeLanguage' refs ref
+                    langName <- codeLanguage' refs ref
                     content <- tangleRef ref
-                    return $ unlines' [headerComment lang f, content]
+                    case languageFromName cfg langName of
+                        Nothing -> throwM $ TangleError $ "Language unknown " <> langName
+                        Just lang -> return $ unlines' [headerComment lang f, content]
 
         case tangleQuery of
             TangleRef tgt -> tangleRef (ReferenceName tgt) >>= (\x -> liftIO $ T.IO.putStrLn x)

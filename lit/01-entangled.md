@@ -231,3 +231,8 @@ formatError (TangleError t) = "tangling: " <> t
 formatError (StitchError t) = "stitching: " <> t
 formatError x = tshow x
 ```
+
+# Design
+
+Entangled is a command-line tool, structured around a SQLite database.
+

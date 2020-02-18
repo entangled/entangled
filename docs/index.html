@@ -5,33 +5,34 @@
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
   <title>enTangleD</title>
-  <style type="text/css">
+  <style>
       code{white-space: pre-wrap;}
       span.smallcaps{font-variant: small-caps;}
       span.underline{text-decoration: underline;}
       div.column{display: inline-block; vertical-align: top; width: 50%;}
   </style>
-  <style type="text/css">
-a.sourceLine { display: inline-block; line-height: 1.25; }
-a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
-a.sourceLine:empty { height: 1.2em; }
-.sourceCode { overflow: visible; }
-code.sourceCode { white-space: pre; position: relative; }
+  <style>
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
 div.sourceCode { margin: 1em 0; }
 pre.sourceCode { margin: 0; }
 @media screen {
 div.sourceCode { overflow: auto; }
 }
 @media print {
-code.sourceCode { white-space: pre-wrap; }
-a.sourceLine { text-indent: -1em; padding-left: 1em; }
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
 }
-pre.numberSource a.sourceLine
-  { position: relative; left: -4em; }
-pre.numberSource a.sourceLine::before
-  { content: attr(title);
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
     position: relative; left: -1em; text-align: right; vertical-align: baseline;
-    border: none; pointer-events: all; display: inline-block;
+    border: none; display: inline-block;
     -webkit-touch-callout: none; -webkit-user-select: none;
     -khtml-user-select: none; -moz-user-select: none;
     -ms-user-select: none; user-select: none;
@@ -40,9 +41,9 @@ pre.numberSource a.sourceLine::before
   }
 pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
 div.sourceCode
-  {  }
+  {   }
 @media screen {
-a.sourceLine::before { text-decoration: underline; }
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 code span.al { color: #ff0000; font-weight: bold; } /* Alert */
 code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
@@ -84,9 +85,9 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <header id="title-block-header">
 <h1 class="title">enTangleD</h1>
 </header>
-<nav id="TOC">
+<nav id="TOC" role="doc-toc">
 <ul>
-        <!-- <li><a href="#entangled-in-4-screencasts">enTangleD in 4 screencasts</a></li> -->
+<li><a href="#entangled-in-4-screencasts">enTangleD in 4 screencasts</a></li>
 <li><a href="#status">Status</a></li>
 <li><a href="#building">Building</a></li>
 <li><a href="#using">Using</a><ul>
@@ -105,72 +106,53 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <blockquote>
 <p><strong>Literate programming</strong> <span class="phonetic">/ˈlɪtəɹət ˈpɹəʊɡɹæmɪŋ/</span> (computing) Literate programming is a programming paradigm introduced by Donald Knuth in which a program is given as an explanation of the program logic in a natural language, such as English, interspersed with snippets of macros and traditional source code, from which a compilable source code can be generated. <a href="https://en.wikipedia.org/wiki/Literate_programming">(Wikipedia)</a></p>
 </blockquote>
-
-<p><code>enTangleD</code> makes writing literate programs easier by keeping code blocks in markdown up-to-date with generated source files. By monitoring the tangled source files, any change in the master document or source files is reflected in the other. In practice this means:</p>
-
-<ul>
-        <li> Write well documented code using Markdown. </li>
-        <li> Use any programming language you like (or are forced to use). </li>
-        <li> Keep debugging and using other IDE features without change. </li>
-        <li> Generate a report in PDF or HTML from the same source (see examples on the right). </li>
-</ul>
-
-<p>This is how you use <code>enTangleD</code> (hover to play):</p>
-
+<p>Literate programming is awesome! Write your documentation and code in one markdown document, tangle the source code from that document, compile and run your code. This is all fine if your code does not contain any bugs. But what if it does? Your compiler and debugger may point to locations in the source where things go wrong. But you cannot edit those sources directly, since you generated them from the mother document!</p>
+<p>Enter enTangleD! This monitors the tangled source files and reflects any change in master document or source files to the other.</p>
+<p>The markdown file is still the master document.</p>
+<h2 id="entangled-in-4-screencasts">enTangleD in 4 screencasts</h2>
 <div id="slide-show">
-        <div class="slide fade">
-        <figure>
-        <img src="screencasts/01-getting-started.png" alt="Write your documentation, and fire up enTangleD" class="anim" data-still="screencasts/01-getting-started.png" width="768" /><figcaption>1. Write your documentation in (Pandoc compatible) markdown, and fire up enTangleD</figcaption>
-        </figure>
-        </div>
-
-        <div class="slide fade">
-        <figure>
-        <img src="screencasts/02-adding-code.png" alt="Add annotated code blocks" class="anim" data-still="screencasts/02-adding-code.png" width="768" /><figcaption>2. Add annotated code blocks to create files</figcaption>
-        </figure>
-        </div>
-
-        <div class="slide fade">
-        <figure>
-        <img src="screencasts/03-edit-code.png" alt="Use references to grow your program" class="anim" data-still="screencasts/03-edit-code.png" width="768" /><figcaption>3. Use references to grow your program</figcaption>
-        </figure>
-        </div>
-
-        <div class="slide fade">
-        <figure>
-        <img src="screencasts/04-fixing-bugs.png" alt="Fix bugs like you’d normally do" class="anim" data-still="screencasts/04-fixing-bugs.png" width="768" /><figcaption>4. Fix bugs like you’d normally do</figcaption>
-        </figure>
-        </div>
-
-        <div class="nav">
-        <a class="prev" onclick="plusSlides(-1)">❮</a>
-        <a class="next" onclick="plusSlides(1)">❯</a>
-        </div>
+<div class="slide fade">
+<figure>
+<img src="screencasts/01-getting-started.png" class="anim" data-still="screencasts/01-getting-started.png" width="768" alt="" /><figcaption>Write your documentation, and fire up enTangleD</figcaption>
+</figure>
 </div>
-
+<div class="slide fade">
+<figure>
+<img src="screencasts/02-adding-code.png" class="anim" data-still="screencasts/02-adding-code.png" width="768" alt="" /><figcaption>Add annotated code blocks</figcaption>
+</figure>
+</div>
+<div class="slide fade">
+<figure>
+<img src="screencasts/03-edit-code.png" class="anim" data-still="screencasts/03-edit-code.png" width="768" alt="" /><figcaption>Use references to grow your program</figcaption>
+</figure>
+</div>
+<div class="slide fade">
+<figure>
+<img src="screencasts/04-fixing-bugs.png" class="anim" data-still="screencasts/04-fixing-bugs.png" width="768" alt="" /><figcaption>Fix bugs like you’d normally do</figcaption>
+</figure>
+</div>
+<div style="text-align:center">
+<p><a class="prev" onclick="plusSlides(-1)">❮</a> <a class="next" onclick="plusSlides(1)">❯</a></p>
+</div>
+</div>
 <div style="text-align: center;">
-<span class="dot" onclick="currentSlide(1)"></span>
-<span class="dot" onclick="currentSlide(2)"></span>
-<span class="dot" onclick="currentSlide(3)"></span>
-<span class="dot" onclick="currentSlide(4)"></span>
+<p><span class="dot" onclick="currentSlide(1)"></span> <span class="dot" onclick="currentSlide(2)"></span> <span class="dot" onclick="currentSlide(3)"></span> <span class="dot" onclick="currentSlide(4)"></span></p>
 </div>
-
 <script src="jquery-3.3.1.slim.min.js"></script>
 <script src="anim.js"></script>
-
-<!-- <h2 id="entangled-in-4-screencasts">enTangleD in 4 screencasts</h2> -->
 <h2 id="status">Status</h2>
-<p><code>enTangleD</code> is working, but still in a alpha stage. It has been tested Linux, and Windows and should work on MacOS equally well. If you edit anything serious with the enTangle Daemon running, I strongly recommend using version control and commit often. If you encounter unexpected behaviour, please post an <a href="https://github.com/jhidding/enTangleD/issues">issue on github</a> and describe the steps to reproduce.</p>
+<p><code>enTangleD</code> is working, but still in a alpha stage. It has been tested Linux, and Windows and should work on MacOS equally well. If you edit anything serious with the enTangle Daemon running, I strongly recommend using version control and commit often. If you encounter unexpected behaviour, please post an issue and describe the steps to reproduce.</p>
 <p>Features:</p>
 <ul>
 <li>live bi-directional updates</li>
 <li>monitor multiple markdown files</li>
-<li>(reasonably) robust against wrongly edited source files</li>
-<li>create PDF or HTML pages from literate source</li>
+<li>PanDoc filter and <code>Makefile</code> to generate report</li>
+<li>create HTML pages from literate source</li>
 </ul>
 <p>Todo:</p>
 <ul>
 <li>configurability using Yaml file</li>
+<li>robustness against wrongly edited output files</li>
 <li>integration with git: commit every change, squash when done</li>
 <li>add workflow to create figures for HTML/PDF reports</li>
 </ul>
@@ -205,21 +187,21 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </ul>
 <h3 id="syntax-markdown-side">Syntax (markdown side)</h3>
 <p>The markdown syntax <code>enTangleD</code> uses is compatible with <code>Pandoc</code>’s. This relies on the use of <em>fenced code attributes</em>. To tangle a code block to a file:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode markdown"><code class="sourceCode markdown"><a class="sourceLine" id="cb4-1" title="1"><span class="bn">``` {.bash file=src/count.sh}</span></a>
-<a class="sourceLine" id="cb4-2" title="2"><span class="bn">   ...</span></a>
-<a class="sourceLine" id="cb4-3" title="3"><span class="bn">```</span></a></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb4-1"><a href="#cb4-1"></a><span class="bn">``` {.bash file=src/count.sh}</span></span>
+<span id="cb4-2"><a href="#cb4-2"></a><span class="bn">   ...</span></span>
+<span id="cb4-3"><a href="#cb4-3"></a><span class="bn">```</span></span></code></pre></div>
 <p>Composing a file using multiple code blocks is done through <em>noweb</em> syntax. You can reference a named code block in another code block by putting something like <code>&lt;&lt;named-code-block&gt;&gt;</code> on a single line. This reference may be indented. Such an indentation is then prefixed to each line in the final result.</p>
 <p>A named code block should have an identifier given:</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode markdown"><code class="sourceCode markdown"><a class="sourceLine" id="cb5-1" title="1"><span class="bn">``` {.python #named-code-block}</span></a>
-<a class="sourceLine" id="cb5-2" title="2"><span class="bn">   ...</span></a>
-<a class="sourceLine" id="cb5-3" title="3"><span class="bn">```</span></a></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb5-1"><a href="#cb5-1"></a><span class="bn">``` {.python #named-code-block}</span></span>
+<span id="cb5-2"><a href="#cb5-2"></a><span class="bn">   ...</span></span>
+<span id="cb5-3"><a href="#cb5-3"></a><span class="bn">```</span></span></code></pre></div>
 <p>If a name appears multiple times in the source, the code blocks are concatenated during tangling. When weaving, the first code block with a certain name will appear as <code>&lt;&lt;name&gt;&gt;=</code>, while consecutive code blocks with the same name will appear as <code>&lt;&lt;name&gt;&gt;+=</code>.</p>
 <p>Please see the <a href="hello-world.html">Hello World</a> and other examples!</p>
 <h3 id="syntax-source-side">Syntax (source side)</h3>
 <p>In the source code we know exactly where the code came from, so there would be no strict need for extra syntax there. However, once we start to edit the source file it may not be clear where the extra code needs to end up. To make our life a little easier, named code blocks that were tangled into the file are marked with a comment at begin and end.</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode cpp"><code class="sourceCode cpp"><a class="sourceLine" id="cb6-1" title="1"><span class="co">// ----- begin &lt;&lt;main-body&gt;&gt;[0]</span></a>
-<a class="sourceLine" id="cb6-2" title="2"><span class="bu">std::</span>cout &lt;&lt; <span class="st">&quot;Hello, World!&quot;</span> &lt;&lt; <span class="bu">std::</span>endl;</a>
-<a class="sourceLine" id="cb6-3" title="3"><span class="co">// ----- end</span></a></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb6-1"><a href="#cb6-1"></a><span class="co">// ----- begin &lt;&lt;main-body&gt;&gt;[0]</span></span>
+<span id="cb6-2"><a href="#cb6-2"></a><span class="bu">std::</span>cout &lt;&lt; <span class="st">&quot;Hello, World!&quot;</span> &lt;&lt; <span class="bu">std::</span>endl;</span>
+<span id="cb6-3"><a href="#cb6-3"></a><span class="co">// ----- end</span></span></code></pre></div>
 <p>These comments should not be tampered with!</p>
 <h3 id="running-entangled">Running <code>entangled</code></h3>
 <p>Assuming you have created a Markdown file, say <code>program.md</code>, you can start <code>entangled</code> by running</p>

@@ -112,7 +112,7 @@ CommandDaemon a -> runSession config
 ### Printing the config
 
 ``` {.haskell #main-imports}
-import qualified Toml
+import qualified Dhall
 ```
 
 ``` {.haskell #sub-commands}
@@ -125,7 +125,7 @@ import qualified Toml
 ```
 
 ``` {.haskell #sub-runners}
-CommandConfig -> T.IO.putStrLn $ Toml.encode configCodec config
+CommandConfig -> T.IO.putStrLn "NYI" -- T.IO.putStrLn $ Toml.encode configCodec config
 ```
 
 ### Inserting files to the database
@@ -298,7 +298,7 @@ runTangle cfg TangleArgs{..} = do
     withSQL dbPath $ do 
         createTables
         refs <- queryReferenceMap cfg
-        let annotate = if tangleDecorate then annotateComment else annotateNaked
+        let annotate = if tangleDecorate then (annotateComment' cfg) else annotateNaked
             codes = expandedCode annotate refs
             tangleRef tgt = case codes LM.!? tgt of
                 Nothing -> throwM $ TangleError $ "Reference `" <> tshow tgt <> "` not found."
@@ -307,9 +307,11 @@ runTangle cfg TangleArgs{..} = do
             tangleFile f = queryTargetRef f >>= \case
                 Nothing -> throwM $ TangleError $ "Target `" <> T.pack f <> "` not found."
                 Just ref -> do
-                    lang <- codeLanguage' refs ref
+                    langName <- codeLanguage' refs ref
                     content <- tangleRef ref
-                    return $ unlines' [headerComment lang f, content]
+                    case languageFromName cfg langName of
+                        Nothing -> throwM $ TangleError $ "Language unknown " <> langName
+                        Just lang -> return $ unlines' [headerComment lang f, content]
 
         case tangleQuery of
             TangleRef tgt -> tangleRef (ReferenceName tgt) >>= (\x -> liftIO $ T.IO.putStrLn x)

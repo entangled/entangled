@@ -4,7 +4,7 @@ module Stitch where
 -- ------ begin <<stitch-imports>>[0]
 import ListStream (ListStream(..), tokenP)
 import Document
-import Config (Config, languageFromName, Language)
+import Config (Config, languageFromName, ConfigLanguage(..))
 import Comment (topHeader, beginBlock, endBlock, commented)
 import TextUtil (indent, unindent, unlines')
 
@@ -35,7 +35,7 @@ sourceDocument = do
 -- ------ end
 -- ------ begin <<source-parser>>[1]
 sourceBlock :: ( MonadParsec e (ListStream Text) m )
-            => Language -> m ([Text], [ReferencePair])
+            => ConfigLanguage -> m ([Text], [ReferencePair])
 sourceBlock lang = do
     ((ref, beginIndent), _) <- tokenP (commented lang beginBlock)
     (lines, refpairs) <- mconcat <$> manyTill 
@@ -47,7 +47,7 @@ sourceBlock lang = do
     return ( if referenceCount ref == 0
                  then [(indent beginIndent $ showNowebReference $ referenceName ref)]
                  else []
-           , (ref, CodeBlock (KnownLanguage lang) [] content):refpairs )
+           , (ref, CodeBlock (KnownLanguage $ languageName lang) [] content):refpairs )
 
 sourceLine :: ( MonadParsec e (ListStream Text) m )
            => m ([Text], [ReferencePair])

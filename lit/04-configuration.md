@@ -1,36 +1,36 @@
--- ------ language="Haskell" file="src/Config.hs"
-module Config where
+# Configuration
 
--- ------ begin <<config-import>>[0]
+The configuration is written in Dhall and has the following schema:
+
+``` {.dhall #config-schema}
+let Comment : Type =
+    { start : Text
+    , end : Optional Text }
+
+let Language : Type =
+    { name : Text
+    , identifiers : List Text
+    , comment : Comment
+    , jupyter : Optional Text }
+
+let Config : Type =
+    { languages : Optional (List Language)
+    , watchList : Optional (List Text)
+    , database  : Optional Text }
+```
+
+## Reading config
+
+``` {.haskell #config-import}
 import Dhall (Generic, FromDhall, ToDhall, input, auto)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Set (Set)
--- ------ end
+```
 
-import Logging
-import Errors
+We need to match the Dhall schema with types in Haskell
 
-import qualified Data.Text.IO as T.IO
-import TextUtil
--- ------ begin <<import-set>>[0]
-import qualified Data.Set as S
-import Data.Set (Set)
--- ------ end
--- import qualified Toml
--- import Toml (TomlCodec, (.=))
-
-import Data.Function (on)
-import Data.List (find, scanl1)
-import Control.Applicative ((<|>))
-import Control.Monad.Extra (concatMapM)
-import Control.Monad.IO.Class
-import Control.Monad.Catch
-import System.FilePath.Glob (glob)
-import System.Directory 
-import System.FilePath
-
--- ------ begin <<config-dhall-schema>>[0]
+``` {.haskell #config-dhall-schema}
 data ConfigComment = ConfigComment
     { commentStart :: Text
     , commentEnd :: Maybe Text
@@ -62,8 +62,63 @@ instance FromDhall Config
 instance ToDhall ConfigComment
 instance ToDhall ConfigLanguage
 instance ToDhall Config
--- ------ end
--- ------ begin <<config-monoid>>[0]
+```
+
+``` {.haskell file=src/Config.hs}
+module Config where
+
+<<config-import>>
+
+import Logging
+import Errors
+
+import qualified Data.Text.IO as T.IO
+import TextUtil
+<<import-set>>
+-- import qualified Toml
+-- import Toml (TomlCodec, (.=))
+
+import Data.Function (on)
+import Data.List (find, scanl1)
+import Control.Applicative ((<|>))
+import Control.Monad.Extra (concatMapM)
+import Control.Monad.IO.Class
+import Control.Monad.Catch
+import System.FilePath.Glob (glob)
+import System.Directory 
+import System.FilePath
+
+<<config-dhall-schema>>
+<<config-monoid>>
+<<config-defaults>>
+<<config-input>>
+<<config-reader>>
+
+getDatabasePath :: (MonadIO m, MonadThrow m) => Config -> m FilePath
+getDatabasePath cfg = do
+    dbPath <- case configDatabase cfg of
+        Nothing -> throwM $ SystemError $ "database not configured"
+        Just db -> return $ T.unpack db
+    liftIO $ createDirectoryIfMissing True (takeDirectory dbPath)
+    return dbPath
+
+getInputFiles :: (MonadIO m) => Config -> m [FilePath]
+getInputFiles cfg = liftIO $ maybe mempty
+        (concatMapM (glob . T.unpack))
+        (configWatchList cfg)
+```
+
+Configuration can be stored in `${XDG_CONFIG_HOME}/entangled/config.dhall`. Also the local directory or its parents may contain a `.entangled.dhall` file. These override settings in the global configuration.
+
+There are currently no customisation options for entangled, but I keep my options open: namespaces for references, enabling future features like git support, you name it. The one component that we do need to configure is adding languages to the mix. Entangled has to know how to generate comments in every language.
+
+## Config monoid
+
+We need to be able to stack configurations, so we implement `Monoid` on `Config`. There is a generic way of doing this using `GHC.Generic`, `DeriveGeneric` language extension and `Generic.Data` module. For the moment this would be a bit overkill.
+
+> Tip from Merijn: put the maybes in a `First`/`Last`/`Alt` instance. This will enforce `<|>` behaviour on the monoid being used.
+
+``` {.haskell #config-monoid}
 instance Semigroup Config where
     a <> b = Config (configLanguages a <> configLanguages b)
                     (configWatchList a <> configWatchList b)
@@ -71,15 +126,23 @@ instance Semigroup Config where
 
 instance Monoid Config where
     mempty = Config mempty mempty mempty
--- ------ end
--- ------ begin <<config-monoid>>[1]
+```
+
+You can see this will grow out of hand as the configuration becomes a bigger thing. Note that the stacking prioritises the left most element. The complete config is then:
+
+``` {.haskell #config-monoid}
 configStack :: IO Config
 configStack = do
     localConfig <- readLocalConfig
     globalConfig <- readGlobalConfig
     return $ localConfig <> globalConfig <> defaultConfig
--- ------ end
--- ------ begin <<config-defaults>>[0]
+```
+
+## Defaults
+
+A somewhat biased list of languages: I don't know half of you half as well as I should like; and I like less than half of you half as well as you deserve.
+
+``` {.haskell #config-defaults}
 hashComment         = ConfigComment "#"    Nothing
 lispStyleComment    = ConfigComment ";"    Nothing
 cStyleComment       = ConfigComment "/*"   (Just "*/")
@@ -120,8 +183,15 @@ defaultConfig = Config
     , configWatchList = Nothing
     , configLanguages = defaultLanguages
     }
--- ------ end
--- ------ begin <<config-input>>[0]
+```
+
+### Reading config files
+
+:::TODO
+NYI
+:::
+
+``` {.haskell #config-input}
 findFileAscending :: String -> IO (Maybe FilePath)
 findFileAscending filename = do
     path <- dropTrailingPathSeparator <$> getCurrentDirectory
@@ -136,8 +206,11 @@ readLocalConfig = do
 
 readGlobalConfig :: IO Config
 readGlobalConfig = mempty
--- ------ end
--- ------ begin <<config-reader>>[0]
+```
+
+## Processing
+
+``` {.haskell #config-reader}
 lookupLanguage :: Config -> Text -> Maybe ConfigLanguage
 lookupLanguage cfg x
     = find (elem x . languageIdentifiers) 
@@ -147,18 +220,5 @@ languageFromName :: Config -> Text -> Maybe ConfigLanguage
 languageFromName cfg x
     = find ((== x) . languageName)
     $ configLanguages cfg
--- ------ end
+```
 
-getDatabasePath :: (MonadIO m, MonadThrow m) => Config -> m FilePath
-getDatabasePath cfg = do
-    dbPath <- case configDatabase cfg of
-        Nothing -> throwM $ SystemError $ "database not configured"
-        Just db -> return $ T.unpack db
-    liftIO $ createDirectoryIfMissing True (takeDirectory dbPath)
-    return dbPath
-
-getInputFiles :: (MonadIO m) => Config -> m [FilePath]
-getInputFiles cfg = liftIO $ maybe mempty
-        (concatMapM (glob . T.unpack))
-        (configWatchList cfg)
--- ------ end

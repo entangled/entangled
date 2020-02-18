@@ -6,33 +6,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
   <meta name="author" content="Johan Hidding" />
   <title>99 Bottles of Beer</title>
-  <style type="text/css">
+  <style>
       code{white-space: pre-wrap;}
       span.smallcaps{font-variant: small-caps;}
       span.underline{text-decoration: underline;}
       div.column{display: inline-block; vertical-align: top; width: 50%;}
   </style>
-  <style type="text/css">
-a.sourceLine { display: inline-block; line-height: 1.25; }
-a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
-a.sourceLine:empty { height: 1.2em; }
-.sourceCode { overflow: visible; }
-code.sourceCode { white-space: pre; position: relative; }
+  <style>
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
 div.sourceCode { margin: 1em 0; }
 pre.sourceCode { margin: 0; }
 @media screen {
 div.sourceCode { overflow: auto; }
 }
 @media print {
-code.sourceCode { white-space: pre-wrap; }
-a.sourceLine { text-indent: -1em; padding-left: 1em; }
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
 }
-pre.numberSource a.sourceLine
-  { position: relative; left: -4em; }
-pre.numberSource a.sourceLine::before
-  { content: attr(title);
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
     position: relative; left: -1em; text-align: right; vertical-align: baseline;
-    border: none; pointer-events: all; display: inline-block;
+    border: none; display: inline-block;
     -webkit-touch-callout: none; -webkit-user-select: none;
     -khtml-user-select: none; -moz-user-select: none;
     -ms-user-select: none; user-select: none;
@@ -41,9 +42,9 @@ pre.numberSource a.sourceLine::before
   }
 pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
 div.sourceCode
-  {  }
+  {   }
 @media screen {
-a.sourceLine::before { text-decoration: underline; }
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 code span.al { color: #ff0000; font-weight: bold; } /* Alert */
 code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
@@ -87,7 +88,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <h1 class="title">99 Bottles of Beer</h1>
 <p class="author">Johan Hidding</p>
 </header>
-<nav id="TOC">
+<nav id="TOC" role="doc-toc">
 <ul>
 <li><a href="#argument-parsing">Argument parsing</a></li>
 <li><a href="#formatting-a-drinking-song">Formatting a drinking song</a></li>
@@ -95,7 +96,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </ul>
 </nav>
 <p><em>«version»=</em></p>
-<div class="sourceCode" id="version"><pre class="sourceCode cpp"><code class="sourceCode cpp"><a class="sourceLine" id="version-1" title="1"><span class="pp">#define VERSION </span><span class="st">&quot;1.0&quot;</span></a></code></pre></div>
+<div class="sourceCode" id="version"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="version-1"><a href="#version-1"></a><span class="pp">#define VERSION </span><span class="st">&quot;1.0&quot;</span></span></code></pre></div>
 <p>This example shows how to create a basic C++ executable including some basic argument parsing. You may learn from this:</p>
 <ul>
 <li>Create a basic C++ program using enTangleD.</li>
@@ -106,113 +107,113 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </ul>
 <p>This program will be so tiny, that it will fit into a single source file:</p>
 <p><em>file: «src/99-bottles.cc»=</em></p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode cpp"><code class="sourceCode cpp"><a class="sourceLine" id="cb1-1" title="1">&lt;&lt;includes&gt;&gt;</a>
-<a class="sourceLine" id="cb1-2" title="2">&lt;&lt;version&gt;&gt;</a>
-<a class="sourceLine" id="cb1-3" title="3"></a>
-<a class="sourceLine" id="cb1-4" title="4">&lt;&lt;bottles-function&gt;&gt;</a>
-<a class="sourceLine" id="cb1-5" title="5">&lt;&lt;print-song-function&gt;&gt;</a>
-<a class="sourceLine" id="cb1-6" title="6">&lt;&lt;main-function&gt;&gt;</a></code></pre></div>
+<div class="sourceCode" id="cb1"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb1-1"><a href="#cb1-1"></a>&lt;&lt;includes&gt;&gt;</span>
+<span id="cb1-2"><a href="#cb1-2"></a>&lt;&lt;version&gt;&gt;</span>
+<span id="cb1-3"><a href="#cb1-3"></a></span>
+<span id="cb1-4"><a href="#cb1-4"></a>&lt;&lt;bottles-function&gt;&gt;</span>
+<span id="cb1-5"><a href="#cb1-5"></a>&lt;&lt;print-song-function&gt;&gt;</span>
+<span id="cb1-6"><a href="#cb1-6"></a>&lt;&lt;main-function&gt;&gt;</span></code></pre></div>
 <p>This source file includes some headers, a version number and three functions. The <code>bottles</code> function helps us create gramatically correct sentences with an arbitrary (though <span class="math inline">\(\le 0\)</span>) number of bottles. <code>print_song</code> is the core function generating the 99-bottles song and <code>main</code> will handle command-line arguments.</p>
 <p>First, we’ll include some headers that we’ll need:</p>
 <p><em>«includes»=</em></p>
-<div class="sourceCode" id="includes"><pre class="sourceCode cpp"><code class="sourceCode cpp"><a class="sourceLine" id="includes-1" title="1"><span class="pp">#include </span><span class="im">&lt;cstdlib&gt;</span></a>
-<a class="sourceLine" id="includes-2" title="2"><span class="pp">#include </span><span class="im">&lt;iostream&gt;</span></a>
-<a class="sourceLine" id="includes-3" title="3"><span class="pp">#include </span><span class="im">&lt;argagg/argagg.hpp&gt;</span></a>
-<a class="sourceLine" id="includes-4" title="4"><span class="pp">#include </span><span class="im">&lt;fmt/format.h&gt;</span></a></code></pre></div>
+<div class="sourceCode" id="includes"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="includes-1"><a href="#includes-1"></a><span class="pp">#include </span><span class="im">&lt;cstdlib&gt;</span></span>
+<span id="includes-2"><a href="#includes-2"></a><span class="pp">#include </span><span class="im">&lt;iostream&gt;</span></span>
+<span id="includes-3"><a href="#includes-3"></a><span class="pp">#include </span><span class="im">&lt;argagg/argagg.hpp&gt;</span></span>
+<span id="includes-4"><a href="#includes-4"></a><span class="pp">#include </span><span class="im">&lt;fmt/format.h&gt;</span></span></code></pre></div>
 <p>The <code>cstdlib</code> file includes basic functions and constants from the C <code>stdlib.h</code> header. <code>iostream</code> contains the C++ library for IO. Next to that we include the <em>ArgAgg</em> and <em>fmtlib</em> headers.</p>
 <h2 id="argument-parsing">Argument parsing</h2>
 <p>An executable in C/C++ always has a main function of the signature</p>
 <p><em>«main-function»=</em></p>
-<div class="sourceCode" id="main-function"><pre class="sourceCode cpp"><code class="sourceCode cpp"><a class="sourceLine" id="main-function-1" title="1"><span class="dt">int</span> main(<span class="dt">int</span> argc, <span class="dt">char</span> **argv)</a>
-<a class="sourceLine" id="main-function-2" title="2">{</a>
-<a class="sourceLine" id="main-function-3" title="3">    &lt;&lt;main-body&gt;&gt;</a>
-<a class="sourceLine" id="main-function-4" title="4"></a>
-<a class="sourceLine" id="main-function-5" title="5">    <span class="cf">return</span> EXIT_SUCCESS;</a>
-<a class="sourceLine" id="main-function-6" title="6">}</a></code></pre></div>
+<div class="sourceCode" id="main-function"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="main-function-1"><a href="#main-function-1"></a><span class="dt">int</span> main(<span class="dt">int</span> argc, <span class="dt">char</span> **argv)</span>
+<span id="main-function-2"><a href="#main-function-2"></a>{</span>
+<span id="main-function-3"><a href="#main-function-3"></a>    &lt;&lt;main-body&gt;&gt;</span>
+<span id="main-function-4"><a href="#main-function-4"></a></span>
+<span id="main-function-5"><a href="#main-function-5"></a>    <span class="cf">return</span> EXIT_SUCCESS;</span>
+<span id="main-function-6"><a href="#main-function-6"></a>}</span></code></pre></div>
 <p>The arguments <code>argc</code> and <code>argv</code> give the number of arguments given on the command line and an array of null-terminated C-strings respectively. If we were writing C, we would use the <code>getopt</code> library to parse the given arguments. This C interface is tedious. It’s 2019 and we’re programming C++, so we use ArgAgg (say this out loud and twist your face in a painful contortion just to annoy who ever is sitting next to you)!</p>
 <p>ArgAgg is a header-only library that simplifies argument parsing greatly. We may declare the possible command-line arguments and flags as follows:</p>
 <p><em>«declare-arguments»=</em></p>
-<div class="sourceCode" id="declare-arguments"><pre class="sourceCode cpp"><code class="sourceCode cpp"><a class="sourceLine" id="declare-arguments-1" title="1">argagg::parser argparser {{</a>
-<a class="sourceLine" id="declare-arguments-2" title="2">    { <span class="st">&quot;n&quot;</span>, {<span class="st">&quot;-n&quot;</span>},</a>
-<a class="sourceLine" id="declare-arguments-3" title="3">        <span class="st">&quot;(99) number of bottles to start with&quot;</span>, <span class="dv">1</span> },</a>
-<a class="sourceLine" id="declare-arguments-4" title="4">    { <span class="st">&quot;help&quot;</span>, {<span class="st">&quot;-h&quot;</span>, <span class="st">&quot;--help&quot;</span>},</a>
-<a class="sourceLine" id="declare-arguments-5" title="5">        <span class="st">&quot;shows this help message&quot;</span>, <span class="dv">0</span> },</a>
-<a class="sourceLine" id="declare-arguments-6" title="6">    { <span class="st">&quot;version&quot;</span>, {<span class="st">&quot;-v&quot;</span>, <span class="st">&quot;--version&quot;</span>},</a>
-<a class="sourceLine" id="declare-arguments-7" title="7">        <span class="st">&quot;shows the software version&quot;</span>, <span class="dv">0</span> }</a>
-<a class="sourceLine" id="declare-arguments-8" title="8">}};</a></code></pre></div>
+<div class="sourceCode" id="declare-arguments"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="declare-arguments-1"><a href="#declare-arguments-1"></a>argagg::parser argparser {{</span>
+<span id="declare-arguments-2"><a href="#declare-arguments-2"></a>    { <span class="st">&quot;n&quot;</span>, {<span class="st">&quot;-n&quot;</span>},</span>
+<span id="declare-arguments-3"><a href="#declare-arguments-3"></a>        <span class="st">&quot;(99) number of bottles to start with&quot;</span>, <span class="dv">1</span> },</span>
+<span id="declare-arguments-4"><a href="#declare-arguments-4"></a>    { <span class="st">&quot;help&quot;</span>, {<span class="st">&quot;-h&quot;</span>, <span class="st">&quot;--help&quot;</span>},</span>
+<span id="declare-arguments-5"><a href="#declare-arguments-5"></a>        <span class="st">&quot;shows this help message&quot;</span>, <span class="dv">0</span> },</span>
+<span id="declare-arguments-6"><a href="#declare-arguments-6"></a>    { <span class="st">&quot;version&quot;</span>, {<span class="st">&quot;-v&quot;</span>, <span class="st">&quot;--version&quot;</span>},</span>
+<span id="declare-arguments-7"><a href="#declare-arguments-7"></a>        <span class="st">&quot;shows the software version&quot;</span>, <span class="dv">0</span> }</span>
+<span id="declare-arguments-8"><a href="#declare-arguments-8"></a>}};</span></code></pre></div>
 <p>It is considered good behaviour to always include the <code>"--help"</code> and <code>"--version"</code> arguments (see for instance: <a href="https://www.tldp.org/LDP/abs/html/standard-options.html">tldp.org</a> and <a href="https://www.gnu.org/prep/standards/html_node/Command_002dLine-Interfaces.html">the GNU Coding Standards</a>). For good measure we also include an argument that gives the number of bottles that we’ll start the song with.</p>
 <p>Using the <code>argagg::parser</code> instance we can parse the command-line arguments stored in <code>argc</code> and <code>argv</code>. Since this operation may fail, we perform it inside a <code>try</code>, <code>catch</code> block:</p>
 <p><em>«parse-arguments»=</em></p>
-<div class="sourceCode" id="parse-arguments"><pre class="sourceCode cpp"><code class="sourceCode cpp"><a class="sourceLine" id="parse-arguments-1" title="1">argagg::parser_results args;</a>
-<a class="sourceLine" id="parse-arguments-2" title="2"><span class="cf">try</span> {</a>
-<a class="sourceLine" id="parse-arguments-3" title="3">    args = argparser.parse(argc, argv);</a>
-<a class="sourceLine" id="parse-arguments-4" title="4">} <span class="cf">catch</span> (<span class="bu">std::</span>exception <span class="at">const</span> &amp;e) {</a>
-<a class="sourceLine" id="parse-arguments-5" title="5">    <span class="bu">std::</span>cerr &lt;&lt; e.what() &lt;&lt; <span class="bu">std::</span>endl;</a>
-<a class="sourceLine" id="parse-arguments-6" title="6">    <span class="cf">return</span> EXIT_FAILURE;</a>
-<a class="sourceLine" id="parse-arguments-7" title="7">}</a></code></pre></div>
+<div class="sourceCode" id="parse-arguments"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="parse-arguments-1"><a href="#parse-arguments-1"></a>argagg::parser_results args;</span>
+<span id="parse-arguments-2"><a href="#parse-arguments-2"></a><span class="cf">try</span> {</span>
+<span id="parse-arguments-3"><a href="#parse-arguments-3"></a>    args = argparser.parse(argc, argv);</span>
+<span id="parse-arguments-4"><a href="#parse-arguments-4"></a>} <span class="cf">catch</span> (<span class="bu">std::</span>exception <span class="at">const</span> &amp;e) {</span>
+<span id="parse-arguments-5"><a href="#parse-arguments-5"></a>    <span class="bu">std::</span>cerr &lt;&lt; e.what() &lt;&lt; <span class="bu">std::</span>endl;</span>
+<span id="parse-arguments-6"><a href="#parse-arguments-6"></a>    <span class="cf">return</span> EXIT_FAILURE;</span>
+<span id="parse-arguments-7"><a href="#parse-arguments-7"></a>}</span></code></pre></div>
 <p>Now that we have parsed the arguments, we can implement the different ways the program will execute. If either the <code>"--help"</code> or <code>"--version"</code> flags was given, we print the requested information and exit the program.</p>
 <p><em>«print-help-or-version»=</em></p>
-<div class="sourceCode" id="print-help-or-version"><pre class="sourceCode cpp"><code class="sourceCode cpp"><a class="sourceLine" id="print-help-or-version-1" title="1"><span class="cf">if</span> (args[<span class="st">&quot;help&quot;</span>]) {</a>
-<a class="sourceLine" id="print-help-or-version-2" title="2">    <span class="bu">std::</span>cerr &lt;&lt; <span class="st">&quot;99 bottles -- &quot;</span> &lt;&lt; VERSION &lt;&lt; <span class="bu">std::</span>endl;</a>
-<a class="sourceLine" id="print-help-or-version-3" title="3">    <span class="bu">std::</span>cerr &lt;&lt; <span class="st">&quot;Usage: &quot;</span> &lt;&lt; args.program &lt;&lt; <span class="st">&quot; [options]&quot;</span> &lt;&lt; <span class="bu">std::</span>endl;</a>
-<a class="sourceLine" id="print-help-or-version-4" title="4">    <span class="bu">std::</span>cerr &lt;&lt; argparser;</a>
-<a class="sourceLine" id="print-help-or-version-5" title="5">    <span class="cf">return</span> EXIT_SUCCESS;</a>
-<a class="sourceLine" id="print-help-or-version-6" title="6">}</a>
-<a class="sourceLine" id="print-help-or-version-7" title="7"></a>
-<a class="sourceLine" id="print-help-or-version-8" title="8"><span class="cf">if</span> (args[<span class="st">&quot;version&quot;</span>]) {</a>
-<a class="sourceLine" id="print-help-or-version-9" title="9">    <span class="bu">std::</span>cerr &lt;&lt; <span class="st">&quot;99 bottles -- &quot;</span> &lt;&lt; VERSION &lt;&lt; <span class="bu">std::</span>endl;</a>
-<a class="sourceLine" id="print-help-or-version-10" title="10">    <span class="cf">return</span> EXIT_SUCCESS;</a>
-<a class="sourceLine" id="print-help-or-version-11" title="11">}</a></code></pre></div>
+<div class="sourceCode" id="print-help-or-version"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="print-help-or-version-1"><a href="#print-help-or-version-1"></a><span class="cf">if</span> (args[<span class="st">&quot;help&quot;</span>]) {</span>
+<span id="print-help-or-version-2"><a href="#print-help-or-version-2"></a>    <span class="bu">std::</span>cerr &lt;&lt; <span class="st">&quot;99 bottles -- &quot;</span> &lt;&lt; VERSION &lt;&lt; <span class="bu">std::</span>endl;</span>
+<span id="print-help-or-version-3"><a href="#print-help-or-version-3"></a>    <span class="bu">std::</span>cerr &lt;&lt; <span class="st">&quot;Usage: &quot;</span> &lt;&lt; args.program &lt;&lt; <span class="st">&quot; [options]&quot;</span> &lt;&lt; <span class="bu">std::</span>endl;</span>
+<span id="print-help-or-version-4"><a href="#print-help-or-version-4"></a>    <span class="bu">std::</span>cerr &lt;&lt; argparser;</span>
+<span id="print-help-or-version-5"><a href="#print-help-or-version-5"></a>    <span class="cf">return</span> EXIT_SUCCESS;</span>
+<span id="print-help-or-version-6"><a href="#print-help-or-version-6"></a>}</span>
+<span id="print-help-or-version-7"><a href="#print-help-or-version-7"></a></span>
+<span id="print-help-or-version-8"><a href="#print-help-or-version-8"></a><span class="cf">if</span> (args[<span class="st">&quot;version&quot;</span>]) {</span>
+<span id="print-help-or-version-9"><a href="#print-help-or-version-9"></a>    <span class="bu">std::</span>cerr &lt;&lt; <span class="st">&quot;99 bottles -- &quot;</span> &lt;&lt; VERSION &lt;&lt; <span class="bu">std::</span>endl;</span>
+<span id="print-help-or-version-10"><a href="#print-help-or-version-10"></a>    <span class="cf">return</span> EXIT_SUCCESS;</span>
+<span id="print-help-or-version-11"><a href="#print-help-or-version-11"></a>}</span></code></pre></div>
 <p>If none of those flags was given we continue with the main program. We extract the number of bottles that we want to start with and print the song:</p>
 <p><em>«sing-a-song»=</em></p>
-<div class="sourceCode" id="sing-a-song"><pre class="sourceCode cpp"><code class="sourceCode cpp"><a class="sourceLine" id="sing-a-song-1" title="1"><span class="dt">unsigned</span> n = args[<span class="st">&quot;n&quot;</span>].as&lt;<span class="dt">unsigned</span>&gt;(<span class="dv">99</span>);</a>
-<a class="sourceLine" id="sing-a-song-2" title="2">print_song(n);</a></code></pre></div>
+<div class="sourceCode" id="sing-a-song"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="sing-a-song-1"><a href="#sing-a-song-1"></a><span class="dt">unsigned</span> n = args[<span class="st">&quot;n&quot;</span>].as&lt;<span class="dt">unsigned</span>&gt;(<span class="dv">99</span>);</span>
+<span id="sing-a-song-2"><a href="#sing-a-song-2"></a>print_song(n);</span></code></pre></div>
 <p>In one line we extract the argument <code>n</code>, parse it to <code>unsigned</code> and give a default value, should the argument not been given.</p>
 <p>Now we can compose the body of the main function:</p>
 <p><em>«main-body»=</em></p>
-<div class="sourceCode" id="main-body"><pre class="sourceCode cpp"><code class="sourceCode cpp"><a class="sourceLine" id="main-body-1" title="1">&lt;&lt;declare-arguments&gt;&gt;</a>
-<a class="sourceLine" id="main-body-2" title="2">&lt;&lt;parse-arguments&gt;&gt;</a>
-<a class="sourceLine" id="main-body-3" title="3">&lt;&lt;print-help-<span class="kw">or</span>-version&gt;&gt;</a>
-<a class="sourceLine" id="main-body-4" title="4">&lt;&lt;sing-a-song&gt;&gt;</a></code></pre></div>
+<div class="sourceCode" id="main-body"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="main-body-1"><a href="#main-body-1"></a>&lt;&lt;declare-arguments&gt;&gt;</span>
+<span id="main-body-2"><a href="#main-body-2"></a>&lt;&lt;parse-arguments&gt;&gt;</span>
+<span id="main-body-3"><a href="#main-body-3"></a>&lt;&lt;print-help-<span class="kw">or</span>-version&gt;&gt;</span>
+<span id="main-body-4"><a href="#main-body-4"></a>&lt;&lt;sing-a-song&gt;&gt;</span></code></pre></div>
 <h2 id="formatting-a-drinking-song">Formatting a drinking song</h2>
 <p>Now, to the problem of <em>99 bottles</em>! One part of the problem is that towards the end of the song, the grammar of the text is changing slightly due to the singularity of the number <em>one</em>. We’ll create a little helper function to figure out how to communicate the number of bottles we have left.</p>
 <p><em>«bottles-function»=</em></p>
-<div class="sourceCode" id="bottles-function"><pre class="sourceCode cpp"><code class="sourceCode cpp"><a class="sourceLine" id="bottles-function-1" title="1"><span class="bu">std::</span>string bottles(<span class="dt">unsigned</span> i)</a>
-<a class="sourceLine" id="bottles-function-2" title="2">{</a>
-<a class="sourceLine" id="bottles-function-3" title="3">    <span class="cf">if</span> (i &gt; <span class="dv">1</span>) {</a>
-<a class="sourceLine" id="bottles-function-4" title="4">        <span class="cf">return</span> fmt::format(<span class="st">&quot;{} bottles&quot;</span>, i);</a>
-<a class="sourceLine" id="bottles-function-5" title="5">    }</a>
-<a class="sourceLine" id="bottles-function-6" title="6">    <span class="cf">if</span> (i == <span class="dv">1</span>) {</a>
-<a class="sourceLine" id="bottles-function-7" title="7">        <span class="cf">return</span> <span class="st">&quot;1 bottle&quot;</span>;</a>
-<a class="sourceLine" id="bottles-function-8" title="8">    }</a>
-<a class="sourceLine" id="bottles-function-9" title="9">    <span class="cf">return</span> <span class="st">&quot;no more bottles&quot;</span>;</a>
-<a class="sourceLine" id="bottles-function-10" title="10">}</a></code></pre></div>
+<div class="sourceCode" id="bottles-function"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="bottles-function-1"><a href="#bottles-function-1"></a><span class="bu">std::</span>string bottles(<span class="dt">unsigned</span> i)</span>
+<span id="bottles-function-2"><a href="#bottles-function-2"></a>{</span>
+<span id="bottles-function-3"><a href="#bottles-function-3"></a>    <span class="cf">if</span> (i &gt; <span class="dv">1</span>) {</span>
+<span id="bottles-function-4"><a href="#bottles-function-4"></a>        <span class="cf">return</span> fmt::format(<span class="st">&quot;{} bottles&quot;</span>, i);</span>
+<span id="bottles-function-5"><a href="#bottles-function-5"></a>    }</span>
+<span id="bottles-function-6"><a href="#bottles-function-6"></a>    <span class="cf">if</span> (i == <span class="dv">1</span>) {</span>
+<span id="bottles-function-7"><a href="#bottles-function-7"></a>        <span class="cf">return</span> <span class="st">&quot;1 bottle&quot;</span>;</span>
+<span id="bottles-function-8"><a href="#bottles-function-8"></a>    }</span>
+<span id="bottles-function-9"><a href="#bottles-function-9"></a>    <span class="cf">return</span> <span class="st">&quot;no more bottles&quot;</span>;</span>
+<span id="bottles-function-10"><a href="#bottles-function-10"></a>}</span></code></pre></div>
 <p>The <code>fmt::format</code> function formats a string using <code>"{}"</code> as a placeholder for whatever arguments follow. This function is much easier to use than the native C++ method of opening a <code>std::ostringstream</code>, using <code>iomanip</code> and so on. There is an overview of the format string syntax on <a href="http://fmtlib.net/latest/syntax.html">the fmtlib homepage</a>.</p>
 <p>Now, we may write out the song:</p>
 <p><em>«print-song-function»=</em></p>
-<div class="sourceCode" id="print-song-function"><pre class="sourceCode cpp"><code class="sourceCode cpp"><a class="sourceLine" id="print-song-function-1" title="1"><span class="dt">void</span> print_song(<span class="dt">unsigned</span> n)</a>
-<a class="sourceLine" id="print-song-function-2" title="2">{</a>
-<a class="sourceLine" id="print-song-function-3" title="3">    <span class="dt">unsigned</span> i = n;</a>
-<a class="sourceLine" id="print-song-function-4" title="4">    <span class="cf">while</span> (i &gt; <span class="dv">0</span>)</a>
-<a class="sourceLine" id="print-song-function-5" title="5">    {</a>
-<a class="sourceLine" id="print-song-function-6" title="6">        fmt::print(</a>
-<a class="sourceLine" id="print-song-function-7" title="7">            <span class="st">&quot;{0} of beer on the wall, &quot;</span></a>
-<a class="sourceLine" id="print-song-function-8" title="8">            <span class="st">&quot;{0} of beer.</span><span class="sc">\n</span><span class="st">&quot;</span>,</a>
-<a class="sourceLine" id="print-song-function-9" title="9">            bottles(i));</a>
-<a class="sourceLine" id="print-song-function-10" title="10"></a>
-<a class="sourceLine" id="print-song-function-11" title="11">        fmt::print(</a>
-<a class="sourceLine" id="print-song-function-12" title="12">            <span class="st">&quot;Take one down and pass it around, &quot;</span></a>
-<a class="sourceLine" id="print-song-function-13" title="13">            <span class="st">&quot;{} of beer on the wall.</span><span class="sc">\n</span><span class="st">&quot;</span>, </a>
-<a class="sourceLine" id="print-song-function-14" title="14">            bottles(--i));</a>
-<a class="sourceLine" id="print-song-function-15" title="15">    }</a>
-<a class="sourceLine" id="print-song-function-16" title="16"></a>
-<a class="sourceLine" id="print-song-function-17" title="17">    fmt::print(</a>
-<a class="sourceLine" id="print-song-function-18" title="18">        <span class="st">&quot;No more bottles of beer on the wall, &quot;</span></a>
-<a class="sourceLine" id="print-song-function-19" title="19">        <span class="st">&quot;no more bottles of beer.</span><span class="sc">\n</span><span class="st">&quot;</span></a>
-<a class="sourceLine" id="print-song-function-20" title="20">        <span class="st">&quot;Go to the store and buy some more, &quot;</span></a>
-<a class="sourceLine" id="print-song-function-21" title="21">        <span class="st">&quot;{} of beer on the wall.</span><span class="sc">\n</span><span class="st">&quot;</span>,</a>
-<a class="sourceLine" id="print-song-function-22" title="22">        bottles(n));</a>
-<a class="sourceLine" id="print-song-function-23" title="23">}</a></code></pre></div>
+<div class="sourceCode" id="print-song-function"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="print-song-function-1"><a href="#print-song-function-1"></a><span class="dt">void</span> print_song(<span class="dt">unsigned</span> n)</span>
+<span id="print-song-function-2"><a href="#print-song-function-2"></a>{</span>
+<span id="print-song-function-3"><a href="#print-song-function-3"></a>    <span class="dt">unsigned</span> i = n;</span>
+<span id="print-song-function-4"><a href="#print-song-function-4"></a>    <span class="cf">while</span> (i &gt; <span class="dv">0</span>)</span>
+<span id="print-song-function-5"><a href="#print-song-function-5"></a>    {</span>
+<span id="print-song-function-6"><a href="#print-song-function-6"></a>        fmt::print(</span>
+<span id="print-song-function-7"><a href="#print-song-function-7"></a>            <span class="st">&quot;{0} of beer on the wall, &quot;</span></span>
+<span id="print-song-function-8"><a href="#print-song-function-8"></a>            <span class="st">&quot;{0} of beer.</span><span class="sc">\n</span><span class="st">&quot;</span>,</span>
+<span id="print-song-function-9"><a href="#print-song-function-9"></a>            bottles(i));</span>
+<span id="print-song-function-10"><a href="#print-song-function-10"></a></span>
+<span id="print-song-function-11"><a href="#print-song-function-11"></a>        fmt::print(</span>
+<span id="print-song-function-12"><a href="#print-song-function-12"></a>            <span class="st">&quot;Take one down and pass it around, &quot;</span></span>
+<span id="print-song-function-13"><a href="#print-song-function-13"></a>            <span class="st">&quot;{} of beer on the wall.</span><span class="sc">\n</span><span class="st">&quot;</span>, </span>
+<span id="print-song-function-14"><a href="#print-song-function-14"></a>            bottles(--i));</span>
+<span id="print-song-function-15"><a href="#print-song-function-15"></a>    }</span>
+<span id="print-song-function-16"><a href="#print-song-function-16"></a></span>
+<span id="print-song-function-17"><a href="#print-song-function-17"></a>    fmt::print(</span>
+<span id="print-song-function-18"><a href="#print-song-function-18"></a>        <span class="st">&quot;No more bottles of beer on the wall, &quot;</span></span>
+<span id="print-song-function-19"><a href="#print-song-function-19"></a>        <span class="st">&quot;no more bottles of beer.</span><span class="sc">\n</span><span class="st">&quot;</span></span>
+<span id="print-song-function-20"><a href="#print-song-function-20"></a>        <span class="st">&quot;Go to the store and buy some more, &quot;</span></span>
+<span id="print-song-function-21"><a href="#print-song-function-21"></a>        <span class="st">&quot;{} of beer on the wall.</span><span class="sc">\n</span><span class="st">&quot;</span>,</span>
+<span id="print-song-function-22"><a href="#print-song-function-22"></a>        bottles(n));</span>
+<span id="print-song-function-23"><a href="#print-song-function-23"></a>}</span></code></pre></div>
 <h2 id="song-synthesis">Song synthesis</h2>
 <p>To compile the <code>99-bottles</code> program, you can use GCC directly.</p>
 <pre><code>mkdir build
@@ -220,32 +221,32 @@ g++ src/99-bottles.cc -lfmt -o build/99-bottles</code></pre>
 <p>But it is much better to provide a <code>Makefile</code>. We will create a <code>Makefile</code> that is generic enough to compile your program without too much modification, even as your source code expands.</p>
 <p>We make sure all our build files end up in a single folder, preferably called <code>build</code> (hint: this folder can be added to your <code>.gitignore</code>).</p>
 <p><em>«set-build-dir»=</em></p>
-<div class="sourceCode" id="set-build-dir"><pre class="sourceCode makefile"><code class="sourceCode makefile"><a class="sourceLine" id="set-build-dir-1" title="1"><span class="dt">build_dir </span><span class="ch">=</span><span class="st"> ./build</span></a></code></pre></div>
+<div class="sourceCode" id="set-build-dir"><pre class="sourceCode makefile"><code class="sourceCode makefile"><span id="set-build-dir-1"><a href="#set-build-dir-1"></a><span class="dt">build_dir </span><span class="ch">=</span><span class="st"> ./build</span></span></code></pre></div>
 <p>We search for all files with the <code>.cc</code> extension (warning: for bigger projects this will slow down compilation considerably). <code>make</code> does not easily support scanning for source files, but we may use a shell command.</p>
 <p><em>«search-cc-files»=</em></p>
-<div class="sourceCode" id="search-cc-files"><pre class="sourceCode makefile"><code class="sourceCode makefile"><a class="sourceLine" id="search-cc-files-1" title="1"><span class="dt">cc_files </span><span class="ch">=</span><span class="st"> </span><span class="ch">$(</span><span class="kw">shell</span><span class="st"> find ./src -name *.cc</span><span class="ch">)</span></a></code></pre></div>
+<div class="sourceCode" id="search-cc-files"><pre class="sourceCode makefile"><code class="sourceCode makefile"><span id="search-cc-files-1"><a href="#search-cc-files-1"></a><span class="dt">cc_files </span><span class="ch">=</span><span class="st"> </span><span class="ch">$(</span><span class="kw">shell</span><span class="st"> find ./src -name *.cc</span><span class="ch">)</span></span></code></pre></div>
 <p>We can use string manipulation present in <code>make</code> to create the target object files and dependency files. The latter store the dependencies of the source files on header files, so that if a header file changes, the source file is recompiled.</p>
 <p><em>«set-obj-files»=</em></p>
-<div class="sourceCode" id="set-obj-files"><pre class="sourceCode makefile"><code class="sourceCode makefile"><a class="sourceLine" id="set-obj-files-1" title="1"><span class="dt">obj_files </span><span class="ch">=</span><span class="st"> </span><span class="ch">$(</span><span class="dt">cc_files</span><span class="er">:</span><span class="dt">%.cc</span><span class="er">=</span><span class="ch">$(</span><span class="dt">build_dir</span><span class="ch">)</span><span class="dt">/%.o</span><span class="ch">)</span></a>
-<a class="sourceLine" id="set-obj-files-2" title="2"><span class="dt">dep_files </span><span class="ch">=</span><span class="st"> </span><span class="ch">$(</span><span class="dt">obj_file</span><span class="er">:</span><span class="dt">%.o</span><span class="er">=</span><span class="dt">%.d</span><span class="ch">)</span></a></code></pre></div>
+<div class="sourceCode" id="set-obj-files"><pre class="sourceCode makefile"><code class="sourceCode makefile"><span id="set-obj-files-1"><a href="#set-obj-files-1"></a><span class="dt">obj_files </span><span class="ch">=</span><span class="st"> </span><span class="ch">$(</span><span class="dt">cc_files</span><span class="er">:</span><span class="dt">%.cc</span><span class="er">=</span><span class="ch">$(</span><span class="dt">build_dir</span><span class="ch">)</span><span class="dt">/%.o</span><span class="ch">)</span></span>
+<span id="set-obj-files-2"><a href="#set-obj-files-2"></a><span class="dt">dep_files </span><span class="ch">=</span><span class="st"> </span><span class="ch">$(</span><span class="dt">obj_file</span><span class="er">:</span><span class="dt">%.o</span><span class="er">=</span><span class="dt">%.d</span><span class="ch">)</span></span></code></pre></div>
 <p>The <code>fmtlib</code> library requires linking using <code>-lfmt</code>, we next define the compiler and linker commands and their arguments.</p>
 <p><em>«compile-flags»=</em></p>
-<div class="sourceCode" id="compile-flags"><pre class="sourceCode makefile"><code class="sourceCode makefile"><a class="sourceLine" id="compile-flags-1" title="1"><span class="dt">compile </span><span class="ch">=</span><span class="st"> g++</span></a>
-<a class="sourceLine" id="compile-flags-2" title="2"><span class="dt">link </span><span class="ch">=</span><span class="st"> g++</span></a>
-<a class="sourceLine" id="compile-flags-3" title="3"></a>
-<a class="sourceLine" id="compile-flags-4" title="4"><span class="dt">fmtlib_lflags </span><span class="ch">=</span><span class="st"> -lfmt</span></a>
-<a class="sourceLine" id="compile-flags-5" title="5"></a>
-<a class="sourceLine" id="compile-flags-6" title="6"><span class="dt">compile_flags </span><span class="ch">=</span><span class="st"> -std=c++14 -Wall -O3</span></a>
-<a class="sourceLine" id="compile-flags-7" title="7"><span class="dt">link_flags </span><span class="ch">=</span><span class="st"> </span><span class="ch">$(</span><span class="dt">fmtlib_lflags</span><span class="ch">)</span></a></code></pre></div>
+<div class="sourceCode" id="compile-flags"><pre class="sourceCode makefile"><code class="sourceCode makefile"><span id="compile-flags-1"><a href="#compile-flags-1"></a><span class="dt">compile </span><span class="ch">=</span><span class="st"> g++</span></span>
+<span id="compile-flags-2"><a href="#compile-flags-2"></a><span class="dt">link </span><span class="ch">=</span><span class="st"> g++</span></span>
+<span id="compile-flags-3"><a href="#compile-flags-3"></a></span>
+<span id="compile-flags-4"><a href="#compile-flags-4"></a><span class="dt">fmtlib_lflags </span><span class="ch">=</span><span class="st"> -lfmt</span></span>
+<span id="compile-flags-5"><a href="#compile-flags-5"></a></span>
+<span id="compile-flags-6"><a href="#compile-flags-6"></a><span class="dt">compile_flags </span><span class="ch">=</span><span class="st"> -std=c++14 -Wall -O3</span></span>
+<span id="compile-flags-7"><a href="#compile-flags-7"></a><span class="dt">link_flags </span><span class="ch">=</span><span class="st"> </span><span class="ch">$(</span><span class="dt">fmtlib_lflags</span><span class="ch">)</span></span></code></pre></div>
 <p>Now that we have defined all these variables we can setup the make targets. The first target given is also the default one, in this case <code>build</code>. Since both <code>build</code> and <code>clean</code> don’t create any files themselves, these targets have to be declared as <em>phony</em>. This means <code>make</code> won’t search for a file called <code>build</code> (which is our build directory!) to see if the <code>build</code> rule should be executed.</p>
 <p>In this case <code>build</code> depends only on the target executable <code>99-bottles</code>, making sure that this target is getting built.</p>
 <p><em>«declare-target-rules»=</em></p>
-<div class="sourceCode" id="declare-target-rules"><pre class="sourceCode makefile"><code class="sourceCode makefile"><a class="sourceLine" id="declare-target-rules-1" title="1"><span class="ot">.PHONY:</span><span class="dt"> clean build</span></a>
-<a class="sourceLine" id="declare-target-rules-2" title="2"></a>
-<a class="sourceLine" id="declare-target-rules-3" title="3"><span class="dv">build:</span><span class="dt"> </span><span class="ch">$(</span><span class="dt">build_dir</span><span class="ch">)</span><span class="dt">/99-bottles</span></a>
-<a class="sourceLine" id="declare-target-rules-4" title="4"></a>
-<a class="sourceLine" id="declare-target-rules-5" title="5"><span class="dv">clean:</span></a>
-<a class="sourceLine" id="declare-target-rules-6" title="6">    rm -rf <span class="ch">$(</span><span class="dt">build_dir</span><span class="ch">)</span></a></code></pre></div>
+<div class="sourceCode" id="declare-target-rules"><pre class="sourceCode makefile"><code class="sourceCode makefile"><span id="declare-target-rules-1"><a href="#declare-target-rules-1"></a><span class="ot">.PHONY:</span><span class="dt"> clean build</span></span>
+<span id="declare-target-rules-2"><a href="#declare-target-rules-2"></a></span>
+<span id="declare-target-rules-3"><a href="#declare-target-rules-3"></a><span class="dv">build:</span><span class="dt"> </span><span class="ch">$(</span><span class="dt">build_dir</span><span class="ch">)</span><span class="dt">/99-bottles</span></span>
+<span id="declare-target-rules-4"><a href="#declare-target-rules-4"></a></span>
+<span id="declare-target-rules-5"><a href="#declare-target-rules-5"></a><span class="dv">clean:</span></span>
+<span id="declare-target-rules-6"><a href="#declare-target-rules-6"></a>    rm -rf <span class="ch">$(</span><span class="dt">build_dir</span><span class="ch">)</span></span></code></pre></div>
 <p>Last we define the <em>pattern</em> rules. These tell <code>make</code> how to build a generic target adhering to some pattern from sources of a similar pattern. The first rule we give compiles a source file to an object file, the second rule links all objects files into an executable. We used several handy <code>make</code> smart variables here:</p>
 <ul>
 <li><code>$(@D)</code> is the directory that contains the target.</li>
@@ -256,26 +257,26 @@ g++ src/99-bottles.cc -lfmt -o build/99-bottles</code></pre>
 <p>There are more of these listed in the <a href="https://www.gnu.org/software/make/manual/html_node/Automatic-Variables.html"><code>make</code> documentation</a>.</p>
 <p>Note also, that the <code>-MMD</code> flag to the compiler is actually telling GCC to create the aforementioned header dependency files. These files follow a <code>make</code> syntax generating a set of rules that is included using the <code>-include</code> statement.</p>
 <p><em>«declare-pattern-rules»=</em></p>
-<div class="sourceCode" id="declare-pattern-rules"><pre class="sourceCode makefile"><code class="sourceCode makefile"><a class="sourceLine" id="declare-pattern-rules-1" title="1"><span class="kw">-include</span> <span class="ch">$(</span><span class="dt">dep_files</span><span class="ch">)</span></a>
-<a class="sourceLine" id="declare-pattern-rules-2" title="2"></a>
-<a class="sourceLine" id="declare-pattern-rules-3" title="3"><span class="dv">$(build_dir)/%.o:</span><span class="dt"> %.cc</span></a>
-<a class="sourceLine" id="declare-pattern-rules-4" title="4">    <span class="ch">@</span><span class="fu">mkdir -p </span><span class="ch">$(</span><span class="dt">@D</span><span class="ch">)</span></a>
-<a class="sourceLine" id="declare-pattern-rules-5" title="5">    <span class="ch">$(</span><span class="dt">compile</span><span class="ch">)</span> <span class="ch">$(</span><span class="dt">compile_flags</span><span class="ch">)</span> -MMD -c <span class="ch">$&lt;</span> -o <span class="ch">$@</span></a>
-<a class="sourceLine" id="declare-pattern-rules-6" title="6"></a>
-<a class="sourceLine" id="declare-pattern-rules-7" title="7"><span class="dv">$(build_dir)/99-bottles:</span><span class="dt"> </span><span class="ch">$(</span><span class="dt">obj_files</span><span class="ch">)</span></a>
-<a class="sourceLine" id="declare-pattern-rules-8" title="8">    <span class="ch">@</span><span class="fu">mkdir -p </span><span class="ch">$(</span><span class="dt">@D</span><span class="ch">)</span></a>
-<a class="sourceLine" id="declare-pattern-rules-9" title="9">    <span class="ch">$(</span><span class="dt">link</span><span class="ch">)</span> <span class="ch">$^</span> <span class="ch">$(</span><span class="dt">link_flags</span><span class="ch">)</span> -o <span class="ch">$@</span></a></code></pre></div>
+<div class="sourceCode" id="declare-pattern-rules"><pre class="sourceCode makefile"><code class="sourceCode makefile"><span id="declare-pattern-rules-1"><a href="#declare-pattern-rules-1"></a><span class="kw">-include</span> <span class="ch">$(</span><span class="dt">dep_files</span><span class="ch">)</span></span>
+<span id="declare-pattern-rules-2"><a href="#declare-pattern-rules-2"></a></span>
+<span id="declare-pattern-rules-3"><a href="#declare-pattern-rules-3"></a><span class="dv">$(build_dir)/%.o:</span><span class="dt"> %.cc</span></span>
+<span id="declare-pattern-rules-4"><a href="#declare-pattern-rules-4"></a>    <span class="ch">@</span><span class="fu">mkdir -p </span><span class="ch">$(</span><span class="dt">@D</span><span class="ch">)</span></span>
+<span id="declare-pattern-rules-5"><a href="#declare-pattern-rules-5"></a>    <span class="ch">$(</span><span class="dt">compile</span><span class="ch">)</span> <span class="ch">$(</span><span class="dt">compile_flags</span><span class="ch">)</span> -MMD -c <span class="ch">$&lt;</span> -o <span class="ch">$@</span></span>
+<span id="declare-pattern-rules-6"><a href="#declare-pattern-rules-6"></a></span>
+<span id="declare-pattern-rules-7"><a href="#declare-pattern-rules-7"></a><span class="dv">$(build_dir)/99-bottles:</span><span class="dt"> </span><span class="ch">$(</span><span class="dt">obj_files</span><span class="ch">)</span></span>
+<span id="declare-pattern-rules-8"><a href="#declare-pattern-rules-8"></a>    <span class="ch">@</span><span class="fu">mkdir -p </span><span class="ch">$(</span><span class="dt">@D</span><span class="ch">)</span></span>
+<span id="declare-pattern-rules-9"><a href="#declare-pattern-rules-9"></a>    <span class="ch">$(</span><span class="dt">link</span><span class="ch">)</span> <span class="ch">$^</span> <span class="ch">$(</span><span class="dt">link_flags</span><span class="ch">)</span> -o <span class="ch">$@</span></span></code></pre></div>
 <p>The complete <code>Makefile</code>:</p>
 <p><em>file: «Makefile»=</em></p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode makefile"><code class="sourceCode makefile"><a class="sourceLine" id="cb3-1" title="1"><span class="dt">.RECIPEPREFIX </span><span class="ch">+=</span></a>
-<a class="sourceLine" id="cb3-2" title="2"></a>
-<a class="sourceLine" id="cb3-3" title="3">&lt;&lt;set-build-dir&gt;&gt;</a>
-<a class="sourceLine" id="cb3-4" title="4">&lt;&lt;search-cc-files&gt;&gt;</a>
-<a class="sourceLine" id="cb3-5" title="5">&lt;&lt;set-obj-files&gt;&gt;</a>
-<a class="sourceLine" id="cb3-6" title="6">&lt;&lt;compile-flags&gt;&gt;</a>
-<a class="sourceLine" id="cb3-7" title="7"></a>
-<a class="sourceLine" id="cb3-8" title="8">&lt;&lt;declare-target-rules&gt;&gt;</a>
-<a class="sourceLine" id="cb3-9" title="9">&lt;&lt;declare-pattern-rules&gt;&gt;</a></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode makefile"><code class="sourceCode makefile"><span id="cb3-1"><a href="#cb3-1"></a><span class="dt">.RECIPEPREFIX </span><span class="ch">+=</span></span>
+<span id="cb3-2"><a href="#cb3-2"></a></span>
+<span id="cb3-3"><a href="#cb3-3"></a>&lt;&lt;set-build-dir&gt;&gt;</span>
+<span id="cb3-4"><a href="#cb3-4"></a>&lt;&lt;search-cc-files&gt;&gt;</span>
+<span id="cb3-5"><a href="#cb3-5"></a>&lt;&lt;set-obj-files&gt;&gt;</span>
+<span id="cb3-6"><a href="#cb3-6"></a>&lt;&lt;compile-flags&gt;&gt;</span>
+<span id="cb3-7"><a href="#cb3-7"></a></span>
+<span id="cb3-8"><a href="#cb3-8"></a>&lt;&lt;declare-target-rules&gt;&gt;</span>
+<span id="cb3-9"><a href="#cb3-9"></a>&lt;&lt;declare-pattern-rules&gt;&gt;</span></code></pre></div>
 <p>Now, compiling is as simple as typing <code>make</code>. If compilation is successful we can run the program.</p>
 <pre><code>$ ./build/99-bottles -n 3
 3 bottles of beer on the wall, 3 bottles of beer.

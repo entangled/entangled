@@ -2,7 +2,7 @@
 
 all: docs
 
-docs: docs/99-bottles.html docs/elm-slasher.html docs/index.html docs/slasher.html docs/slasher.min.js docs/slasher.css docs/.nojekyll docs/screenshot.png docs/hello-world.html
+docs: docs/99-bottles.html docs/elm-slasher.html docs/index.html docs/slasher.html docs/slasher.min.js docs/slasher.css docs/.nojekyll docs/screenshot.png docs/hello-world.html docs/entangled.html
 
 docs/.nojekyll:
 	touch $@
@@ -29,6 +29,20 @@ docs/index.html: docs/site.md scripts/header.html
 docs/hello-world.html: examples/hello-world/hello-world.md
 	cd $(<D) ;\
 	../../scripts/weave $(<F) --output=../../$@
+
+litcode := entangled main document_model database daemon configuration logging megaparsec stitch tangle
+litcode_source := $(litcode:%=lit/%.md)
+format := "markdown+fenced_code_attributes+citations+all_symbols_escapable+fenced_divs+multiline_tables+fenced_divs+bracketed_spans"
+
+pandoc_args := -s -t html5 --toc
+pandoc_args += --highlight-style style/syntax.theme
+pandoc_args += --filter pandoc-citeproc --mathjax
+pandoc_args += --filter pandoc-test
+pandoc_args += --css nlesc.css
+pandoc_args += --template=style/template.html
+
+docs/entangled.html: Makefile $(litcode_source)
+	pandoc -f $(format) $(pandoc_args) $(litcode_source) -o $@
 
 build: 
 	stack build

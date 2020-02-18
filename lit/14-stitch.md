@@ -29,7 +29,7 @@ A `sourceBlock` starts with a *begin* marker, then has many lines of plain sourc
 
 ``` {.haskell #source-parser}
 sourceBlock :: ( MonadParsec e (ListStream Text) m )
-            => Language -> m ([Text], [ReferencePair])
+            => ConfigLanguage -> m ([Text], [ReferencePair])
 sourceBlock lang = do
     ((ref, beginIndent), _) <- tokenP (commented lang beginBlock)
     (lines, refpairs) <- mconcat <$> manyTill 
@@ -41,7 +41,7 @@ sourceBlock lang = do
     return ( if referenceCount ref == 0
                  then [(indent beginIndent $ showNowebReference $ referenceName ref)]
                  else []
-           , (ref, CodeBlock (KnownLanguage lang) [] content):refpairs )
+           , (ref, CodeBlock (KnownLanguage $ languageName lang) [] content):refpairs )
 
 sourceLine :: ( MonadParsec e (ListStream Text) m )
            => m ([Text], [ReferencePair])
@@ -72,7 +72,7 @@ stitch filename text = do
 ``` {.haskell #stitch-imports}
 import ListStream (ListStream(..), tokenP)
 import Document
-import Config (Config, languageFromName, Language)
+import Config (Config, languageFromName, ConfigLanguage(..))
 import Comment (topHeader, beginBlock, endBlock, commented)
 import TextUtil (indent, unindent, unlines')
 

@@ -6,33 +6,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
   <meta name="author" content="Johan Hidding" />
   <title>Literate programming</title>
-  <style type="text/css">
+  <style>
       code{white-space: pre-wrap;}
       span.smallcaps{font-variant: small-caps;}
       span.underline{text-decoration: underline;}
       div.column{display: inline-block; vertical-align: top; width: 50%;}
   </style>
-  <style type="text/css">
-a.sourceLine { display: inline-block; line-height: 1.25; }
-a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
-a.sourceLine:empty { height: 1.2em; }
-.sourceCode { overflow: visible; }
-code.sourceCode { white-space: pre; position: relative; }
+  <style>
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
 div.sourceCode { margin: 1em 0; }
 pre.sourceCode { margin: 0; }
 @media screen {
 div.sourceCode { overflow: auto; }
 }
 @media print {
-code.sourceCode { white-space: pre-wrap; }
-a.sourceLine { text-indent: -1em; padding-left: 1em; }
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
 }
-pre.numberSource a.sourceLine
-  { position: relative; left: -4em; }
-pre.numberSource a.sourceLine::before
-  { content: attr(title);
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
     position: relative; left: -1em; text-align: right; vertical-align: baseline;
-    border: none; pointer-events: all; display: inline-block;
+    border: none; display: inline-block;
     -webkit-touch-callout: none; -webkit-user-select: none;
     -khtml-user-select: none; -moz-user-select: none;
     -ms-user-select: none; user-select: none;
@@ -41,9 +42,9 @@ pre.numberSource a.sourceLine::before
   }
 pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
 div.sourceCode
-  {  }
+  {   }
 @media screen {
-a.sourceLine::before { text-decoration: underline; }
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 code span.al { color: #ff0000; font-weight: bold; } /* Alert */
 code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
@@ -86,85 +87,32 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <h1 class="title">Literate programming</h1>
 <p class="author">Johan Hidding</p>
 </header>
-<nav id="TOC">
+<nav id="TOC" role="doc-toc">
 <ul>
-<li><a href="#markdown-source">Markdown source</a></li>
 <li><a href="#bibliography">References</a></li>
 </ul>
 </nav>
 <p>This example is written in a style of <em>literate programming</em> <span class="citation" data-cites="Knuth1984">(Knuth 1984)</span>. The combined code-blocks in this example compose a compilable source code for “Hello World”. For didactic reasons we don’t always give the listing of an entire source file in one go. In stead, we use a system of references known as <em>noweb</em> <span class="citation" data-cites="Ramsey1994">(Ramsey 1994)</span>.</p>
 <p>Inside source fragments you may encounter a line with <code>&lt;&lt;...&gt;&gt;</code> marks like,</p>
 <p><em>file: «hello_world.cc»=</em></p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode cpp"><code class="sourceCode cpp"><a class="sourceLine" id="cb1-1" title="1"><span class="pp">#include </span><span class="im">&lt;cstdlib&gt;</span></a>
-<a class="sourceLine" id="cb1-2" title="2"><span class="pp">#include </span><span class="im">&lt;iostream&gt;</span></a>
-<a class="sourceLine" id="cb1-3" title="3"></a>
-<a class="sourceLine" id="cb1-4" title="4">&lt;&lt;example-main-function&gt;&gt;</a></code></pre></div>
+<div class="sourceCode" id="cb1"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb1-1"><a href="#cb1-1"></a><span class="pp">#include </span><span class="im">&lt;cstdlib&gt;</span></span>
+<span id="cb1-2"><a href="#cb1-2"></a><span class="pp">#include </span><span class="im">&lt;iostream&gt;</span></span>
+<span id="cb1-3"><a href="#cb1-3"></a></span>
+<span id="cb1-4"><a href="#cb1-4"></a>&lt;&lt;example-main-function&gt;&gt;</span></code></pre></div>
 <p>which is then elsewhere specified. Order doesn’t matter,</p>
 <p><em>«hello-world»=</em></p>
-<div class="sourceCode" id="hello-world"><pre class="sourceCode cpp"><code class="sourceCode cpp"><a class="sourceLine" id="hello-world-1" title="1"><span class="bu">std::</span>cout &lt;&lt; <span class="st">&quot;Hello, World!&quot;</span> &lt;&lt; <span class="bu">std::</span>endl;</a></code></pre></div>
+<div class="sourceCode" id="hello-world"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="hello-world-1"><a href="#hello-world-1"></a><span class="bu">std::</span>cout &lt;&lt; <span class="st">&quot;Hello, World!&quot;</span> &lt;&lt; <span class="bu">std::</span>endl;</span></code></pre></div>
 <p>So we can reference the <code>&lt;&lt;hello-world&gt;&gt;</code> code block later on.</p>
 <p><em>«example-main-function»=</em></p>
-<div class="sourceCode" id="example-main-function"><pre class="sourceCode cpp"><code class="sourceCode cpp"><a class="sourceLine" id="example-main-function-1" title="1"><span class="dt">int</span> main(<span class="dt">int</span> argc, <span class="dt">char</span> **argv) {</a>
-<a class="sourceLine" id="example-main-function-2" title="2">  &lt;&lt;hello-world&gt;&gt;</a>
-<a class="sourceLine" id="example-main-function-3" title="3">}</a></code></pre></div>
+<div class="sourceCode" id="example-main-function"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="example-main-function-1"><a href="#example-main-function-1"></a><span class="dt">int</span> main(<span class="dt">int</span> argc, <span class="dt">char</span> **argv) {</span>
+<span id="example-main-function-2"><a href="#example-main-function-2"></a>  &lt;&lt;hello-world&gt;&gt;</span>
+<span id="example-main-function-3"><a href="#example-main-function-3"></a>}</span></code></pre></div>
 <p>A definition can be appended with more code as follows (in this case, order does matter!):</p>
 <p><em>«hello-world»=+</em></p>
-<div class="sourceCode" id="hello-world"><pre class="sourceCode cpp"><code class="sourceCode cpp"><a class="sourceLine" id="hello-world-1" title="1"><span class="cf">return</span> EXIT_SUCCESS;</a></code></pre></div>
+<div class="sourceCode" id="hello-world"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="hello-world-1"><a href="#hello-world-1"></a><span class="cf">return</span> EXIT_SUCCESS;</span></code></pre></div>
 <p>These blocks of code can be <em>tangled</em> into source files.</p>
-<h2 id="markdown-source">Markdown source</h2>
-<div class="sourceCode" id="cb2"><pre class="sourceCode markdown"><code class="sourceCode markdown"><a class="sourceLine" id="cb2-1" title="1">---</a>
-<a class="sourceLine" id="cb2-2" title="2">title: Literate programming</a>
-<a class="sourceLine" id="cb2-3" title="3">author: Johan Hidding</a>
-<a class="sourceLine" id="cb2-4" title="4">bibliography: ref.bib</a>
-<a class="sourceLine" id="cb2-5" title="5">reference-section-title: References</a>
-<a class="sourceLine" id="cb2-6" title="6">---</a>
-<a class="sourceLine" id="cb2-7" title="7"></a>
-<a class="sourceLine" id="cb2-8" title="8">This example is written in a style of *literate programming*</a>
-<a class="sourceLine" id="cb2-9" title="9">[@Knuth1984]. The combined code-blocks in this example compose a</a>
-<a class="sourceLine" id="cb2-10" title="10">compilable source code for &quot;Hello World&quot;. For didactic reasons we</a>
-<a class="sourceLine" id="cb2-11" title="11">don&#39;t always give the listing of an entire source file in one go. In</a>
-<a class="sourceLine" id="cb2-12" title="12">stead, we use a system of references known as *noweb* [@Ramsey1994].</a>
-<a class="sourceLine" id="cb2-13" title="13"></a>
-<a class="sourceLine" id="cb2-14" title="14">Inside source fragments you may encounter a line with <span class="bn">`&lt;&lt;...&gt;&gt;`</span></a>
-<a class="sourceLine" id="cb2-15" title="15">marks like,</a>
-<a class="sourceLine" id="cb2-16" title="16"></a>
-<a class="sourceLine" id="cb2-17" title="17"><span class="bn">``` {.cpp file=hello_world.cc}</span></a>
-<a class="sourceLine" id="cb2-18" title="18"><span class="bn">#include &lt;cstdlib&gt;</span></a>
-<a class="sourceLine" id="cb2-19" title="19"><span class="bn">#include &lt;iostream&gt;</span></a>
-<a class="sourceLine" id="cb2-20" title="20"></a>
-<a class="sourceLine" id="cb2-21" title="21"><span class="bn">&lt;&lt;example-main-function&gt;&gt;</span></a>
-<a class="sourceLine" id="cb2-22" title="22"><span class="bn">```</span></a>
-<a class="sourceLine" id="cb2-23" title="23"></a>
-<a class="sourceLine" id="cb2-24" title="24">which is then elsewhere specified. Order doesn&#39;t matter,</a>
-<a class="sourceLine" id="cb2-25" title="25"></a>
-<a class="sourceLine" id="cb2-26" title="26"><span class="bn">``` {.cpp #hello-world}</span></a>
-<a class="sourceLine" id="cb2-27" title="27"><span class="bn">std::cout &lt;&lt; &quot;Hello, World!&quot; &lt;&lt; std::endl;</span></a>
-<a class="sourceLine" id="cb2-28" title="28"><span class="bn">```</span></a>
-<a class="sourceLine" id="cb2-29" title="29"></a>
-<a class="sourceLine" id="cb2-30" title="30">So we can reference the <span class="bn">`&lt;&lt;hello-world&gt;&gt;`</span> code block later on.</a>
-<a class="sourceLine" id="cb2-31" title="31"></a>
-<a class="sourceLine" id="cb2-32" title="32"><span class="bn">``` {.cpp #example-main-function}</span></a>
-<a class="sourceLine" id="cb2-33" title="33"><span class="bn">int main(int argc, char **argv) {</span></a>
-<a class="sourceLine" id="cb2-34" title="34"><span class="bn">  &lt;&lt;hello-world&gt;&gt;</span></a>
-<a class="sourceLine" id="cb2-35" title="35"><span class="bn">}</span></a>
-<a class="sourceLine" id="cb2-36" title="36"><span class="bn">```</span></a>
-<a class="sourceLine" id="cb2-37" title="37"></a>
-<a class="sourceLine" id="cb2-38" title="38">A definition can be appended with more code as follows (in this</a>
-<a class="sourceLine" id="cb2-39" title="39">case, order does matter!):</a>
-<a class="sourceLine" id="cb2-40" title="40"></a>
-<a class="sourceLine" id="cb2-41" title="41"><span class="bn">``` {.cpp #hello-world}</span></a>
-<a class="sourceLine" id="cb2-42" title="42"><span class="bn">return EXIT_SUCCESS;</span></a>
-<a class="sourceLine" id="cb2-43" title="43"><span class="bn">```</span></a>
-<a class="sourceLine" id="cb2-44" title="44"></a>
-<a class="sourceLine" id="cb2-45" title="45">These blocks of code can be *tangled* into source files.</a>
-<a class="sourceLine" id="cb2-46" title="46"></a>
-<a class="sourceLine" id="cb2-47" title="47"><span class="fu"># Markdown source</span></a>
-<a class="sourceLine" id="cb2-48" title="48"></a>
-<a class="sourceLine" id="cb2-49" title="49"><span class="bn">``` {.cpp}</span></a>
-<a class="sourceLine" id="cb2-50" title="50"><span class="bn">while (true) {}</span></a>
-<a class="sourceLine" id="cb2-51" title="51"><span class="bn">```</span></a></code></pre></div>
 <h1 id="bibliography" class="unnumbered">References</h1>
-<div id="refs" class="references">
+<div id="refs" class="references" role="doc-bibliography">
 <div id="ref-Knuth1984">
 <p>Knuth, Donald Ervin. 1984. “Literate Programming.” <em>The Computer Journal</em> 27 (2): 97–111.</p>
 </div>

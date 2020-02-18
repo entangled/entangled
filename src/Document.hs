@@ -20,7 +20,6 @@ import Data.List (sort)
 
 import Control.Monad.Catch
 
-import Config (Language)
 import TextUtil (tshow)
 import Errors
 
@@ -87,7 +86,7 @@ data CodeBlock = CodeBlock
 -- ------ end
 -- ------ begin <<document-structure>>[5]
 data ProgrammingLanguage
-    = KnownLanguage Language
+    = KnownLanguage Text
     | UnknownClass Text
     | NoLanguage
     deriving (Show, Eq)

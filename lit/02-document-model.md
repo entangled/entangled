@@ -13,7 +13,6 @@ import Data.List (sort)
 
 import Control.Monad.Catch
 
-import Config (Language)
 import TextUtil (tshow)
 import Errors
 
@@ -142,7 +141,7 @@ A `ProgrammingLanguage` is either a known language (for which we know how to gen
 
 ``` {.haskell #document-structure}
 data ProgrammingLanguage
-    = KnownLanguage Language
+    = KnownLanguage Text
     | UnknownClass Text
     | NoLanguage
     deriving (Show, Eq)

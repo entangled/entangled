@@ -12,7 +12,7 @@ This document may teach you:
 * Random numbers in Elm (through Cmd/Msg loop)
 * Generate SVG
 
-Our game is simple. The original *slasher* game is one I remember from way back when I was playing with [GW Basic](https://en.wikipedia.org/wiki/GW-BASIC). Your hero is zipping around the screen at break neck speeds and the only way to control him is by placing slash `/` and backslash `\` characters from which it bounces off. The goal is to catch the golden snitch which only stays in one place for so long.
+Our game is simple. The original *slasher* game is one I remember from way back when I was playing with [GW Basic](https://en.wikipedia.org/wiki/GW-BASIC). Your hero is zipping around the screen at break neck speeds and the only way to control him is by placing slash `/` and backslash <pre>\</pre> characters from which it bounces off. The goal is to catch the golden snitch which only stays in one place for so long.
 
 ![Screenshot of "Slasher"](screenshot.png)
 
@@ -34,6 +34,8 @@ The Elm guide has a section describing the difference between `sandbox` and `ele
 We will be creating an `element` program, compile it to a JavaScript file, and create a HTML and CSS around it by hand. The lay-out of such a program in Elm looks as follows:
 
 ``` {.elm file=src/Main.elm}
+module Main exposing (..)
+
 <<imports>>
 <<main>>
 
