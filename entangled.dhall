@@ -2,7 +2,9 @@ let Comment : Type = { start : Text, end : Optional Text }
 let Language : Type = { name : Text, identifiers : List Text, comment : Comment, jupyter : Optional Text }
 
 let Config : Type =
-    { languages : List Language }
+    { languages : List Language
+    , watchList : Optional (List Text)
+    , database  : Optional Text }
 
 let hashComment         : Comment = { start = "#", end = None Text }
 let lispStyleComment    : Comment = { start = ";", end = None Text }
@@ -28,4 +30,6 @@ in { languages =
       , comment = cppStyleComment
       , jupyter = None Text }
     ]
+   , watchList = Some ["lit/*.md"]
+   , database  = None Text
    } : Config

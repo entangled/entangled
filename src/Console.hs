@@ -3,7 +3,6 @@ module Console
     , run
     , msg
     , Doc
-    , LogLevel(..)
     , FileAction(..)
     , putTerminal
     , msgDelete
@@ -31,7 +30,7 @@ import qualified System.Console.Terminal.Size as Terminal
 import qualified Data.Text.Prettyprint.Doc.Render.Terminal as ANSI
 import qualified System.Info
 import Data.Time
-import Logging (LogLevel(..))
+import Control.Monad.Logger (LogLevel(..))
 
 -- ==== Pretty Printing document tree ==== --
 
@@ -102,9 +101,9 @@ toTerminal d = P.reAnnotateS tr $ P.layoutPretty P.defaultLayoutOptions d
           tr (File OverWrite) = ANSI.color ANSI.Yellow <> ANSI.italicized
           tr (File Delete) = ANSI.color ANSI.Red <> ANSI.italicized
           tr (File Create) = ANSI.color ANSI.Green <> ANSI.italicized
-          tr (Log Error) = ANSI.color ANSI.Red <> ANSI.bold
-          tr (Log Warning) = ANSI.color ANSI.Yellow <> ANSI.bold
-          tr (Log Message) = ANSI.colorDull ANSI.White
+          tr (Log LevelError) = ANSI.color ANSI.Red <> ANSI.bold
+          tr (Log LevelWarn) = ANSI.color ANSI.Yellow <> ANSI.bold
+          tr (Log LevelInfo) = ANSI.colorDull ANSI.White
 
 putTerminal :: Doc -> IO ()
 putTerminal = T.putStr . ANSI.renderStrict . toTerminal

@@ -5,8 +5,6 @@ module Database where
 -- ------ begin <<database-imports>>[0]
 import Paths_entangled
 
-import Logging
-
 import Database.SQLite.Simple
 import Database.SQLite.Simple.FromRow
 
@@ -14,6 +12,7 @@ import Control.Monad.Reader
 import Control.Monad.IO.Class
 import Control.Monad.Catch
 import Control.Monad.Writer
+import Control.Monad.Logger
 
 -- ------ begin <<import-text>>[0]
 import qualified Data.Text as T
@@ -34,24 +33,32 @@ import Config
 import TextUtil
 -- ------ end
 -- ------ begin <<database-types>>[0]
-newtype SQL a = SQL { unSQL :: WriterT [(LogLevel, Text)] (ReaderT Connection IO) a }
+newtype SQL a = SQL { unSQL :: ReaderT Connection (MonadLoggerIO a) }
     deriving (Applicative, Functor, Monad, MonadIO, MonadThrow, MonadLogger)
 
 class (MonadIO m, MonadThrow m, MonadLogger m) => MonadSQL m where
     getConnection :: m Connection
     runSQL :: (MonadIO n, MonadLogger n) => Connection -> m a -> n a
 
+type LogLine = (Loc, LogSource, LogLevel, LogStr)
+
+forwardLogLine :: (MonadLogger m) => LogLine -> m ()
+forwardLogLine (a, b, c, d) = monadLoggerLog a b c d
+
+forwardLogLines :: (MonadLogger m, Traversable t) => t LogLine -> m ()
+forwardLogLines = mapM_ forwardLogLine
+
 instance MonadSQL SQL where
     getConnection = SQL ask
     runSQL conn (SQL x) = do
-        (x, msgs) <- liftIO $ runReaderT (runWriterT x) conn
-        forwardEntries msgs
+        (x, msgs) <- liftIO $ runReaderT (runWriterLoggingT x) conn
+        forwardLogLines msgs
         return x
 
 withSQL :: (MonadIO m, MonadLogger m) => FilePath -> SQL a -> m a
 withSQL p (SQL x) = do
-    (x, msgs) <- liftIO $ withConnection p (liftIO . runReaderT (runWriterT x))
-    forwardEntries msgs
+    (x, msgs) <- liftIO $ withConnection p (liftIO . runReaderT (runWriterLoggingT x))
+    forwardLogLines msgs
     return x
 -- ------ end
 -- ------ begin <<database-types>>[1]
@@ -64,7 +71,7 @@ withTransactionM :: (MonadSQL m) => m a -> m a
 withTransactionM t = do
     conn <- getConnection
     (x, msgs) <- liftIO $ withTransaction conn $ runWriterT $ redirectLogger conn t
-    forwardEntries msgs
+    forwardLogLines msgs
     return x
 -- ------ end
 -- ------ begin <<database-create>>[0]
@@ -141,10 +148,10 @@ insertDocument rel_path Document{..} = do
     docId' <- getDocumentId rel_path
     docId <- case docId' of
         Just docId -> do
-            logMessage $ "Replacing '" <> T.pack rel_path <> "'."
+            logInfoN $ "Replacing '" <> T.pack rel_path <> "'."
             removeDocumentData docId >> return docId
         Nothing    -> do
-            logMessage $ "Inserting new '" <> T.pack rel_path <> "'."
+            logInfoN $ "Inserting new '" <> T.pack rel_path <> "'."
             liftIO $ execute conn "insert into `documents`(`filename`) values (?)" (Only rel_path)
             liftIO $ lastInsertRowId conn
     insertCodes docId references

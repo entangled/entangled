@@ -14,7 +14,7 @@ let Language : Type =
     , jupyter : Optional Text }
 
 let Config : Type =
-    { languages : Optional (List Language)
+    { languages : List Language
     , watchList : Optional (List Text)
     , database  : Optional Text }
 ```
@@ -69,7 +69,6 @@ module Config where
 
 <<config-import>>
 
-import Logging
 import Errors
 
 import qualified Data.Text.IO as T.IO

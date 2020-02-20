@@ -8,7 +8,6 @@ import qualified Data.Text as T
 import Data.Set (Set)
 -- ------ end
 
-import Logging
 import Errors
 
 import qualified Data.Text.IO as T.IO
