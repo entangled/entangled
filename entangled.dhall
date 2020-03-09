@@ -15,7 +15,12 @@ let mlStyleComment      : Comment = { start = "(*", end = Some "*)" }
 let xmlStyleComment     : Comment = { start = "<!--", end = Some "-->" }
 
 in { languages =
-    [ { name = "Python"
+    [ { name = "CSS"
+      , identifiers = ["css"]
+      , comment = cStyleComment
+      , jupyter = None Text }
+
+      { name = "Python"
       , identifiers = ["py", "python", "python3"]
       , comment = hashComment
       , jupyter = Some "python3" }
