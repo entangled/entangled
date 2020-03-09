@@ -4,7 +4,7 @@
 # ```
 # Run with:
 # ```shell
-# docker run --rm -u $(id -u):$(id -g) -v $PWD:/data nlesc/entangled README.md
+# docker run -ti --rm -u $(id -u):$(id -g) -v $PWD:/data nlesc/entangled README.md
 # ```
 
 FROM haskell:8 AS builder
