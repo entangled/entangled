@@ -1,10 +1,10 @@
--- ------ language="Haskell" file="test/TangleSpec.hs"
+-- ------ language="Haskell" file="test/TangleSpec.hs" project://lit/13-tangle.md#576
 module TangleSpec where
 
 import Test.Hspec
 import Test.Hspec.Megaparsec
 
--- ------ begin <<import-text>>[0]
+-- ------ begin <<import-text>>[0] project://lit/01-entangled.md#44
 import qualified Data.Text as T
 import Data.Text (Text)
 -- ------ end

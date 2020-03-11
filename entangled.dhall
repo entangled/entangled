@@ -20,7 +20,7 @@ in { languages =
       , comment = cStyleComment
       , jupyter = None Text }
 
-      { name = "Python"
+    , { name = "Python"
       , identifiers = ["py", "python", "python3"]
       , comment = hashComment
       , jupyter = Some "python3" }

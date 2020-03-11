@@ -1,19 +1,19 @@
--- ------ language="Haskell" file="src/Tangle.hs"
+-- ------ language="Haskell" file="src/Tangle.hs" project://lit/13-tangle.md#4
 module Tangle where
 
--- ------ begin <<import-text>>[0]
+-- ------ begin <<import-text>>[0] project://lit/01-entangled.md#44
 import qualified Data.Text as T
 import Data.Text (Text)
 -- ------ end
--- ------ begin <<import-map>>[0]
+-- ------ begin <<import-map>>[0] project://lit/01-entangled.md#24
 import qualified Data.Map.Strict as M
 import Data.Map.Strict (Map)
 -- ------ end
--- ------ begin <<import-lazy-map>>[0]
+-- ------ begin <<import-lazy-map>>[0] project://lit/01-entangled.md#29
 import qualified Data.Map.Lazy as LM
 -- ------ end
 
--- ------ begin <<import-megaparsec>>[0]
+-- ------ begin <<import-megaparsec>>[0] project://lit/01-entangled.md#189
 import Text.Megaparsec
     ( MonadParsec, Parsec, parse
     , chunk, many, some, eof
@@ -34,20 +34,20 @@ import ListStream (ListStream (..))
 import Document
 import Config (Config, lookupLanguage, ConfigLanguage(..) )
 
--- ------ begin <<tangle-imports>>[0]
+-- ------ begin <<tangle-imports>>[0] project://lit/13-tangle.md#46
 import Attributes (attributes)
 -- ------ end
--- ------ begin <<tangle-imports>>[1]
+-- ------ begin <<tangle-imports>>[1] project://lit/13-tangle.md#263
 import ListStream (parseLine, parseLineNot, tokenLine)
 -- ------ end
--- ------ begin <<tangle-imports>>[2]
+-- ------ begin <<tangle-imports>>[2] project://lit/13-tangle.md#340
 import TextUtil (indent, unlines')
 -- ------ end
--- ------ begin <<tangle-imports>>[3]
+-- ------ begin <<tangle-imports>>[3] project://lit/13-tangle.md#428
 -- import Comment (annotateComment)
 -- ------ end
 
--- ------ begin <<parse-markdown>>[0]
+-- ------ begin <<parse-markdown>>[0] project://lit/13-tangle.md#172
 codeHeader :: (MonadParsec e Text m)
            => m [CodeProperty]
 codeHeader = do
@@ -60,7 +60,7 @@ codeFooter :: (MonadParsec e Text m)
            => m ()
 codeFooter = chunk "```" >> space >> eof
 -- ------ end
--- ------ begin <<parse-markdown>>[1]
+-- ------ begin <<parse-markdown>>[1] project://lit/13-tangle.md#190
 getLanguage :: ( MonadReader Config m )
             => [CodeProperty] -> m ProgrammingLanguage
 getLanguage [] = return NoLanguage
@@ -70,7 +70,7 @@ getLanguage (CodeClass cls : _)
             <$> reader (\cfg -> languageName <$> lookupLanguage cfg cls)
 getLanguage (_ : xs) = getLanguage xs
 -- ------ end
--- ------ begin <<parse-markdown>>[2]
+-- ------ begin <<parse-markdown>>[2] project://lit/13-tangle.md#203
 getReference :: ( MonadState ReferenceCount m )
              => [CodeProperty] -> m (Maybe ReferenceId)
 getReference [] = return Nothing
@@ -83,7 +83,7 @@ getReference (CodeAttribute k v:xs)
     | otherwise   = getReference xs
 getReference (_:xs) = getReference xs
 -- ------ end
--- ------ begin <<parse-markdown>>[3]
+-- ------ begin <<parse-markdown>>[3] project://lit/13-tangle.md#219
 getFilePath :: [CodeProperty] -> Maybe FilePath
 getFilePath [] = Nothing
 getFilePath (CodeAttribute k v:xs)
@@ -99,7 +99,7 @@ getFileMap = M.fromList . catMaybes . map filePair
                   KnownLanguage _ -> return (path, referenceName ref)
                   _               -> Nothing
 -- ------ end
--- ------ begin <<parse-markdown>>[4]
+-- ------ begin <<parse-markdown>>[4] project://lit/13-tangle.md#240
 type ReferenceCount = Map ReferenceName Int
 
 countReference :: ( MonadState ReferenceCount m )
@@ -113,7 +113,7 @@ newReference :: ( MonadState ReferenceCount m )
              => ReferenceName -> m ReferenceId
 newReference n = ReferenceId n <$> countReference n
 -- ------ end
--- ------ begin <<parse-markdown>>[5]
+-- ------ begin <<parse-markdown>>[5] project://lit/13-tangle.md#269
 type DocumentParser = ReaderT Config (StateT ReferenceCount (Parsec Void (ListStream Text)))
 
 codeBlock :: ( MonadParsec e (ListStream Text) m
@@ -155,14 +155,14 @@ parseMarkdown f t = do
                      content
                      (getFileMap refs)
 -- ------ end
--- ------ begin <<generate-code>>[0]
+-- ------ begin <<generate-code>>[0] project://lit/13-tangle.md#344
 data CodeLine = PlainCode Text
               | NowebReference ReferenceName Text
               deriving (Eq, Show)
 
 type CodeParser = Parsec Void Text
 -- ------ end
--- ------ begin <<generate-code>>[1]
+-- ------ begin <<generate-code>>[1] project://lit/13-tangle.md#359
 nowebReference :: CodeParser CodeLine
 nowebReference = do
     indent <- takeWhileP Nothing (`elem` (" \t" :: [Char]))
@@ -179,11 +179,11 @@ parseCode name = map parseLine . T.lines
                               (T.unpack $ unReferenceName name)
                               l
 -- ------ end
--- ------ begin <<generate-code>>[2]
+-- ------ begin <<generate-code>>[2] project://lit/13-tangle.md#382
 type ExpandedCode = LM.Map ReferenceName (Either EntangledError Text)
 type Annotator = ReferenceMap -> ReferenceId -> (Either EntangledError Text)
 -- ------ end
--- ------ begin <<generate-code>>[3]
+-- ------ begin <<generate-code>>[3] project://lit/13-tangle.md#398
 expandedCode :: Annotator -> ReferenceMap -> ExpandedCode
 expandedCode annotate refs = result
     where result = LM.fromSet expand (referenceNames refs)
@@ -199,7 +199,7 @@ expandCodeSource result name t
           codeLineToText (NowebReference name i)
               = indent i <$> result LM.! name
 -- ------ end
--- ------ begin <<generate-code>>[4]
+-- ------ begin <<generate-code>>[4] project://lit/13-tangle.md#419
 annotateNaked :: ReferenceMap -> ReferenceId -> Either EntangledError Text
 annotateNaked refs ref = Right $ codeSource $ refs M.! ref
 -- ------ end

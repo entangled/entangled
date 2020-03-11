@@ -34,32 +34,26 @@ import qualified Data.Text.IO as T.IO
 ```
 
 ``` {.haskell #database-types}
-newtype SQL a = SQL { unSQL :: ReaderT Connection (MonadLoggerIO a) }
-    deriving (Applicative, Functor, Monad, MonadIO, MonadThrow, MonadLogger)
+newtype SQL a = SQL { unSQL :: ReaderT Connection (LoggingT IO) a }
+    deriving (Applicative, Functor, Monad, MonadIO, MonadThrow, MonadLogger, MonadLoggerIO)
 
 class (MonadIO m, MonadThrow m, MonadLogger m) => MonadSQL m where
     getConnection :: m Connection
-    runSQL :: (MonadIO n, MonadLogger n) => Connection -> m a -> n a
+    runSQL :: (MonadIO n, MonadLoggerIO n) => Connection -> m a -> n a
 
-type LogLine = (Loc, LogSource, LogLevel, LogStr)
-
-forwardLogLine :: (MonadLogger m) => LogLine -> m ()
-forwardLogLine (a, b, c, d) = monadLoggerLog a b c d
-
-forwardLogLines :: (MonadLogger m, Traversable t) => t LogLine -> m ()
-forwardLogLines = mapM_ forwardLogLine
+-- type LogLine = (Loc, LogSource, LogLevel, LogStr)
 
 instance MonadSQL SQL where
     getConnection = SQL ask
     runSQL conn (SQL x) = do
-        (x, msgs) <- liftIO $ runReaderT (runWriterLoggingT x) conn
-        forwardLogLines msgs
+        logFun <- askLoggerIO
+        x <- liftIO $ runLoggingT (runReaderT x conn) logFun
         return x
 
-withSQL :: (MonadIO m, MonadLogger m) => FilePath -> SQL a -> m a
+withSQL :: (MonadIO m, MonadLoggerIO m) => FilePath -> SQL a -> m a
 withSQL p (SQL x) = do
-    (x, msgs) <- liftIO $ withConnection p (liftIO . runReaderT (runWriterLoggingT x))
-    forwardLogLines msgs
+    logFun <- askLoggerIO
+    x <- liftIO $ withConnection p (\conn -> liftIO $ runLoggingT (runReaderT x conn) logFun)
     return x
 ```
 
@@ -68,16 +62,11 @@ The `SQLite.Simple` function `withTransaction` takes an `IO` action as argument.
 All the `RedirectLog` code is needed to aid the type checker, or it won't know what to do.
 
 ``` {.haskell #database-types}
-type RedirectLog m a = WriterT [(LogLevel, Text)] m a
-
-redirectLogger :: (MonadIO m, MonadSQL n) => Connection -> n a -> RedirectLog m a
-redirectLogger conn x = runSQL conn x
-
-withTransactionM :: (MonadSQL m) => m a -> m a
+withTransactionM :: (MonadSQL m, MonadLoggerIO m) => m a -> m a
 withTransactionM t = do
     conn <- getConnection
-    (x, msgs) <- liftIO $ withTransaction conn $ runWriterT $ redirectLogger conn t
-    forwardLogLines msgs
+    logFun <- askLoggerIO
+    x <- liftIO $ withTransaction conn (runLoggingT (runSQL conn t) logFun)
     return x
 ```
 
@@ -250,7 +239,7 @@ create table if not exists "targets"
 insertTargets :: Int64 -> Map FilePath ReferenceName -> SQL ()
 insertTargets docId files = do
         conn <- getConnection
-        liftIO $ print rows
+        -- liftIO $ print rows
         liftIO $ executeMany conn "insert into `targets`(`filename`,`codename`,`document`) values (?, ?, ?)" rows
     where targetRow (path, ReferenceName name) = (path, name, docId)
           rows = map targetRow (M.toList files)

@@ -1,4 +1,4 @@
--- ------ language="Haskell" file="test/ListStreamSpec.hs"
+-- ------ language="Haskell" file="test/ListStreamSpec.hs" project://lit/a3-megaparsec.md#117
 module ListStreamSpec where
 
 import Test.Hspec
@@ -9,7 +9,7 @@ import Data.Void
 
 import ListStream
 
--- ------ begin <<list-stream-props>>[0]
+-- ------ begin <<list-stream-props>>[0] project://lit/a3-megaparsec.md#137
 prop_parser :: (Eq a) => Parsec e s a -> s -> a -> Bool
 prop_parser p input expected = success (parse p "" input)
     where success (Left err) = False
@@ -24,7 +24,7 @@ prop_tokens xs = prop_parser parseAny (ListStream xs) xs
 
 listStreamSpec :: Spec
 listStreamSpec = do
-    -- ------ begin <<list-stream-spec>>[0]
+    -- ------ begin <<list-stream-spec>>[0] project://lit/a3-megaparsec.md#150
     describe "Parsing integers" $
         it "takeWhileP yield input" $ do
             property prop_tokens

@@ -1,7 +1,7 @@
--- ------ language="Haskell" file="src/Config.hs"
+-- ------ language="Haskell" file="src/Config.hs" project://lit/04-configuration.md#68
 module Config where
 
--- ------ begin <<config-import>>[0]
+-- ------ begin <<config-import>>[0] project://lit/04-configuration.md#25
 import Dhall (Generic, FromDhall, ToDhall, input, auto)
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -12,7 +12,7 @@ import Errors
 
 import qualified Data.Text.IO as T.IO
 import TextUtil
--- ------ begin <<import-set>>[0]
+-- ------ begin <<import-set>>[0] project://lit/01-entangled.md#35
 import qualified Data.Set as S
 import Data.Set (Set)
 -- ------ end
@@ -29,7 +29,7 @@ import System.FilePath.Glob (glob)
 import System.Directory 
 import System.FilePath
 
--- ------ begin <<config-dhall-schema>>[0]
+-- ------ begin <<config-dhall-schema>>[0] project://lit/04-configuration.md#34
 data ConfigComment = ConfigComment
     { commentStart :: Text
     , commentEnd :: Maybe Text
@@ -62,7 +62,7 @@ instance ToDhall ConfigComment
 instance ToDhall ConfigLanguage
 instance ToDhall Config
 -- ------ end
--- ------ begin <<config-monoid>>[0]
+-- ------ begin <<config-monoid>>[0] project://lit/04-configuration.md#121
 instance Semigroup Config where
     a <> b = Config (configLanguages a <> configLanguages b)
                     (configWatchList a <> configWatchList b)
@@ -71,14 +71,14 @@ instance Semigroup Config where
 instance Monoid Config where
     mempty = Config mempty mempty mempty
 -- ------ end
--- ------ begin <<config-monoid>>[1]
+-- ------ begin <<config-monoid>>[1] project://lit/04-configuration.md#133
 configStack :: IO Config
 configStack = do
     localConfig <- readLocalConfig
     globalConfig <- readGlobalConfig
     return $ localConfig <> globalConfig <> defaultConfig
 -- ------ end
--- ------ begin <<config-defaults>>[0]
+-- ------ begin <<config-defaults>>[0] project://lit/04-configuration.md#145
 hashComment         = ConfigComment "#"    Nothing
 lispStyleComment    = ConfigComment ";"    Nothing
 cStyleComment       = ConfigComment "/*"   (Just "*/")
@@ -120,7 +120,7 @@ defaultConfig = Config
     , configLanguages = defaultLanguages
     }
 -- ------ end
--- ------ begin <<config-input>>[0]
+-- ------ begin <<config-input>>[0] project://lit/04-configuration.md#194
 findFileAscending :: String -> IO (Maybe FilePath)
 findFileAscending filename = do
     path <- dropTrailingPathSeparator <$> getCurrentDirectory
@@ -136,7 +136,7 @@ readLocalConfig = do
 readGlobalConfig :: IO Config
 readGlobalConfig = mempty
 -- ------ end
--- ------ begin <<config-reader>>[0]
+-- ------ begin <<config-reader>>[0] project://lit/04-configuration.md#213
 lookupLanguage :: Config -> Text -> Maybe ConfigLanguage
 lookupLanguage cfg x
     = find (elem x . languageIdentifiers) 

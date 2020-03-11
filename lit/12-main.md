@@ -11,6 +11,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Monad.Catch
+import Control.Monad.Logger
 import System.Directory
 import System.FilePath
 ```
@@ -157,8 +158,8 @@ parseInsertArgs = CommandInsert <$> (InsertArgs
 ```
 
 ``` {.haskell #sub-runners}
-CommandInsert (InsertArgs SourceFile fs) -> printLogger $ runInsertSources config fs
-CommandInsert (InsertArgs TargetFile fs) -> printLogger $ runInsertTargets config fs
+CommandInsert (InsertArgs SourceFile fs) -> runLoggingIO $ runInsertSources config fs
+CommandInsert (InsertArgs TargetFile fs) -> runLoggingIO $ runInsertTargets config fs
 ```
 
 ### Tangling a single reference
@@ -191,7 +192,7 @@ parseTangleArgs = TangleArgs
 ```
 
 ``` {.haskell #sub-runners}
-CommandTangle a -> printLogger $ runTangle config a
+CommandTangle a -> runLoggingIO $ runTangle config a
 ```
 
 ### Stitching a markdown source
@@ -216,7 +217,7 @@ parseStitchArgs = StitchArgs
 ```
 
 ``` {.haskell #sub-runners}
-CommandStitch a -> printLogger $ runStitch config a
+CommandStitch a -> runLoggingIO $ runStitch config a
 ```
 
 ### Listing all target files
@@ -230,7 +231,7 @@ CommandStitch a -> printLogger $ runStitch config a
 ```
 
 ``` {.haskell #sub-runners}
-CommandList -> printLogger $ runList config
+CommandList -> runLoggingIO $ runList config
 ```
 
 ## Main
@@ -258,6 +259,12 @@ main = do
             <> header   "enTangleD -- daemonised literate programming"
             )
 
+newtype LoggingIO a = LoggingIO { unLoggingIO :: LoggingT IO a }
+    deriving ( Applicative, Functor, Monad, MonadIO, MonadLogger, MonadLoggerIO, MonadThrow )
+
+runLoggingIO :: LoggingIO a -> IO a
+runLoggingIO x = runStdoutLoggingT $ unLoggingIO x
+
 <<main-run>>
 ```
 
@@ -270,20 +277,6 @@ import Database
 import Database.SQLite.Simple
 ```
 
-### Simple IO logger
-
-``` {.haskell #main-imports}
-import Logging
-```
-
-``` {.haskell #main-run}
-newtype LoggerIO a = LoggerIO { printLogger :: (IO a) }
-    deriving ( Applicative, Functor, Monad, MonadIO, MonadThrow )
-
-instance MonadLogger LoggerIO where
-    logEntry level x = liftIO $ T.IO.putStrLn $ tshow level <> ": " <> x
-```
-
 ## Tangle
 
 ``` {.haskell #main-run}
@@ -292,13 +285,13 @@ writeFile' filename text = liftIO $ do
     createDirectoryIfMissing True (takeDirectory filename)
     T.IO.writeFile filename text
 
-runTangle :: Config -> TangleArgs -> LoggerIO ()
+runTangle :: Config -> TangleArgs -> LoggingIO ()
 runTangle cfg TangleArgs{..} = do
     dbPath <- getDatabasePath cfg
     withSQL dbPath $ do 
         createTables
         refs <- queryReferenceMap cfg
-        let annotate = if tangleDecorate then (annotateComment' cfg) else annotateNaked
+        let annotate = if tangleDecorate then annotateComment' cfg else annotateNaked
             codes = expandedCode annotate refs
             tangleRef tgt = case codes LM.!? tgt of
                 Nothing -> throwM $ TangleError $ "Reference `" <> tshow tgt <> "` not found."
@@ -324,7 +317,7 @@ runTangle cfg TangleArgs{..} = do
 ## Stitch
 
 ``` {.haskell #main-run}
-runStitch :: Config -> StitchArgs -> LoggerIO ()
+runStitch :: Config -> StitchArgs -> LoggingIO ()
 runStitch config StitchArgs{..} = do 
     dbPath <- getDatabasePath config
     text <- withSQL dbPath $ do 
@@ -336,7 +329,7 @@ runStitch config StitchArgs{..} = do
 ## List
 
 ``` {.haskell #main-run}
-runList :: Config -> LoggerIO ()
+runList :: Config -> LoggingIO ()
 runList cfg = do
     dbPath <- getDatabasePath cfg
     lst <- withSQL dbPath $ do 
@@ -352,10 +345,10 @@ import Stitch (stitch)
 ```
 
 ``` {.haskell #main-run}
-runInsertSources :: Config -> [FilePath] -> LoggerIO ()
+runInsertSources :: Config -> [FilePath] -> LoggingIO ()
 runInsertSources cfg files = do
     dbPath <- getDatabasePath cfg
-    logMessage $ "inserting files: " <> tshow files
+    logInfoN $ "inserting files: " <> tshow files
     withSQL dbPath $ createTables >> mapM_ readDoc files
     where readDoc f = do
             doc <- runReaderT (liftIO (T.IO.readFile f) >>= parseMarkdown f) cfg
@@ -363,15 +356,15 @@ runInsertSources cfg files = do
                 Left e -> liftIO $ T.IO.putStrLn ("warning: " <> tshow e)
                 Right d -> insertDocument f d
 
-runInsertTargets :: Config -> [FilePath] -> LoggerIO ()
+runInsertTargets :: Config -> [FilePath] -> LoggingIO ()
 runInsertTargets cfg files = do
     dbPath <- getDatabasePath cfg
-    logMessage $ "inserting files: " <> tshow files
+    logInfoN $ "inserting files: " <> tshow files
     withSQL dbPath $ createTables >> mapM_ readTgt files
     where readTgt f = do
             refs' <- runReaderT (liftIO (T.IO.readFile f) >>= stitch f) cfg
             case refs' of
-                Left err -> logError $ "Error loading '" <> T.pack f <> "': " <> formatError err
+                Left err -> logErrorN $ "Error loading '" <> T.pack f <> "': " <> formatError err
                 Right refs -> updateTarget refs
 ```
 

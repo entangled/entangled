@@ -1,11 +1,11 @@
--- ------ language="Haskell" file="src/Errors.hs"
+-- ------ language="Haskell" file="src/Errors.hs" project://lit/01-entangled.md#202
 module Errors where
 
 import Control.Exception
 import Data.Typeable
 import TextUtil
 
--- ------ begin <<import-text>>[0]
+-- ------ begin <<import-text>>[0] project://lit/01-entangled.md#44
 import qualified Data.Text as T
 import Data.Text (Text)
 -- ------ end

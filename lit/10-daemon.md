@@ -131,7 +131,6 @@ import Database.SQLite.Simple
 import Document
 import Config
 import Database
-import Logging
 import Tangle (parseMarkdown, expandedCode, Annotator)
 import Comment
 import Stitch (stitch)
@@ -144,6 +143,7 @@ import Control.Monad.RWS
 import Control.Monad.IO.Class
 import Control.Monad.Writer
 import Control.Monad.Catch
+import Control.Monad.Logger
 ```
 
 ``` {.haskell #daemon-session}
@@ -155,18 +155,15 @@ data Session = Session
     , sqlite        :: Connection
     }
 
-db :: ( MonadIO m, MonadState Session m, MonadLogger m )
+db :: ( MonadIO m, MonadState Session m, MonadLoggerIO m )
    => SQL a -> m a
 db x = do
     conn <- gets sqlite
     runSQL conn x
 
-newtype Daemon a = Daemon { unDaemon :: RWST Config Transaction Session IO a }
+newtype Daemon a = Daemon { unDaemon :: RWST Config Transaction Session (LoggingT IO) a }
     deriving ( Applicative, Functor, Monad, MonadIO, MonadState Session
-             , MonadReader Config, MonadWriter Transaction, MonadThrow )
-
-instance MonadLogger Daemon where
-    logEntry level x = tell (msg level x)
+             , MonadReader Config, MonadWriter Transaction, MonadThrow, MonadLogger, MonadLoggerIO )
 ```
 
 Every time an event happens we send it to `_eventChannel`. When we tangle we change the `_daemonState` to `Tangling`. Write events to target files are then not triggering a stitch. The other way around, if the daemon is in `Stitching` state, write events to the markdown source do not trigger a tangle. Because these events will arrive asynchronously, we use an `MVar` to change the state.
@@ -292,7 +289,7 @@ setWatch = do
         abs_dirs
     modify (\s -> s{ watches=stopActions })
 
-    logMessage $ "watching: " <> tshow rel_dirs
+    logInfoN $ "watching: " <> tshow rel_dirs
 ```
 
 ``` {.haskell #daemon-watches}
@@ -300,7 +297,7 @@ closeWatch :: Daemon ()
 closeWatch = do
     stopActions <- gets watches
     liftIO $ sequence_ stopActions
-    logMessage "suspended watches"
+    logInfoN "suspended watches"
 ```
 
 ## Loading
@@ -309,14 +306,14 @@ closeWatch = do
 loadSourceFile :: ( MonadFileIO m, MonadLogger m
                   , MonadReader Config m
                   , MonadState Session m
-                  , MonadIO m )
+                  , MonadIO m, MonadLoggerIO m )
                => FilePath -> m ()
 loadSourceFile abs_path = do
     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
     doc'     <- readFile abs_path >>= parseMarkdown rel_path
     case doc' of
         Left err ->
-            logError $ "Error loading '" <> T.pack rel_path <> "': " <> tshow err
+            logErrorN $ "Error loading '" <> T.pack rel_path <> "': " <> tshow err
         Right doc ->
             db $ insertDocument rel_path doc
 ```
@@ -325,14 +322,14 @@ loadSourceFile abs_path = do
 loadTargetFile :: ( MonadFileIO m, MonadLogger m
                   , MonadReader Config m
                   , MonadState Session m
-                  , MonadIO m )
+                  , MonadIO m, MonadLoggerIO m )
                => FilePath -> m ()
 loadTargetFile abs_path = do
     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
     refs' <- readFile abs_path >>= stitch rel_path
     case refs' of
         Left err ->
-            logError $ "Error loading '" <> T.pack rel_path <> "':" <> tshow err
+            logErrorN $ "Error loading '" <> T.pack rel_path <> "':" <> tshow err
         Right refs ->
             db $ updateTarget refs
 ```
@@ -359,17 +356,17 @@ writeTargetFile rel_path = do
     refs <- db $ queryReferenceMap cfg
     let codes = expandedCode (annotateComment' cfg) refs
         tangleRef tgt lang = case codes LM.!? tgt of
-            Nothing        -> logError $ "Reference `" <> tshow tgt <> "` not found."
-            Just (Left e)  -> logError $ tshow e
+            Nothing        -> logErrorN $ "Reference `" <> tshow tgt <> "` not found."
+            Just (Left e)  -> logErrorN $ tshow e
             Just (Right t) -> writeFile rel_path $ unlines' [headerComment lang rel_path, t]
 
     tgt' <- db $ queryTargetRef rel_path
     case tgt' of
-        Nothing  -> logError $ "Target `" <> T.pack rel_path <> "` not found."
+        Nothing  -> logErrorN $ "Target `" <> T.pack rel_path <> "` not found."
         Just tgt -> do
                 langName <- codeLanguage' refs tgt
                 case languageFromName cfg langName of
-                    Nothing -> logError $ "Unknown language id " <> langName
+                    Nothing -> logErrorN $ "Unknown language id " <> langName
                     Just lang -> tangleRef tgt lang
 ```
 
@@ -466,7 +463,7 @@ initSession = do
 
 foldx :: (Monad m) => (e -> s -> m s) -> [e] -> s -> m ()
 foldx _ [] _ = return ()
-foldx f (e:es) s = (f e s) >>= (foldx f es)
+foldx f (e:es) s = f e s >>= foldx f es
 
 runSession :: Config -> IO ()
 runSession config = do
@@ -477,11 +474,11 @@ runSession config = do
     db_path <- getDatabasePath config
     let dbRunner conn = do
                     let session = Session [] fsnotify channel daemon_state conn
-                    (x, session', action) <- runRWST (unDaemon initSession) config session
+                    (x, session', action) <- runStdoutLoggingT $ runRWST (unDaemon initSession) config session
                     runTransaction action
                     events <- getChanContents channel
                     foldx (\e s -> do
-                                      (_, s', a) <- runRWST (unDaemon $ mainLoop e) config s
+                                      (_, s', a) <- runStdoutLoggingT $ runRWST (unDaemon $ mainLoop e) config s
                                       runTransaction a
                                       return s') events session'
     liftIO $ withConnection db_path dbRunner

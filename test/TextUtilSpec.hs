@@ -1,7 +1,7 @@
--- ------ language="Haskell" file="test/TextUtilSpec.hs"
+-- ------ language="Haskell" file="test/TextUtilSpec.hs" project://lit/01-entangled.md#135
 module TextUtilSpec where
 
--- ------ begin <<import-text>>[0]
+-- ------ begin <<import-text>>[0] project://lit/01-entangled.md#44
 import qualified Data.Text as T
 import Data.Text (Text)
 -- ------ end
@@ -14,13 +14,13 @@ import TextUtil
 
 propUnlines :: Maybe Text -> Bool
 propUnlines t = 
-    -- ------ begin <<test-unlines-inverse>>[0]
+    -- ------ begin <<test-unlines-inverse>>[0] project://lit/01-entangled.md#82
     t == mUnlines (mLines t)
     -- ------ end
 
 propUnlineLists :: ([Text], [Text]) -> Bool
 propUnlineLists (a, b) =
-    -- ------ begin <<test-unlines-associative>>[0]
+    -- ------ begin <<test-unlines-associative>>[0] project://lit/01-entangled.md#88
     mUnlines (catMaybes [mUnlines a, mUnlines b]) == mUnlines (a <> b)
     -- ------ end
 

@@ -1,8 +1,8 @@
--- ------ language="Haskell" file="app/Main.hs"
+-- ------ language="Haskell" file="app/Main.hs" project://lit/12-main.md#239
 module Main where
 
--- ------ begin <<main-imports>>[0]
--- ------ begin <<import-text>>[0]
+-- ------ begin <<main-imports>>[0] project://lit/12-main.md#6
+-- ------ begin <<import-text>>[0] project://lit/01-entangled.md#44
 import qualified Data.Text as T
 import Data.Text (Text)
 -- ------ end
@@ -13,32 +13,30 @@ import Control.Monad.IO.Class
 import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Monad.Catch
+import Control.Monad.Logger
 import System.Directory
 import System.FilePath
 -- ------ end
--- ------ begin <<main-imports>>[1]
+-- ------ begin <<main-imports>>[1] project://lit/12-main.md#23
 import GHC.IO.Encoding
 -- ------ end
--- ------ begin <<main-imports>>[2]
+-- ------ begin <<main-imports>>[2] project://lit/12-main.md#35
 import Options.Applicative
 -- ------ end
--- ------ begin <<main-imports>>[3]
+-- ------ begin <<main-imports>>[3] project://lit/12-main.md#67
 import Config
 -- ------ end
--- ------ begin <<main-imports>>[4]
+-- ------ begin <<main-imports>>[4] project://lit/12-main.md#86
 import Daemon
 -- ------ end
--- ------ begin <<main-imports>>[5]
+-- ------ begin <<main-imports>>[5] project://lit/12-main.md#115
 import qualified Dhall
 -- ------ end
--- ------ begin <<main-imports>>[6]
+-- ------ begin <<main-imports>>[6] project://lit/12-main.md#269
 import Database
 import Database.SQLite.Simple
 -- ------ end
--- ------ begin <<main-imports>>[7]
-import Logging
--- ------ end
--- ------ begin <<main-imports>>[8]
+-- ------ begin <<main-imports>>[7] project://lit/12-main.md#337
 import Stitch (stitch)
 -- ------ end
 
@@ -48,33 +46,33 @@ import Tangle (parseMarkdown, expandedCode, annotateNaked)
 import TextUtil
 import Comment
 
--- ------ begin <<main-options>>[0]
+-- ------ begin <<main-options>>[0] project://lit/12-main.md#41
 data Args = Args
     { versionFlag :: Bool
     , subCommand :: SubCommand }
 
 data SubCommand
     = NoCommand
-    -- ------ begin <<sub-commands>>[0]
+    -- ------ begin <<sub-commands>>[0] project://lit/12-main.md#90
     | CommandDaemon DaemonArgs
     -- ------ end
-    -- ------ begin <<sub-commands>>[1]
+    -- ------ begin <<sub-commands>>[1] project://lit/12-main.md#119
     | CommandConfig
     -- ------ end
-    -- ------ begin <<sub-commands>>[2]
+    -- ------ begin <<sub-commands>>[2] project://lit/12-main.md#134
     | CommandInsert InsertArgs
     -- ------ end
-    -- ------ begin <<sub-commands>>[3]
+    -- ------ begin <<sub-commands>>[3] project://lit/12-main.md#167
     | CommandTangle TangleArgs
     -- ------ end
-    -- ------ begin <<sub-commands>>[4]
+    -- ------ begin <<sub-commands>>[4] project://lit/12-main.md#200
     | CommandStitch StitchArgs
     -- ------ end
-    -- ------ begin <<sub-commands>>[5]
+    -- ------ begin <<sub-commands>>[5] project://lit/12-main.md#225
     | CommandList
     -- ------ end
 -- ------ end
--- ------ begin <<main-options>>[1]
+-- ------ begin <<main-options>>[1] project://lit/12-main.md#53
 parseNoCommand :: Parser SubCommand
 parseNoCommand = pure NoCommand
 
@@ -82,28 +80,28 @@ parseArgs :: Parser Args
 parseArgs = Args
     <$> switch (long "version" <> short 'v' <> help "Show version information.")
     <*> ( subparser ( mempty
-          -- ------ begin <<sub-parsers>>[0]
+          -- ------ begin <<sub-parsers>>[0] project://lit/12-main.md#94
           <>  command "daemon" (info parseDaemonArgs ( progDesc "Run the entangled daemon." )) 
           -- ------ end
-          -- ------ begin <<sub-parsers>>[1]
+          -- ------ begin <<sub-parsers>>[1] project://lit/12-main.md#123
           <> command "config" (info (pure CommandConfig <**> helper) 
                                     (progDesc "Print the default configuration."))
           -- ------ end
-          -- ------ begin <<sub-parsers>>[2]
+          -- ------ begin <<sub-parsers>>[2] project://lit/12-main.md#138
           <> command "insert" (info parseInsertArgs ( progDesc "Insert markdown files into database." ))
           -- ------ end
-          -- ------ begin <<sub-parsers>>[3]
+          -- ------ begin <<sub-parsers>>[3] project://lit/12-main.md#171
           <> command "tangle" (info (CommandTangle <$> parseTangleArgs) ( progDesc "Retrieve tangled code." ))
           -- ------ end
-          -- ------ begin <<sub-parsers>>[4]
+          -- ------ begin <<sub-parsers>>[4] project://lit/12-main.md#204
           <> command "stitch" (info (CommandStitch <$> parseStitchArgs) ( progDesc "Retrieve stitched markdown." ))
           -- ------ end
-          -- ------ begin <<sub-parsers>>[5]
+          -- ------ begin <<sub-parsers>>[5] project://lit/12-main.md#229
           <> command "list" (info (pure CommandList <**> helper) ( progDesc "List generated code files." ))
           -- ------ end
         ) <|> parseNoCommand )
 -- ------ end
--- ------ begin <<main-options>>[2]
+-- ------ begin <<main-options>>[2] project://lit/12-main.md#98
 data DaemonArgs = DaemonArgs
     { inputFiles  :: [String]
     } deriving (Show)
@@ -113,7 +111,7 @@ parseDaemonArgs = CommandDaemon <$> DaemonArgs
     <$> many (argument str (metavar "FILES..."))
     <**> helper
 -- ------ end
--- ------ begin <<main-options>>[3]
+-- ------ begin <<main-options>>[3] project://lit/12-main.md#142
 data FileType = SourceFile | TargetFile
 
 data InsertArgs = InsertArgs
@@ -130,7 +128,7 @@ parseInsertArgs = CommandInsert <$> (InsertArgs
     <*> many (argument str (metavar "FILES..."))
     <**> helper)
 -- ------ end
--- ------ begin <<main-options>>[4]
+-- ------ begin <<main-options>>[4] project://lit/12-main.md#175
 data TangleQuery = TangleFile FilePath | TangleRef Text | TangleAll deriving (Show)
 
 data TangleArgs = TangleArgs
@@ -148,7 +146,7 @@ parseTangleArgs = TangleArgs
     <*> switch (long "decorate" <> short 'd' <> help "Decorate with stitching comments.")
     <**> helper
 -- ------ end
--- ------ begin <<main-options>>[5]
+-- ------ begin <<main-options>>[5] project://lit/12-main.md#208
 data StitchArgs = StitchArgs
     { stitchTarget :: FilePath
     } deriving (Show)
@@ -161,7 +159,7 @@ parseStitchArgs = StitchArgs
 
 main :: IO ()
 main = do
-    -- ------ begin <<main-set-encoding>>[0]
+    -- ------ begin <<main-set-encoding>>[0] project://lit/12-main.md#27
     setLocaleEncoding utf8
     -- ------ end
     run =<< execParser args
@@ -171,7 +169,13 @@ main = do
             <> header   "enTangleD -- daemonised literate programming"
             )
 
--- ------ begin <<main-run>>[0]
+newtype LoggingIO a = LoggingIO { unLoggingIO :: LoggingT IO a }
+    deriving ( Applicative, Functor, Monad, MonadIO, MonadLogger, MonadLoggerIO, MonadThrow )
+
+runLoggingIO :: LoggingIO a -> IO a
+runLoggingIO x = runStdoutLoggingT $ unLoggingIO x
+
+-- ------ begin <<main-run>>[0] project://lit/12-main.md#71
 run :: Args -> IO ()
 run Args{..}
     | versionFlag       = putStrLn "enTangleD 1.0.0"
@@ -179,46 +183,39 @@ run Args{..}
         config <- configStack
         case subCommand of
             NoCommand -> return ()
-            -- ------ begin <<sub-runners>>[0]
+            -- ------ begin <<sub-runners>>[0] project://lit/12-main.md#109
             CommandDaemon a -> runSession config
             -- ------ end
-            -- ------ begin <<sub-runners>>[1]
+            -- ------ begin <<sub-runners>>[1] project://lit/12-main.md#128
             CommandConfig -> T.IO.putStrLn "NYI" -- T.IO.putStrLn $ Toml.encode configCodec config
             -- ------ end
-            -- ------ begin <<sub-runners>>[2]
-            CommandInsert (InsertArgs SourceFile fs) -> printLogger $ runInsertSources config fs
-            CommandInsert (InsertArgs TargetFile fs) -> printLogger $ runInsertTargets config fs
+            -- ------ begin <<sub-runners>>[2] project://lit/12-main.md#160
+            CommandInsert (InsertArgs SourceFile fs) -> runLoggingIO $ runInsertSources config fs
+            CommandInsert (InsertArgs TargetFile fs) -> runLoggingIO $ runInsertTargets config fs
             -- ------ end
-            -- ------ begin <<sub-runners>>[3]
-            CommandTangle a -> printLogger $ runTangle config a
+            -- ------ begin <<sub-runners>>[3] project://lit/12-main.md#194
+            CommandTangle a -> runLoggingIO $ runTangle config a
             -- ------ end
-            -- ------ begin <<sub-runners>>[4]
-            CommandStitch a -> printLogger $ runStitch config a
+            -- ------ begin <<sub-runners>>[4] project://lit/12-main.md#219
+            CommandStitch a -> runLoggingIO $ runStitch config a
             -- ------ end
-            -- ------ begin <<sub-runners>>[5]
-            CommandList -> printLogger $ runList config
+            -- ------ begin <<sub-runners>>[5] project://lit/12-main.md#233
+            CommandList -> runLoggingIO $ runList config
             -- ------ end
 -- ------ end
--- ------ begin <<main-run>>[1]
-newtype LoggerIO a = LoggerIO { printLogger :: (IO a) }
-    deriving ( Applicative, Functor, Monad, MonadIO, MonadThrow )
-
-instance MonadLogger LoggerIO where
-    logEntry level x = liftIO $ T.IO.putStrLn $ tshow level <> ": " <> x
--- ------ end
--- ------ begin <<main-run>>[2]
+-- ------ begin <<main-run>>[1] project://lit/12-main.md#276
 writeFile' :: (MonadIO m) => FilePath -> Text -> m ()
 writeFile' filename text = liftIO $ do
     createDirectoryIfMissing True (takeDirectory filename)
     T.IO.writeFile filename text
 
-runTangle :: Config -> TangleArgs -> LoggerIO ()
+runTangle :: Config -> TangleArgs -> LoggingIO ()
 runTangle cfg TangleArgs{..} = do
     dbPath <- getDatabasePath cfg
     withSQL dbPath $ do 
         createTables
         refs <- queryReferenceMap cfg
-        let annotate = if tangleDecorate then (annotateComment' cfg) else annotateNaked
+        let annotate = if tangleDecorate then annotateComment' cfg else annotateNaked
             codes = expandedCode annotate refs
             tangleRef tgt = case codes LM.!? tgt of
                 Nothing -> throwM $ TangleError $ "Reference `" <> tshow tgt <> "` not found."
@@ -240,8 +237,8 @@ runTangle cfg TangleArgs{..} = do
                 fs <- listTargetFiles
                 mapM_ (\f -> tangleFile f >>= writeFile' f) fs 
 -- ------ end
--- ------ begin <<main-run>>[3]
-runStitch :: Config -> StitchArgs -> LoggerIO ()
+-- ------ begin <<main-run>>[2] project://lit/12-main.md#313
+runStitch :: Config -> StitchArgs -> LoggingIO ()
 runStitch config StitchArgs{..} = do 
     dbPath <- getDatabasePath config
     text <- withSQL dbPath $ do 
@@ -249,8 +246,8 @@ runStitch config StitchArgs{..} = do
         stitchDocument stitchTarget
     liftIO $ T.IO.putStrLn text
 -- ------ end
--- ------ begin <<main-run>>[4]
-runList :: Config -> LoggerIO ()
+-- ------ begin <<main-run>>[3] project://lit/12-main.md#325
+runList :: Config -> LoggingIO ()
 runList cfg = do
     dbPath <- getDatabasePath cfg
     lst <- withSQL dbPath $ do 
@@ -258,11 +255,11 @@ runList cfg = do
         listTargetFiles
     liftIO $ T.IO.putStrLn $ T.unlines $ map T.pack lst
 -- ------ end
--- ------ begin <<main-run>>[5]
-runInsertSources :: Config -> [FilePath] -> LoggerIO ()
+-- ------ begin <<main-run>>[4] project://lit/12-main.md#341
+runInsertSources :: Config -> [FilePath] -> LoggingIO ()
 runInsertSources cfg files = do
     dbPath <- getDatabasePath cfg
-    logMessage $ "inserting files: " <> tshow files
+    logInfoN $ "inserting files: " <> tshow files
     withSQL dbPath $ createTables >> mapM_ readDoc files
     where readDoc f = do
             doc <- runReaderT (liftIO (T.IO.readFile f) >>= parseMarkdown f) cfg
@@ -270,15 +267,15 @@ runInsertSources cfg files = do
                 Left e -> liftIO $ T.IO.putStrLn ("warning: " <> tshow e)
                 Right d -> insertDocument f d
 
-runInsertTargets :: Config -> [FilePath] -> LoggerIO ()
+runInsertTargets :: Config -> [FilePath] -> LoggingIO ()
 runInsertTargets cfg files = do
     dbPath <- getDatabasePath cfg
-    logMessage $ "inserting files: " <> tshow files
+    logInfoN $ "inserting files: " <> tshow files
     withSQL dbPath $ createTables >> mapM_ readTgt files
     where readTgt f = do
             refs' <- runReaderT (liftIO (T.IO.readFile f) >>= stitch f) cfg
             case refs' of
-                Left err -> logError $ "Error loading '" <> T.pack f <> "': " <> formatError err
+                Left err -> logErrorN $ "Error loading '" <> T.pack f <> "': " <> formatError err
                 Right refs -> updateTarget refs
 -- ------ end
 -- ------ end
