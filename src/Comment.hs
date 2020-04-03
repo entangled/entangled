@@ -51,6 +51,14 @@ comment (KnownLanguage langName) text = do
           (\lang -> return $ formatComment lang text)
           (languageFromName cfg langName)
 
+commentStart :: ConfigComment -> Text
+commentStart (Block x _) = x
+commentStart (Line x) = x
+
+commentEnd :: ConfigComment -> Maybe Text
+commentEnd (Block _ x) = Just x
+commentEnd (Line _) = Nothing
+
 formatComment :: ConfigLanguage -> Text -> Text
 formatComment lang text = pre <> text <> post
     where pre  = (commentStart $ languageComment lang) <> delim

@@ -24,7 +24,7 @@ import qualified Data.Text.Prettyprint.Doc as P
 import Console (Doc)
 import qualified Console
 -- ------ end
--- ------ begin <<daemon-imports>>[3] project://src/Daemon.hs#14
+-- ------ begin <<daemon-imports>>[3] project://lit/10-daemon.md#129
 import Database.SQLite.Simple
 
 import Document
@@ -44,7 +44,7 @@ import Control.Monad.Writer
 import Control.Monad.Catch
 import Control.Monad.Logger
 -- ------ end
--- ------ begin <<daemon-imports>>[4] project://lit/10-daemon.md#188
+-- ------ begin <<daemon-imports>>[4] project://lit/10-daemon.md#185
 import System.FilePath (takeDirectory, equalFilePath)
 import System.Directory 
     ( canonicalizePath
@@ -53,14 +53,14 @@ import System.Directory
     , createDirectoryIfMissing
     , makeRelativeToCurrentDirectory )
 -- ------ end
--- ------ begin <<daemon-imports>>[5] project://lit/10-daemon.md#243
+-- ------ begin <<daemon-imports>>[5] project://lit/10-daemon.md#240
 import Data.List (nub, (\\))
 import Control.Monad (mapM)
 -- ------ end
--- ------ begin <<daemon-imports>>[6] project://lit/10-daemon.md#343
+-- ------ begin <<daemon-imports>>[6] project://lit/10-daemon.md#340
 import qualified Data.Map.Lazy as LM
 -- ------ end
--- ------ begin <<daemon-imports>>[7] project://lit/10-daemon.md#386
+-- ------ begin <<daemon-imports>>[7] project://lit/10-daemon.md#383
 import System.IO (stdout, hFlush, hSetBuffering, BufferMode(..))
 -- ------ end
 -- ------ begin <<daemon-events>>[0] project://lit/10-daemon.md#53
@@ -116,7 +116,7 @@ runTransaction (Transaction (Just x) d c) = do
         when (reply == "y") x
     else x
 -- ------ end
--- ------ begin <<daemon-session>>[0] project://src/Daemon.hs#34
+-- ------ begin <<daemon-session>>[0] project://lit/10-daemon.md#150
 data Session = Session
     { watches       :: [FSNotify.StopListening]
     , manager       :: FSNotify.WatchManager
@@ -135,7 +135,7 @@ newtype Daemon a = Daemon { unDaemon :: RWST Config Transaction Session (Logging
     deriving ( Applicative, Functor, Monad, MonadIO, MonadState Session
              , MonadReader Config, MonadWriter Transaction, MonadThrow, MonadLogger, MonadLoggerIO )
 -- ------ end
--- ------ begin <<daemon-session>>[1] project://lit/10-daemon.md#177
+-- ------ begin <<daemon-session>>[1] project://lit/10-daemon.md#174
 setDaemonState :: ( MonadIO m
                   , MonadState Session m )
                => DaemonState -> m ()
@@ -143,7 +143,7 @@ setDaemonState s = do
     state <- gets daemonState
     liftIO $ modifyMVar_ state (const $ return s)
 -- ------ end
--- ------ begin <<daemon-user-io>>[0] project://lit/10-daemon.md#200
+-- ------ begin <<daemon-user-io>>[0] project://lit/10-daemon.md#197
 class Monad m => MonadFileIO m where
     writeFile :: FilePath -> Text -> m ()
     deleteFile :: FilePath -> m ()
@@ -181,7 +181,7 @@ instance MonadFileIO Daemon where
     readFile path = liftIO $ T.IO.readFile path
     deleteFile path = tell $ removeIfExists path
 -- ------ end
--- ------ begin <<daemon-loading>>[0] project://src/Daemon.hs#40
+-- ------ begin <<daemon-loading>>[0] project://lit/10-daemon.md#306
 loadSourceFile :: ( MonadFileIO m, MonadLogger m
                   , MonadReader Config m
                   , MonadState Session m
@@ -196,7 +196,7 @@ loadSourceFile abs_path = do
         Right doc ->
             db $ insertDocument rel_path doc
 -- ------ end
--- ------ begin <<daemon-loading>>[1] project://src/Daemon.hs#42
+-- ------ begin <<daemon-loading>>[1] project://lit/10-daemon.md#322
 loadTargetFile :: ( MonadFileIO m, MonadLogger m
                   , MonadReader Config m
                   , MonadState Session m
@@ -211,7 +211,7 @@ loadTargetFile abs_path = do
         Right refs ->
             db $ updateTarget refs
 -- ------ end
--- ------ begin <<daemon-writing>>[0] project://src/Daemon.hs#44
+-- ------ begin <<daemon-writing>>[0] project://lit/10-daemon.md#344
 codeLanguage' :: ( MonadThrow m )
               => ReferenceMap -> ReferenceName -> m Text
 codeLanguage' refs rname = case (codeLanguage $ refs M.! (ReferenceId rname 0)) of
@@ -240,13 +240,13 @@ writeTargetFile rel_path = do
                     Nothing -> logErrorN $ "Unknown language id " <> langName
                     Just lang -> tangleRef tgt lang
 -- ------ end
--- ------ begin <<daemon-writing>>[1] project://lit/10-daemon.md#377
+-- ------ begin <<daemon-writing>>[1] project://lit/10-daemon.md#374
 writeSourceFile :: FilePath -> Daemon ()
 writeSourceFile rel_path = do
     content <- db $ stitchDocument rel_path
     writeFile rel_path content
 -- ------ end
--- ------ begin <<daemon-watches>>[0] project://lit/10-daemon.md#257
+-- ------ begin <<daemon-watches>>[0] project://lit/10-daemon.md#254
 passEvent :: MVar DaemonState -> Chan Event
           -> [FilePath] -> [FilePath] -> FSNotify.Event -> IO ()
 passEvent _      _       _    _    FSNotify.Removed {} = return ()
@@ -266,7 +266,7 @@ passEvent state' channel srcs tgts fsEvent = do
         let etype = if isSourceFile then WriteSource else WriteTarget
         writeChan channel (etype abs_path)
 -- ------ end
--- ------ begin <<daemon-watches>>[1] project://src/Daemon.hs#50
+-- ------ begin <<daemon-watches>>[1] project://lit/10-daemon.md#275
 setWatch :: Daemon ()
 setWatch = do
     srcs <- db listSourceFiles >>= (liftIO . mapM canonicalizePath)
@@ -286,19 +286,19 @@ setWatch = do
 
     logInfoN $ "watching: " <> tshow rel_dirs
 -- ------ end
--- ------ begin <<daemon-watches>>[2] project://src/Daemon.hs#52
+-- ------ begin <<daemon-watches>>[2] project://lit/10-daemon.md#296
 closeWatch :: Daemon ()
 closeWatch = do
     stopActions <- gets watches
     liftIO $ sequence_ stopActions
     logInfoN "suspended watches"
 -- ------ end
--- ------ begin <<daemon-main-loop>>[0] project://lit/10-daemon.md#392
+-- ------ begin <<daemon-main-loop>>[0] project://lit/10-daemon.md#389
 wait :: Daemon ()
 wait = liftIO $ threadDelay 100000
 
 mainLoop :: Event -> Daemon ()
--- ------ begin <<main-loop-cases>>[0] project://lit/10-daemon.md#402
+-- ------ begin <<main-loop-cases>>[0] project://lit/10-daemon.md#399
 mainLoop (WriteSource abs_path) = do
     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
 
@@ -335,7 +335,7 @@ mainLoop (WriteTarget abs_path) = do
 mainLoop _ = return () 
 -- ------ end
 -- ------ end
--- ------ begin <<daemon-start>>[0] project://src/Daemon.hs#58
+-- ------ begin <<daemon-start>>[0] project://lit/10-daemon.md#438
 printMsg :: Doc -> Daemon ()
 printMsg = liftIO . Console.putTerminal
 

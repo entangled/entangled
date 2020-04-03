@@ -1,4 +1,4 @@
--- ------ language="Haskell" file="app/Main.hs" project://lit/12-main.md#239
+-- ------ language="Haskell" file="app/Main.hs" project://lit/12-main.md#240
 module Main where
 
 -- ------ begin <<main-imports>>[0] project://lit/12-main.md#6
@@ -17,26 +17,26 @@ import Control.Monad.Logger
 import System.Directory
 import System.FilePath
 -- ------ end
--- ------ begin <<main-imports>>[1] project://lit/12-main.md#23
+-- ------ begin <<main-imports>>[1] project://lit/12-main.md#24
 import GHC.IO.Encoding
 -- ------ end
--- ------ begin <<main-imports>>[2] project://lit/12-main.md#35
+-- ------ begin <<main-imports>>[2] project://lit/12-main.md#36
 import Options.Applicative
 -- ------ end
--- ------ begin <<main-imports>>[3] project://lit/12-main.md#67
+-- ------ begin <<main-imports>>[3] project://lit/12-main.md#68
 import Config
 -- ------ end
--- ------ begin <<main-imports>>[4] project://lit/12-main.md#86
+-- ------ begin <<main-imports>>[4] project://lit/12-main.md#87
 import Daemon
 -- ------ end
--- ------ begin <<main-imports>>[5] project://lit/12-main.md#115
+-- ------ begin <<main-imports>>[5] project://lit/12-main.md#116
 import qualified Dhall
 -- ------ end
--- ------ begin <<main-imports>>[6] project://lit/12-main.md#269
+-- ------ begin <<main-imports>>[6] project://lit/12-main.md#276
 import Database
 import Database.SQLite.Simple
 -- ------ end
--- ------ begin <<main-imports>>[7] project://lit/12-main.md#337
+-- ------ begin <<main-imports>>[7] project://lit/12-main.md#344
 import Stitch (stitch)
 -- ------ end
 
@@ -46,33 +46,33 @@ import Tangle (parseMarkdown, expandedCode, annotateNaked)
 import TextUtil
 import Comment
 
--- ------ begin <<main-options>>[0] project://lit/12-main.md#41
+-- ------ begin <<main-options>>[0] project://lit/12-main.md#42
 data Args = Args
     { versionFlag :: Bool
     , subCommand :: SubCommand }
 
 data SubCommand
     = NoCommand
-    -- ------ begin <<sub-commands>>[0] project://lit/12-main.md#90
+    -- ------ begin <<sub-commands>>[0] project://lit/12-main.md#91
     | CommandDaemon DaemonArgs
     -- ------ end
-    -- ------ begin <<sub-commands>>[1] project://lit/12-main.md#119
+    -- ------ begin <<sub-commands>>[1] project://lit/12-main.md#120
     | CommandConfig
     -- ------ end
-    -- ------ begin <<sub-commands>>[2] project://lit/12-main.md#134
+    -- ------ begin <<sub-commands>>[2] project://lit/12-main.md#135
     | CommandInsert InsertArgs
     -- ------ end
-    -- ------ begin <<sub-commands>>[3] project://lit/12-main.md#167
+    -- ------ begin <<sub-commands>>[3] project://lit/12-main.md#168
     | CommandTangle TangleArgs
     -- ------ end
-    -- ------ begin <<sub-commands>>[4] project://lit/12-main.md#200
+    -- ------ begin <<sub-commands>>[4] project://lit/12-main.md#201
     | CommandStitch StitchArgs
     -- ------ end
-    -- ------ begin <<sub-commands>>[5] project://lit/12-main.md#225
+    -- ------ begin <<sub-commands>>[5] project://lit/12-main.md#226
     | CommandList
     -- ------ end
 -- ------ end
--- ------ begin <<main-options>>[1] project://lit/12-main.md#53
+-- ------ begin <<main-options>>[1] project://lit/12-main.md#54
 parseNoCommand :: Parser SubCommand
 parseNoCommand = pure NoCommand
 
@@ -80,28 +80,28 @@ parseArgs :: Parser Args
 parseArgs = Args
     <$> switch (long "version" <> short 'v' <> help "Show version information.")
     <*> ( subparser ( mempty
-          -- ------ begin <<sub-parsers>>[0] project://lit/12-main.md#94
+          -- ------ begin <<sub-parsers>>[0] project://lit/12-main.md#95
           <>  command "daemon" (info parseDaemonArgs ( progDesc "Run the entangled daemon." )) 
           -- ------ end
-          -- ------ begin <<sub-parsers>>[1] project://lit/12-main.md#123
+          -- ------ begin <<sub-parsers>>[1] project://lit/12-main.md#124
           <> command "config" (info (pure CommandConfig <**> helper) 
                                     (progDesc "Print the default configuration."))
           -- ------ end
-          -- ------ begin <<sub-parsers>>[2] project://lit/12-main.md#138
+          -- ------ begin <<sub-parsers>>[2] project://lit/12-main.md#139
           <> command "insert" (info parseInsertArgs ( progDesc "Insert markdown files into database." ))
           -- ------ end
-          -- ------ begin <<sub-parsers>>[3] project://lit/12-main.md#171
+          -- ------ begin <<sub-parsers>>[3] project://lit/12-main.md#172
           <> command "tangle" (info (CommandTangle <$> parseTangleArgs) ( progDesc "Retrieve tangled code." ))
           -- ------ end
-          -- ------ begin <<sub-parsers>>[4] project://lit/12-main.md#204
+          -- ------ begin <<sub-parsers>>[4] project://lit/12-main.md#205
           <> command "stitch" (info (CommandStitch <$> parseStitchArgs) ( progDesc "Retrieve stitched markdown." ))
           -- ------ end
-          -- ------ begin <<sub-parsers>>[5] project://lit/12-main.md#229
+          -- ------ begin <<sub-parsers>>[5] project://lit/12-main.md#230
           <> command "list" (info (pure CommandList <**> helper) ( progDesc "List generated code files." ))
           -- ------ end
         ) <|> parseNoCommand )
 -- ------ end
--- ------ begin <<main-options>>[2] project://lit/12-main.md#98
+-- ------ begin <<main-options>>[2] project://lit/12-main.md#99
 data DaemonArgs = DaemonArgs
     { inputFiles  :: [String]
     } deriving (Show)
@@ -111,7 +111,7 @@ parseDaemonArgs = CommandDaemon <$> DaemonArgs
     <$> many (argument str (metavar "FILES..."))
     <**> helper
 -- ------ end
--- ------ begin <<main-options>>[3] project://lit/12-main.md#142
+-- ------ begin <<main-options>>[3] project://lit/12-main.md#143
 data FileType = SourceFile | TargetFile
 
 data InsertArgs = InsertArgs
@@ -128,7 +128,7 @@ parseInsertArgs = CommandInsert <$> (InsertArgs
     <*> many (argument str (metavar "FILES..."))
     <**> helper)
 -- ------ end
--- ------ begin <<main-options>>[4] project://lit/12-main.md#175
+-- ------ begin <<main-options>>[4] project://lit/12-main.md#176
 data TangleQuery = TangleFile FilePath | TangleRef Text | TangleAll deriving (Show)
 
 data TangleArgs = TangleArgs
@@ -146,7 +146,7 @@ parseTangleArgs = TangleArgs
     <*> switch (long "decorate" <> short 'd' <> help "Decorate with stitching comments.")
     <**> helper
 -- ------ end
--- ------ begin <<main-options>>[5] project://lit/12-main.md#208
+-- ------ begin <<main-options>>[5] project://lit/12-main.md#209
 data StitchArgs = StitchArgs
     { stitchTarget :: FilePath
     } deriving (Show)
@@ -159,7 +159,7 @@ parseStitchArgs = StitchArgs
 
 main :: IO ()
 main = do
-    -- ------ begin <<main-set-encoding>>[0] project://lit/12-main.md#27
+    -- ------ begin <<main-set-encoding>>[0] project://lit/12-main.md#28
     setLocaleEncoding utf8
     -- ------ end
     run =<< execParser args
@@ -175,7 +175,7 @@ newtype LoggingIO a = LoggingIO { unLoggingIO :: LoggingT IO a }
 runLoggingIO :: LoggingIO a -> IO a
 runLoggingIO x = runStdoutLoggingT $ unLoggingIO x
 
--- ------ begin <<main-run>>[0] project://lit/12-main.md#71
+-- ------ begin <<main-run>>[0] project://lit/12-main.md#72
 run :: Args -> IO ()
 run Args{..}
     | versionFlag       = putStrLn "enTangleD 1.0.0"
@@ -183,27 +183,27 @@ run Args{..}
         config <- configStack
         case subCommand of
             NoCommand -> return ()
-            -- ------ begin <<sub-runners>>[0] project://lit/12-main.md#109
+            -- ------ begin <<sub-runners>>[0] project://lit/12-main.md#110
             CommandDaemon a -> runSession config
             -- ------ end
-            -- ------ begin <<sub-runners>>[1] project://lit/12-main.md#128
+            -- ------ begin <<sub-runners>>[1] project://lit/12-main.md#129
             CommandConfig -> T.IO.putStrLn "NYI" -- T.IO.putStrLn $ Toml.encode configCodec config
             -- ------ end
-            -- ------ begin <<sub-runners>>[2] project://lit/12-main.md#160
+            -- ------ begin <<sub-runners>>[2] project://lit/12-main.md#161
             CommandInsert (InsertArgs SourceFile fs) -> runLoggingIO $ runInsertSources config fs
             CommandInsert (InsertArgs TargetFile fs) -> runLoggingIO $ runInsertTargets config fs
             -- ------ end
-            -- ------ begin <<sub-runners>>[3] project://lit/12-main.md#194
+            -- ------ begin <<sub-runners>>[3] project://lit/12-main.md#195
             CommandTangle a -> runLoggingIO $ runTangle config a
             -- ------ end
-            -- ------ begin <<sub-runners>>[4] project://lit/12-main.md#219
+            -- ------ begin <<sub-runners>>[4] project://lit/12-main.md#220
             CommandStitch a -> runLoggingIO $ runStitch config a
             -- ------ end
-            -- ------ begin <<sub-runners>>[5] project://lit/12-main.md#233
+            -- ------ begin <<sub-runners>>[5] project://lit/12-main.md#234
             CommandList -> runLoggingIO $ runList config
             -- ------ end
 -- ------ end
--- ------ begin <<main-run>>[1] project://lit/12-main.md#276
+-- ------ begin <<main-run>>[1] project://lit/12-main.md#283
 writeFile' :: (MonadIO m) => FilePath -> Text -> m ()
 writeFile' filename text = liftIO $ do
     createDirectoryIfMissing True (takeDirectory filename)
@@ -237,7 +237,7 @@ runTangle cfg TangleArgs{..} = do
                 fs <- listTargetFiles
                 mapM_ (\f -> tangleFile f >>= writeFile' f) fs 
 -- ------ end
--- ------ begin <<main-run>>[2] project://lit/12-main.md#313
+-- ------ begin <<main-run>>[2] project://lit/12-main.md#320
 runStitch :: Config -> StitchArgs -> LoggingIO ()
 runStitch config StitchArgs{..} = do 
     dbPath <- getDatabasePath config
@@ -246,7 +246,7 @@ runStitch config StitchArgs{..} = do
         stitchDocument stitchTarget
     liftIO $ T.IO.putStrLn text
 -- ------ end
--- ------ begin <<main-run>>[3] project://lit/12-main.md#325
+-- ------ begin <<main-run>>[3] project://lit/12-main.md#332
 runList :: Config -> LoggingIO ()
 runList cfg = do
     dbPath <- getDatabasePath cfg
@@ -255,7 +255,7 @@ runList cfg = do
         listTargetFiles
     liftIO $ T.IO.putStrLn $ T.unlines $ map T.pack lst
 -- ------ end
--- ------ begin <<main-run>>[4] project://lit/12-main.md#341
+-- ------ begin <<main-run>>[4] project://lit/12-main.md#348
 runInsertSources :: Config -> [FilePath] -> LoggingIO ()
 runInsertSources cfg files = do
     dbPath <- getDatabasePath cfg

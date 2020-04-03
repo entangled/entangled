@@ -86,7 +86,7 @@ library
   hs-source-dirs:
       src
 
-executable entangled
+executable entangledx
   import: deps
   main-is: Main.hs
   other-modules:

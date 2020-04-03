@@ -2,7 +2,7 @@
 module Config where
 
 -- ------ begin <<config-import>>[0] project://lit/04-configuration.md#25
-import Dhall (Generic, FromDhall, ToDhall, input, auto)
+import Dhall (Generic, FromDhall, ToDhall, input, auto, Decoder, union, record, field, list, strictText, setFromDistinctList)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Set (Set)
@@ -30,17 +30,28 @@ import System.Directory
 import System.FilePath
 
 -- ------ begin <<config-dhall-schema>>[0] project://lit/04-configuration.md#34
-data ConfigComment = ConfigComment
-    { commentStart :: Text
-    , commentEnd :: Maybe Text
-    } deriving (Generic, Show)
+data ConfigComment
+    = Line  Text
+    | Block { start :: Text, end :: Text }
+    deriving (Generic, Show)
+
+instance FromDhall ConfigComment
+instance ToDhall ConfigComment
 
 data ConfigLanguage = ConfigLanguage
     { languageName :: Text
     , languageIdentifiers :: [Text]
     , languageComment :: ConfigComment
     , languageJupyter :: Maybe Text
-    } deriving (Generic, Show)
+    } deriving (Show)
+
+configLanguage :: Decoder ConfigLanguage
+configLanguage = record
+    ( ConfigLanguage <$> field "name"        auto
+                     <*> field "identifiers" auto
+                     <*> field "comment"     auto
+                     <*> field "jupyter"     auto
+    )
 
 instance Eq ConfigLanguage where
     a == b = (languageName a) == (languageName b)
@@ -52,15 +63,14 @@ data Config = Config
     { configLanguages :: Set ConfigLanguage
     , configWatchList :: Maybe [Text]
     , configDatabase  :: Maybe Text
-    } deriving (Generic, Show)
+    } deriving (Show)
 
-instance FromDhall ConfigComment
-instance FromDhall ConfigLanguage
-instance FromDhall Config
-
-instance ToDhall ConfigComment
-instance ToDhall ConfigLanguage
-instance ToDhall Config
+config :: Decoder Config
+config = record
+    ( Config <$> field "languages" (setFromDistinctList configLanguage)
+             <*> field "watchList" auto
+             <*> field "database" auto
+    )
 -- ------ end
 -- ------ begin <<config-monoid>>[0] project://lit/04-configuration.md#121
 instance Semigroup Config where
@@ -79,14 +89,14 @@ configStack = do
     return $ localConfig <> globalConfig <> defaultConfig
 -- ------ end
 -- ------ begin <<config-defaults>>[0] project://lit/04-configuration.md#145
-hashComment         = ConfigComment "#"    Nothing
-lispStyleComment    = ConfigComment ";"    Nothing
-cStyleComment       = ConfigComment "/*"   (Just "*/")
-cppStyleComment     = ConfigComment "//"   Nothing
-haskellStyleComment = ConfigComment "--"   Nothing
-mlStyleComment      = ConfigComment "(*"   (Just "*)")
-xmlStyleComment     = ConfigComment "<!--" (Just "-->")
-texStyleComment     = ConfigComment "%"    Nothing
+hashComment         = Line  "#"
+lispStyleComment    = Line  ";"
+cStyleComment       = Block "/*" "*/"
+cppStyleComment     = Line  "//"
+haskellStyleComment = Line  "--"
+mlStyleComment      = Block "(*" "*)"
+xmlStyleComment     = Block "<!--" "-->"
+texStyleComment     = Line  "%"
 
 defaultLanguages :: Set ConfigLanguage
 defaultLanguages = S.fromList
@@ -131,7 +141,7 @@ readLocalConfig :: IO Config
 readLocalConfig = do
     cfg_path <- maybe (throwM $ SystemError "no config found.") id
              <$> findFileAscending "entangled.dhall"
-    input auto (T.pack cfg_path)
+    input config (T.pack cfg_path)
 
 readGlobalConfig :: IO Config
 readGlobalConfig = mempty
@@ -151,7 +161,7 @@ languageFromName cfg x
 getDatabasePath :: (MonadIO m, MonadThrow m) => Config -> m FilePath
 getDatabasePath cfg = do
     dbPath <- case configDatabase cfg of
-        Nothing -> throwM $ SystemError $ "database not configured"
+        Nothing -> throwM $ SystemError "database not configured"
         Just db -> return $ T.unpack db
     liftIO $ createDirectoryIfMissing True (takeDirectory dbPath)
     return dbPath
