@@ -1,3 +1,4 @@
+{-# language OverloadedStrings #-}
 module Config
     ( Config(..)
     , defaultConfig
@@ -9,6 +10,7 @@ module Config
 import Languages
 import Data.List
 import Model
+import qualified Data.Text as T
 
 newtype Config = Config
     { configLanguages :: [Language]
@@ -34,29 +36,38 @@ languageFromName x cfg
     configuration file.
  -}
 defaultLanguages =
-    [ Language "C++"         ["cpp", "c++"]               "// ------" ""
-    , Language "C"           ["c"]                        "// ------" ""
-    , Language "D"           ["d"]                        "// ------" ""
-    , Language "Rust"        ["rust"]                     "// ------" ""
-    , Language "Haskell"     ["hs", "haskell"]            "-- ------" ""
-    , Language "Python"      ["py", "python", "python3"]  "## ------" ""
-    , Language "Julia"       ["jl", "julia"]              "## ------" ""
-    , Language "JavaScript"  ["js", "javascript", "ecma"] "// ------" ""
-    , Language "TypeScript"  ["ts", "typescript"]         "// ------" ""
-    , Language "Haxe"        ["hx", "haxe"]               "// ------" ""
-    , Language "Clojure"     ["clj", "cljs", "clojure"]   ";; ------" ""
-    , Language "Scheme"      ["scm", "scheme"]            ";; ------" ""
-    , Language "R"           ["r"]                        "## ------" ""
-    , Language "YAML"        ["yaml"]                     "## ------" ""
-    , Language "Gnuplot"     ["gnuplot"]                  "## ------" ""
-    , Language "Make"        ["make", "makefile"]         "## ------" ""
-    , Language "Elm"         ["elm"]                      "-- ------" ""
-    , Language "HTML"        ["html"]                     "<!-- ----" " -->"
-    , Language "CSS"         ["css"]                      "/* ------" " */"
-    , Language "Awk"         ["awk"]                      "## ------" ""
-    , Language "OpenCL"      ["opencl"]                   "// ------" ""
-    , Language "Idris"       ["idris"]                    "-- ------" ""
-    , Language "SQLite"      ["sqlite"]                   "-- ------" ""
+    [ Language "C++"         ["cpp", "c++"]               "// ------" ""     cppLineDirective
+    , Language "C"           ["c"]                        "// ------" ""     cppLineDirective
+    , Language "D"           ["d"]                        "// ------" ""     noLineDirective
+    , Language "Rust"        ["rust"]                     "// ------" ""     noLineDirective
+    , Language "Haskell"     ["hs", "haskell"]            "-- ------" ""     haskellLineDirective
+    , Language "Python"      ["py", "python", "python3"]  "## ------" ""     noLineDirective
+    , Language "Julia"       ["jl", "julia"]              "## ------" ""     noLineDirective
+    , Language "JavaScript"  ["js", "javascript", "ecma"] "// ------" ""     noLineDirective
+    , Language "TypeScript"  ["ts", "typescript"]         "// ------" ""     noLineDirective
+    , Language "Haxe"        ["hx", "haxe"]               "// ------" ""     noLineDirective
+    , Language "Clojure"     ["clj", "cljs", "clojure"]   ";; ------" ""     noLineDirective
+    , Language "Scheme"      ["scm", "scheme"]            ";; ------" ""     noLineDirective
+    , Language "R"           ["r"]                        "## ------" ""     noLineDirective
+    , Language "YAML"        ["yaml"]                     "## ------" ""     noLineDirective
+    , Language "Gnuplot"     ["gnuplot"]                  "## ------" ""     noLineDirective
+    , Language "Make"        ["make", "makefile"]         "## ------" ""     noLineDirective
+    , Language "Elm"         ["elm"]                      "-- ------" ""     noLineDirective
+    , Language "HTML"        ["html"]                     "<!-- ----" " -->" noLineDirective
+    , Language "CSS"         ["css"]                      "/* ------" " */"  noLineDirective
+    , Language "Awk"         ["awk"]                      "## ------" ""     noLineDirective
+    , Language "OpenCL"      ["opencl"]                   "// ------" ""     cppLineDirective
+    , Language "Idris"       ["idris"]                    "-- ------" ""     noLineDirective
+    , Language "SQLite"      ["sqlite"]                   "-- ------" ""     noLineDirective
     ]
+
+cppLineDirective :: LineDirective
+cppLineDirective = LineDirective $ \lineNo filename -> mconcat ["#LINE ", T.pack (show lineNo), " \"", T.pack filename, "\""]
+
+haskellLineDirective :: LineDirective
+haskellLineDirective = LineDirective $ \lineNo filename -> mconcat ["{-# LINE ", T.pack (show lineNo), " \"", T.pack filename, "\" #-}"]
+
+noLineDirective :: LineDirective
+noLineDirective = LineDirective $ \_ _ -> ""
 
 defaultConfig = Config defaultLanguages
