@@ -94,8 +94,8 @@ markdownSpecs lib = do
             it "recovers the identical code block" $ do
                 let ref1 = FileReferenceId "hello.cc"
                     ref2 = NameReferenceId "main-body" 0
-                withoutLineDirectives (codeSource (rm Map.! ref1)) `shouldBe` withoutLineDirectives (codeSource (rmo Map.! ref1))
-                withoutLineDirectives (codeSource (rm Map.! ref2)) `shouldBe` withoutLineDirectives (codeSource (rmo Map.! ref2))
+                codeSource (rm Map.! ref1) `shouldBe` codeSource (rmo Map.! ref1)
+                codeSource (rm Map.! ref2) `shouldBe` codeSource (rmo Map.! ref2)
             
 spec :: Map.Map FilePath (T.Text, Document) -> Spec
 spec lib = do

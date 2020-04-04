@@ -15,6 +15,7 @@ import qualified Data.Map as Map
 import qualified Data.Array as Array
 import qualified Data.Text as T
 
+import Data.Char(isSpace)
 import Data.Maybe
 import Data.String
 import Data.List
@@ -27,6 +28,8 @@ import Text.Parsec ((<|>), try, many, anyToken, manyTill, getPosition)
 import Test.Hspec
 import Data.Either.Combinators (fromRight')
 import Data.Either
+
+import Debug.Trace
 
 data Header = Header
     { headerFilename :: String
@@ -120,13 +123,18 @@ reference = do
     language <- getLanguage
     comment  <- getComment
 
-    ref     <- try $ token $ matchReference comment
+    ref     <- try $ token $ matchReference     comment
+    inp <- Parsec.getInput
+    trace ("BEFORE: " <> show inp) $ return ()
+    _       <- try $ token $ matchLineDirective language
+    trace ("AFTER:  " <> show inp) $ return ()
     pos     <- getPosition
     lines   <- catMaybes <$> manyTill (reference <|> Just <$> anyToken)
                                       (token $ matchEnd comment)
     let strippedContent = map (unindent $ rtIndent ref) lines
     when (isJust $ find isNothing strippedContent) $ fail "Indentation error"
     let content = intercalate "\n" $ catMaybes strippedContent
+    trace ("CONTENT: " <> content) $ return ()
 
     addReference (NameReferenceId (rtName ref) (rtIndex ref))
                  (CodeBlock (languageName language) [] (T.pack content) pos)
@@ -155,6 +163,12 @@ matchHeader line =
         [m] -> Just $ Header filename language
             where (filename, _) = m Array.! 2
                   (language, _) = m Array.! 1
+
+matchLineDirective          :: Language -> String -> Maybe ()
+matchLineDirective lang line =
+ case checkForLineDirective (languageLineDirective lang) $ T.pack $ dropWhile isSpace line of
+   True  -> Just ()
+   False -> Nothing
 
 referencePattern :: String -> String
 referencePattern comment = "^([ \\t]*)" ++ escape comment
@@ -208,6 +222,19 @@ untangleSpec = do
                 (Just $ ReferenceTag "hello-world" 1 "    ")
         it "ignores fails" $
             matchReference "//" "std::cout << \"// <<this is actual code>>[9]\";" `shouldSatisfy`
+                isNothing
+    describe "Line directive" $ do
+        it "match line directive" $ do
+            let Just cpp = languageFromName "C++" defaultConfig
+            matchLineDirective cpp "#LINE 17 \"hello.c\"" `shouldSatisfy`
+                isJust
+        it "match indented line directive" $ do
+            let Just cpp = languageFromName "C++" defaultConfig
+            matchLineDirective cpp "     #LINE 17 \"hello.c\"" `shouldSatisfy`
+                isJust
+        it "ignore wrong directive" $ do
+            let Just cpp = languageFromName "C++" defaultConfig
+            matchLineDirective cpp "{-# LINE 17 \"hello.hs\" #-}" `shouldSatisfy`
                 isNothing
 
     describe "Untangle.matchEnd" $ do
