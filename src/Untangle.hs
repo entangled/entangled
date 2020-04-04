@@ -6,6 +6,7 @@ module Untangle
 import Config
 import Model (TangleError, toTangleError)
 import Document
+import Languages
 
 import Control.Monad.Reader
 import Control.Monad (when)
@@ -50,22 +51,21 @@ data ReferenceTag = ReferenceTag
     store the comment string here.
  -}
 data ParserState = ParserState
-    { psComment :: String
-    , psLanguage :: String
-    , psRefs :: ReferenceMap
+    { psLanguage :: Language
+    , psRefs     :: ReferenceMap
     } | EmptyState deriving (Show, Eq)
 
 updateRefs :: (ReferenceMap -> ReferenceMap) -> ParserState -> ParserState
-updateRefs f s@(ParserState _ _ r) = s { psRefs = f r}
+updateRefs f s@(ParserState _ r) = s { psRefs = f r}
 
 getRefs :: Monad m => Parser m ReferenceMap
 getRefs = psRefs <$> Parsec.getState
 
-getLanguage :: Monad m => Parser m String
+getLanguage :: Monad m => Parser m Language
 getLanguage = psLanguage <$> Parsec.getState
 
 getComment :: Monad m => Parser m String
-getComment = psComment <$> Parsec.getState
+getComment = languageLineComment <$> getLanguage
 
 addReference :: Monad m => ReferenceId -> CodeBlock -> Parser m ()
 addReference r c = Parsec.modifyState $ updateRefs $ Map.insert r c
@@ -83,6 +83,12 @@ token :: Monad m => (String -> Maybe a) -> Parser m a
 token = Parsec.tokenPrim id nextPos
     where nextPos p _ _ = Parsec.incSourceLine p 1
 
+-- Set language from name and error if cannot find it
+setLanguage languageName =
+  case languageFromName languageName defaultConfig of
+    Nothing -> fail $ "Unknown language: " ++ languageName
+    Just c  -> Parsec.setState $ ParserState c mempty
+
 -- ========================================================================= --
 -- Parsers                                                                   --
 -- ========================================================================= --
@@ -92,10 +98,7 @@ document = do
     header <- token matchHeader
     pos <- getPosition
     let language = headerLanguage header
-    commentString <- asks $ getCommentString language
-    case commentString of
-        Nothing -> fail $ "Unknown language: " ++ language
-        Just c  -> Parsec.setState $ ParserState c language mempty
+    setLanguage language
 
     comment <- getComment
     content <- intercalate "\n" . catMaybes
@@ -126,7 +129,7 @@ reference = do
     let content = intercalate "\n" $ catMaybes strippedContent
 
     addReference (NameReferenceId (rtName ref) (rtIndex ref))
-                 (CodeBlock language [] (T.pack content) pos)
+                 (CodeBlock (languageName language) [] (T.pack content) pos)
 
     if rtIndex ref == 0
         then return $ Just $ rtIndent ref ++ "<<" ++ rtName ref ++ ">>"

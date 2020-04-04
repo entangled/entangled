@@ -5,6 +5,7 @@ module Tangle
     ( tangleNaked
     , tangleAnnotated
     , tangleSpec
+    , withoutLineDirectives
     ) where
 
 import qualified Data.Map as Map
@@ -132,6 +133,9 @@ annotate id (CodeBlock lang _ text pos) = do
                     <> applyLineDirective lineDirective (sourceLine pos) (sourceName pos)
             bottom   = T.pack $ comment ++ " end" ++ close
         return $ top <> T.pack "\n" <> text <> T.pack "\n" <> bottom
+
+withoutLineDirectives :: T.Text -> T.Text
+withoutLineDirectives  = T.unlines . filter (not . T.isPrefixOf (T.pack "#LINE")) . T.lines
 
 expandAnnotated :: (MonadReader Config m)
         => ReferenceMap -> History -> ReferenceId -> m (Either TangleError T.Text)

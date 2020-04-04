@@ -14,14 +14,15 @@ import qualified Data.Text as T
       - how to insert source line directive
  -}
 data Language = Language
-    { languageName           ::  String
-    , languageAbbreviations  :: [String]
-    , languageLineComment    ::  String
-    , languageCloseComment   ::  String
-    , languageLineDirective  ::  LineDirective
+    { languageName               ::  String
+    , languageAbbreviations      :: [String]
+    , languageLineComment        ::  String
+    , languageCloseComment       ::  String
+    , languageLineDirective      ::  LineDirective
     } deriving (Show, Eq)
 
-newtype LineDirective = LineDirective { applyLineDirective :: Int -> FilePath -> Text }
+data LineDirective = LineDirective { applyLineDirective    :: Int -> FilePath -> Text
+                                   , checkForLineDirective :: Text -> Bool }
 
 instance Show LineDirective where
   show x = T.unpack $ applyLineDirective x 1 "src/filename"

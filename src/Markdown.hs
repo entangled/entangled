@@ -103,7 +103,7 @@ parseNormalLine t
 
 getLanguage :: MonadReader Config m => [CodeProperty] -> m (Maybe Language)
 getLanguage [] = return Nothing
-getLanguage (CodeClass cls : _) = reader $ lookupLanguage cls
+getLanguage (CodeClass cls : _) = reader $ languageFromAbbrev cls
 getLanguage (_ : xs) = getLanguage xs
 
 randomNameReference :: (MonadState s m, RandomGen s) => m ReferenceId

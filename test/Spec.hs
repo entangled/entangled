@@ -97,8 +97,6 @@ markdownSpecs lib = do
                 withoutLineDirectives (codeSource (rm Map.! ref1)) `shouldBe` withoutLineDirectives (codeSource (rmo Map.! ref1))
                 withoutLineDirectives (codeSource (rm Map.! ref2)) `shouldBe` withoutLineDirectives (codeSource (rmo Map.! ref2))
             
-withoutLineDirectives = T.unlines . filter (not . T.isPrefixOf (T.pack "#LINE")) . T.lines
-
 spec :: Map.Map FilePath (T.Text, Document) -> Spec
 spec lib = do
     tangleSpec

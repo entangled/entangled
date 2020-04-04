@@ -1,10 +1,10 @@
 {-# language OverloadedStrings #-}
+{-# language RecordWildCards   #-}
 module Config
     ( Config(..)
     , defaultConfig
-    , getCommentString
-    , lookupLanguage
     , languageFromName
+    , languageFromAbbrev
     ) where
 
 import Languages
@@ -16,14 +16,8 @@ newtype Config = Config
     { configLanguages :: [Language]
     } deriving (Show)
 
-getCommentString :: String -> Config -> Maybe String
-getCommentString lang 
-    = fmap languageLineComment
-    . find ((== lang) . languageName)
-    . configLanguages
-
-lookupLanguage :: String -> Config -> Maybe Language
-lookupLanguage x cfg
+languageFromAbbrev :: String -> Config -> Maybe Language
+languageFromAbbrev x cfg
     = find (elem x . languageAbbreviations) 
     $ configLanguages cfg
 
@@ -35,6 +29,7 @@ languageFromName x cfg
 {-| List of languages. This should eventually end up in a separate
     configuration file.
  -}
+defaultLanguages :: [Language]
 defaultLanguages =
     [ Language "C++"         ["cpp", "c++"]               "// ------" ""     cppLineDirective
     , Language "C"           ["c"]                        "// ------" ""     cppLineDirective
@@ -43,7 +38,7 @@ defaultLanguages =
     , Language "Haskell"     ["hs", "haskell"]            "-- ------" ""     haskellLineDirective
     , Language "Python"      ["py", "python", "python3"]  "## ------" ""     noLineDirective
     , Language "Julia"       ["jl", "julia"]              "## ------" ""     noLineDirective
-    , Language "JavaScript"  ["js", "javascript", "ecma"] "// ------" ""     noLineDirective
+    , Language "JavaScript"  ["js", "javascript", "ecma", "json"] "// ------" ""     noLineDirective
     , Language "TypeScript"  ["ts", "typescript"]         "// ------" ""     noLineDirective
     , Language "Haxe"        ["hx", "haxe"]               "// ------" ""     noLineDirective
     , Language "Clojure"     ["clj", "cljs", "clojure"]   ";; ------" ""     noLineDirective
@@ -62,12 +57,19 @@ defaultLanguages =
     ]
 
 cppLineDirective :: LineDirective
-cppLineDirective = LineDirective $ \lineNo filename -> mconcat ["#LINE ", T.pack (show lineNo), " \"", T.pack filename, "\""]
+cppLineDirective = LineDirective {..}
+  where
+    applyLineDirective lineNo filename = mconcat ["#LINE ", T.pack (show lineNo), " \"", T.pack filename, "\""]
+    checkForLineDirective              = T.isPrefixOf "#LINE "
 
 haskellLineDirective :: LineDirective
-haskellLineDirective = LineDirective $ \lineNo filename -> mconcat ["{-# LINE ", T.pack (show lineNo), " \"", T.pack filename, "\" #-}"]
+haskellLineDirective = LineDirective {..}
+  where
+    applyLineDirective lineNo filename = mconcat ["{-# LINE ", T.pack (show lineNo), " \"", T.pack filename, "\" #-}"]
+    checkForLineDirective              = T.isPrefixOf "{-# LINE "
 
 noLineDirective :: LineDirective
-noLineDirective = LineDirective $ \_ _ -> ""
+noLineDirective = LineDirective (\_ _ -> "") (\_ -> False)
 
 defaultConfig = Config defaultLanguages
+
