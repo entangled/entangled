@@ -127,16 +127,13 @@ reference = do
 
     ref     <- try $ token $ matchReference     comment
     inp <- Parsec.getInput
-    trace ("BEFORE: " <> show inp) $ return ()
     _       <- try $ token $ matchLineDirective language
-    trace ("AFTER:  " <> show inp) $ return ()
     pos     <- getPosition
     lines   <- catMaybes <$> manyTill (reference <|> Just <$> anyToken)
                                       (token $ matchEnd comment)
     let strippedContent = map (unindent $ rtIndent ref) lines
     when (isJust $ find isNothing strippedContent) $ fail "Indentation error"
     let content = intercalate "\n" $ catMaybes strippedContent
-    trace ("CONTENT: " <> content) $ return ()
 
     addReference (NameReferenceId (rtName ref) (rtIndex ref))
                  (CodeBlock (languageName language) [] (T.pack content) pos)
