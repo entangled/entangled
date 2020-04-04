@@ -126,7 +126,6 @@ reference = do
     comment  <- getComment
 
     ref     <- try $ token $ matchReference     comment
-    inp <- Parsec.getInput
     _       <- try $ token $ matchLineDirective language
     pos     <- getPosition
     lines   <- catMaybes <$> manyTill (reference <|> Just <$> anyToken)
