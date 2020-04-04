@@ -99,10 +99,12 @@ setLanguage languageName =
 document :: Monad m => Parser m ReferenceMap
 document = do
     header <- token matchHeader
-    pos <- getPosition
     let language = headerLanguage header
     setLanguage language
+    lang <- getLanguage
+    token $ matchLineDirective lang
 
+    pos <- getPosition
     comment <- getComment
     content <- intercalate "\n" . catMaybes
         <$> manyTill (reference <|> Just <$> anyToken)
