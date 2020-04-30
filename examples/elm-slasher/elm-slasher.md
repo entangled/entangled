@@ -16,7 +16,7 @@ Our game is simple. The original *slasher* game is one I remember from way back 
 
 ![Screenshot of "Slasher"](screenshot.png)
 
-[You can play this game here.](https://jhidding.github.io/enTangleD/slasher.html)
+[You can play this game here.](https://entangled.github.io/entangled/slasher.html)
 
 # Main
 
@@ -34,6 +34,8 @@ The Elm guide has a section describing the difference between `sandbox` and `ele
 We will be creating an `element` program, compile it to a JavaScript file, and create a HTML and CSS around it by hand. The lay-out of such a program in Elm looks as follows:
 
 ``` {.elm file=src/Main.elm}
+module Main exposing (..)
+
 <<imports>>
 <<main>>
 
@@ -540,7 +542,7 @@ view model =
 From the code we can either build a HTML or a JavaScript file for embedding. We will manually create the HTML so that we can also create a stylesheet. Here's the `Makefile` for creating an optimized and uglified version of `slasher` (you can install `uglifyjs` with `npm install -g uglify-js`):
 
 ``` {.makefile file=Makefile}
-.RECIPEPREFIX +=
+# .RECIPEPREFIX +=
 .PHONY: build
 
 build: slasher.min.js
