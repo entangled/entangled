@@ -1,4 +1,4 @@
--- ------ language="Haskell" file="src/Config.hs" project://lit/04-configuration.md#68
+-- ------ language="Haskell" file="src/Config.hs" project://lit/04-configuration.md#78
 module Config where
 
 -- ------ begin <<config-import>>[0] project://lit/04-configuration.md#25
@@ -72,7 +72,7 @@ config = record
              <*> field "database" auto
     )
 -- ------ end
--- ------ begin <<config-monoid>>[0] project://lit/04-configuration.md#121
+-- ------ begin <<config-monoid>>[0] project://lit/04-configuration.md#131
 instance Semigroup Config where
     a <> b = Config (configLanguages a <> configLanguages b)
                     (configWatchList a <> configWatchList b)
@@ -81,14 +81,14 @@ instance Semigroup Config where
 instance Monoid Config where
     mempty = Config mempty mempty mempty
 -- ------ end
--- ------ begin <<config-monoid>>[1] project://lit/04-configuration.md#133
+-- ------ begin <<config-monoid>>[1] project://lit/04-configuration.md#143
 configStack :: IO Config
 configStack = do
     localConfig <- readLocalConfig
     globalConfig <- readGlobalConfig
     return $ localConfig <> globalConfig <> defaultConfig
 -- ------ end
--- ------ begin <<config-defaults>>[0] project://lit/04-configuration.md#145
+-- ------ begin <<config-defaults>>[0] project://lit/04-configuration.md#155
 hashComment         = Line  "#"
 lispStyleComment    = Line  ";"
 cStyleComment       = Block "/*" "*/"
@@ -130,7 +130,7 @@ defaultConfig = Config
     , configLanguages = defaultLanguages
     }
 -- ------ end
--- ------ begin <<config-input>>[0] project://lit/04-configuration.md#194
+-- ------ begin <<config-input>>[0] project://lit/04-configuration.md#204
 findFileAscending :: String -> IO (Maybe FilePath)
 findFileAscending filename = do
     path <- dropTrailingPathSeparator <$> getCurrentDirectory
@@ -146,7 +146,7 @@ readLocalConfig = do
 readGlobalConfig :: IO Config
 readGlobalConfig = mempty
 -- ------ end
--- ------ begin <<config-reader>>[0] project://lit/04-configuration.md#213
+-- ------ begin <<config-reader>>[0] project://lit/04-configuration.md#223
 lookupLanguage :: Config -> Text -> Maybe ConfigLanguage
 lookupLanguage cfg x
     = find (elem x . languageIdentifiers) 

@@ -23,6 +23,7 @@ import Data.Maybe (isNothing, catMaybes)
 -- ------ end
 -- ------ begin <<source-parser>>[0] project://lit/14-stitch.md#16
 sourceDocument :: ( MonadParsec e (ListStream Text) m
+                  , MonadFail m
                   , MonadReader Config m )
                => m [ReferencePair]
 sourceDocument = do
@@ -34,7 +35,7 @@ sourceDocument = do
     return refs
 -- ------ end
 -- ------ begin <<source-parser>>[1] project://lit/14-stitch.md#31
-sourceBlock :: ( MonadParsec e (ListStream Text) m )
+sourceBlock :: ( MonadParsec e (ListStream Text) m, MonadFail m )
             => ConfigLanguage -> m ([Text], [ReferencePair])
 sourceBlock lang = do
     ((ref, beginIndent), _) <- tokenP (commented lang beginBlock)

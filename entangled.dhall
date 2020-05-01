@@ -1,4 +1,4 @@
-let Comment : Type = { start : Text, end : Optional Text }
+let Comment : Type = < Line : Text | Block : { start : Text, end : Text } >
 let Language : Type = { name : Text, identifiers : List Text, comment : Comment, jupyter : Optional Text }
 
 let Config : Type =
@@ -6,13 +6,13 @@ let Config : Type =
     , watchList : Optional (List Text)
     , database  : Optional Text }
 
-let hashComment         : Comment = { start = "#", end = None Text }
-let lispStyleComment    : Comment = { start = ";", end = None Text }
-let cStyleComment       : Comment = { start = "/*", end = Some "*/" }
-let cppStyleComment     : Comment = { start = "//", end = None Text }
-let haskellStyleComment : Comment = { start = "--", end = None Text }
-let mlStyleComment      : Comment = { start = "(*", end = Some "*)" }
-let xmlStyleComment     : Comment = { start = "<!--", end = Some "-->" }
+let hashComment         : Comment = Comment.Line "#"
+let lispStyleComment    : Comment = Comment.Line ";"
+let cStyleComment       : Comment = Comment.Block { start = "/*", end = "*/" }
+let cppStyleComment     : Comment = Comment.Line "//"
+let haskellStyleComment : Comment = Comment.Line "--"
+let mlStyleComment      : Comment = Comment.Block { start = "(*", end = "*)" }
+let xmlStyleComment     : Comment = Comment.Block { start = "<!--", end = "-->" }
 
 in { languages =
     [ { name = "CSS"

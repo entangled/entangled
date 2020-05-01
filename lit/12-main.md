@@ -335,7 +335,7 @@ runList cfg = do
     lst <- withSQL dbPath $ do 
         createTables
         listTargetFiles
-    liftIO $ T.IO.putStrLn $ T.unlines $ map T.pack lst
+    liftIO $ T.IO.putStrLn $ unlines' $ map T.pack lst
 ```
 
 ## Insert

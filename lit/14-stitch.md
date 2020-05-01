@@ -14,6 +14,7 @@ The result is a list of `ReferencePair` giving all the content of the code block
 
 ``` {.haskell #source-parser}
 sourceDocument :: ( MonadParsec e (ListStream Text) m
+                  , MonadFail m
                   , MonadReader Config m )
                => m [ReferencePair]
 sourceDocument = do
@@ -28,7 +29,7 @@ sourceDocument = do
 A `sourceBlock` starts with a *begin* marker, then has many lines of plain source or nested `sourceBlock`s. Both `sourceBlock` and `sourceLine` return pairs of texts and references. The content of these pairs are concatenated. If a `sourceBlock` is the first in a series (index 0), the noweb reference is generated with the correct indentation.
 
 ``` {.haskell #source-parser}
-sourceBlock :: ( MonadParsec e (ListStream Text) m )
+sourceBlock :: ( MonadParsec e (ListStream Text) m, MonadFail m )
             => ConfigLanguage -> m ([Text], [ReferencePair])
 sourceBlock lang = do
     ((ref, beginIndent), _) <- tokenP (commented lang beginBlock)

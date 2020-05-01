@@ -253,7 +253,7 @@ runList cfg = do
     lst <- withSQL dbPath $ do 
         createTables
         listTargetFiles
-    liftIO $ T.IO.putStrLn $ T.unlines $ map T.pack lst
+    liftIO $ T.IO.putStrLn $ unlines' $ map T.pack lst
 -- ------ end
 -- ------ begin <<main-run>>[4] project://lit/12-main.md#348
 runInsertSources :: Config -> [FilePath] -> LoggingIO ()

@@ -17,13 +17,13 @@ import Document
 import Config
     ( Config(..), ConfigLanguage(..), ConfigComment(..), languageFromName )
 -- ------ end
--- ------ begin <<comment-imports>>[2] project://lit/13-tangle.md#496
+-- ------ begin <<comment-imports>>[2] project://lit/13-tangle.md#504
 import qualified Data.Map.Strict as M
 
 import Document
 import TextUtil (unlines')
 -- ------ end
--- ------ begin <<comment-imports>>[3] project://lit/13-tangle.md#521
+-- ------ begin <<comment-imports>>[3] project://lit/13-tangle.md#529
 import Text.Megaparsec
     ( MonadParsec, chunk, skipManyTill, anySingle, (<?>), takeWhileP, eof )
 import Text.Megaparsec.Char (space)
@@ -64,7 +64,7 @@ formatComment lang text = pre <> text <> post
     where pre  = (commentStart $ languageComment lang) <> delim
           post = maybe "" (" " <>) $ commentEnd $ languageComment lang
 -- ------ end
--- ------ begin <<generate-comment>>[2] project://lit/13-tangle.md#503
+-- ------ begin <<generate-comment>>[2] project://lit/13-tangle.md#511
 annotateComment :: (MonadReader Config m, MonadError EntangledError m)
                 => ReferenceMap -> ReferenceId -> m Text
 annotateComment refs ref = do
@@ -79,7 +79,7 @@ headerComment :: ConfigLanguage -> FilePath -> Text
 headerComment lang path = formatComment lang
     $ "language=" <> languageName lang <> " filename=" <> T.pack path
 -- ------ end
--- ------ begin <<parse-comment>>[0] project://lit/13-tangle.md#534
+-- ------ begin <<parse-comment>>[0] project://lit/13-tangle.md#542
 topHeader :: ( MonadParsec e Text m )
           => m [CodeProperty]
 topHeader = do
@@ -87,7 +87,7 @@ topHeader = do
                  (chunk delim)
     attributes
 -- ------ end
--- ------ begin <<parse-comment>>[1] project://lit/13-tangle.md#545
+-- ------ begin <<parse-comment>>[1] project://lit/13-tangle.md#553
 commented :: (MonadParsec e Text m)
           => ConfigLanguage -> m a -> m (a, Text)
 commented lang p = do 
@@ -99,7 +99,7 @@ commented lang p = do
     eof
     return (x, indent)
 -- ------ end
--- ------ begin <<parse-comment>>[2] project://lit/13-tangle.md#558
+-- ------ begin <<parse-comment>>[2] project://lit/13-tangle.md#566
 beginBlock :: (MonadParsec e Text m)
            => m ReferenceId
 beginBlock = do
