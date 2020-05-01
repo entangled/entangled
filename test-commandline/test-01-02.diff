@@ -1,0 +1,14 @@
+29a30,42
+> ## Fibonacci
+> 
+> ``` {.scheme file=fib.scm}
+> (define (fib x n)
+>   (if (zero? n)
+>     (reverse x)
+>     (fib (cons (+ (car x) (cadr x)) x) (- n 1))))
+> ```
+> 
+> ``` {.scheme #fib.scm}
+> (display (fib '(1 1) 10)) (newline)
+> ```
+> 
