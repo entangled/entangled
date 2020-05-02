@@ -124,11 +124,29 @@ function test-01() {
                 "(1 1 2 3 5 8 13 21 34 55 89 144)"
 }
 
+function test-02() {
+        entangled insert -s test-02-a.md
+        assert-streq "Tangling gives an correct program #1" \
+                "$(guile -c "$(entangled tangle -f case1.scm)")" "aba"
+        assert-streq "Tangling gives an correct program #2" \
+                "$(guile -c "$(entangled tangle -f case2.scm)")" "aa"
+
+        entangled insert -s test-02-b.md
+        assert-streq "Tangling gives an correct program #1" \
+                "$(guile -c "$(entangled tangle -f case1.scm)")" "abaB"
+        assert-streq "Tangling gives an correct program #2" \
+                "$(guile -c "$(entangled tangle -f case2.scm)")" "aa" 
+        assert-streq "Tangling gives an correct program #3" \
+                "$(guile -c "$(entangled tangle -f case3.scm)")" "abaBc"
+}
+
 if [ -z ${no_setup} ]; then
         setup
 fi
 
 test-01
+rm entangled.db
+test-02
 
 if [ -z ${no_setup} ]; then
         teardown

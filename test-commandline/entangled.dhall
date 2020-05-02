@@ -36,5 +36,5 @@ in { languages =
       , jupyter = None Text }
     ]
    , watchList = Some ["*.md"]
-   , database  = None Text
+   , database  = Some "entangled.db"
    } : Config
