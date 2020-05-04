@@ -13,7 +13,7 @@ function entangled() {
 function setup() {
         TMPDIR=$(mktemp --tmpdir -d entangled-test-XXXXXXXX)
         echo "Setting up in ${TMPDIR} ..."
-        cp "${DIR}"/*.{md,diff} "${DIR}/entangled.dhall" "${TMPDIR}"
+        cp "${DIR}"/*.{md,diff,test} "${DIR}/entangled.dhall" "${TMPDIR}"
         pushd "${TMPDIR}" > /dev/null
 }
 
@@ -27,21 +27,35 @@ function show_help() {
         echo "usage: $0 [args]"
         echo
         echo "where [args] can be one of:"
-        echo "    -h     help: show this help"
-        echo "    -d     debug: run here instead of /tmp"
-        echo "    -x     break on first failure"
+        echo "    -h           help: show this help"
+        echo "    -d           debug: run here instead of /tmp"
+        echo "    -x           break on first failure"
+        echo "    -u <unit>    only run unit"
+        echo
+        echo "Available units:"
+        for t in *.test; do
+                echo "    - $(basename ${t} .test)"
+        done
 }
 
-while getopts "hdx" arg
+while getopts "hdxu:" arg
 do
-        case $arg in
-        h)      show_help && exit 0
+        case ${arg} in
+        h)      show_help
+                exit 0
                 ;;
         d)      no_setup=1
                 ;;
         x)      break_on_fail=1
                 ;;
-        ?)      show_usage && exit 2
+        u)      test_only=$(basename ${OPTARG} .test)
+                ;;
+        :)      echo "Invalid option: ${OPTARG} requires an argument"
+                show_help
+                exit 2
+                ;;
+        \?)     show_help
+                exit 2
                 ;;
         esac
 done
@@ -92,64 +106,30 @@ function assert-exists() {
         fi
 }
 
-function test-01() {
-        echo "Running 'entangled insert -s ...'"
-        entangled insert -s test-01.md
-        assert-arrayeq "Source contains expected files" \
-                "$(entangled list | sort)" "factorial.scm hello.scm"
-        assert-streq "Stitching conserves content" \
-                "$(entangled stitch test-01.md)" "$(cat test-01.md)"
-        assert-streq "Tangling gives an correct program #1" \
-                "$(guile -c "$(entangled tangle -f factorial.scm)")" "3628800"
-        assert-streq "Tangling gives an correct program #2" \
-                "$(guile -c "$(entangled tangle -f hello.scm)")" "Hello, World!"
+function run-test() {
+        echo -e "\033[33m ~~~\033[m \033[1m$(basename $1 .test)\033[m \033[33m~~~\033[m"
+        if [ -z ${no_setup} ]; then
+                setup
+        fi
+        
+        source "$(basename $1 .test).test"
 
-        echo "Running 'entangled tangle -a -d'."
-        entangled tangle -a -d
-        assert-exists "'tangle -a' created 'factorial.scm'" "factorial.scm"
-        assert-exists "'tangle -a' created 'hello.scm'" "hello.scm"
-
-        echo "Modifying 'hello.scm'"
-        patch -s hello.scm test-01-01.diff
-        echo "Running 'entangled insert -t hello.scm'"
-        entangled insert -t hello.scm 
-        assert-streq "Tangling gives an correct program #3" \
-                "$(guile -c "$(entangled tangle -f hello.scm)")" "Hello, Universe!"
-        echo "Stitching ..."
-        entangled stitch test-01.md > test-01.md
-        patch -s test-01.md test-01-02.diff
-        entangled insert -s test-01.md 
-        assert-streq "Tangling gives an correct program #4" \
-                "$(guile -c "$(entangled tangle -f fib.scm)")" \
-                "(1 1 2 3 5 8 13 21 34 55 89 144)"
+        if [ -z ${no_setup} ]; then
+                teardown
+        fi
+        echo
 }
 
-function test-02() {
-        entangled insert -s test-02-a.md
-        assert-streq "Tangling gives an correct program #1" \
-                "$(guile -c "$(entangled tangle -f case1.scm)")" "aba"
-        assert-streq "Tangling gives an correct program #2" \
-                "$(guile -c "$(entangled tangle -f case2.scm)")" "aa"
-
-        entangled insert -s test-02-b.md
-        assert-streq "Tangling gives an correct program #1" \
-                "$(guile -c "$(entangled tangle -f case1.scm)")" "abaB"
-        assert-streq "Tangling gives an correct program #2" \
-                "$(guile -c "$(entangled tangle -f case2.scm)")" "aa" 
-        assert-streq "Tangling gives an correct program #3" \
-                "$(guile -c "$(entangled tangle -f case3.scm)")" "abaBc"
-}
-
-if [ -z ${no_setup} ]; then
-        setup
-fi
-
-test-01
-rm entangled.db
-test-02
-
-if [ -z ${no_setup} ]; then
-        teardown
+if [ -z ${test_only} ]; then
+        for unit in *.test; do
+                run-test "${unit}"
+        done
+else
+        if [ -f "${test_only}.test" ]; then
+                run-test "${test_only}"
+        else
+                echo "Could not find test: ${test_only}"
+        fi
 fi
 
 exit ${EXIT_CODE}
