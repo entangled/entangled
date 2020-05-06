@@ -59,6 +59,7 @@ defaultLanguages =
     , Language "OpenCL"      ["opencl"]                   "// ------" ""
     , Language "Idris"       ["idris"]                    "-- ------" ""
     , Language "SQLite"      ["sqlite"]                   "-- ------" ""
+    , Language "Toml"        ["toml"]                     "## ------" ""
     ]
 
 defaultConfig = Config defaultLanguages
