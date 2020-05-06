@@ -6,6 +6,7 @@ module Untangle
 import Config
 import Model (TangleError, toTangleError)
 import Document
+import Languages
 
 import Control.Monad.Reader
 import Control.Monad (when)
@@ -14,6 +15,7 @@ import qualified Data.Map as Map
 import qualified Data.Array as Array
 import qualified Data.Text as T
 
+import Data.Char(isSpace)
 import Data.Maybe
 import Data.String
 import Data.List
@@ -26,6 +28,8 @@ import Text.Parsec ((<|>), try, many, anyToken, manyTill, getPosition)
 import Test.Hspec
 import Data.Either.Combinators (fromRight')
 import Data.Either
+
+import Debug.Trace
 
 data Header = Header
     { headerFilename :: String
@@ -50,22 +54,21 @@ data ReferenceTag = ReferenceTag
     store the comment string here.
  -}
 data ParserState = ParserState
-    { psComment :: String
-    , psLanguage :: String
-    , psRefs :: ReferenceMap
+    { psLanguage :: Language
+    , psRefs     :: ReferenceMap
     } | EmptyState deriving (Show, Eq)
 
 updateRefs :: (ReferenceMap -> ReferenceMap) -> ParserState -> ParserState
-updateRefs f s@(ParserState _ _ r) = s { psRefs = f r}
+updateRefs f s@(ParserState _ r) = s { psRefs = f r}
 
 getRefs :: Monad m => Parser m ReferenceMap
 getRefs = psRefs <$> Parsec.getState
 
-getLanguage :: Monad m => Parser m String
+getLanguage :: Monad m => Parser m Language
 getLanguage = psLanguage <$> Parsec.getState
 
 getComment :: Monad m => Parser m String
-getComment = psComment <$> Parsec.getState
+getComment = languageLineComment <$> getLanguage
 
 addReference :: Monad m => ReferenceId -> CodeBlock -> Parser m ()
 addReference r c = Parsec.modifyState $ updateRefs $ Map.insert r c
@@ -83,6 +86,12 @@ token :: Monad m => (String -> Maybe a) -> Parser m a
 token = Parsec.tokenPrim id nextPos
     where nextPos p _ _ = Parsec.incSourceLine p 1
 
+-- Set language from name and error if cannot find it
+setLanguage languageName =
+  case languageFromName languageName defaultConfig of
+    Nothing -> fail $ "Unknown language: " ++ languageName
+    Just c  -> Parsec.setState $ ParserState c mempty
+
 -- ========================================================================= --
 -- Parsers                                                                   --
 -- ========================================================================= --
@@ -90,13 +99,12 @@ token = Parsec.tokenPrim id nextPos
 document :: Monad m => Parser m ReferenceMap
 document = do
     header <- token matchHeader
-    pos <- getPosition
     let language = headerLanguage header
-    commentString <- asks $ getCommentString language
-    case commentString of
-        Nothing -> fail $ "Unknown language: " ++ language
-        Just c  -> Parsec.setState $ ParserState c language mempty
+    setLanguage language
+    lang <- getLanguage
+    token $ matchLineDirective lang
 
+    pos <- getPosition
     comment <- getComment
     content <- intercalate "\n" . catMaybes
         <$> manyTill (reference <|> Just <$> anyToken)
@@ -117,7 +125,8 @@ reference = do
     language <- getLanguage
     comment  <- getComment
 
-    ref     <- try $ token $ matchReference comment
+    ref     <- try $ token $ matchReference     comment
+    _       <- try $ token $ matchLineDirective language
     pos     <- getPosition
     lines   <- catMaybes <$> manyTill (reference <|> Just <$> anyToken)
                                       (token $ matchEnd comment)
@@ -126,7 +135,7 @@ reference = do
     let content = intercalate "\n" $ catMaybes strippedContent
 
     addReference (NameReferenceId (rtName ref) (rtIndex ref))
-                 (CodeBlock language [] (T.pack content) pos)
+                 (CodeBlock (languageName language) [] (T.pack content) pos)
 
     if rtIndex ref == 0
         then return $ Just $ rtIndent ref ++ "<<" ++ rtName ref ++ ">>"
@@ -152,6 +161,12 @@ matchHeader line =
         [m] -> Just $ Header filename language
             where (filename, _) = m Array.! 2
                   (language, _) = m Array.! 1
+
+matchLineDirective          :: Language -> String -> Maybe ()
+matchLineDirective lang line =
+ case checkForLineDirective (languageLineDirective lang) $ T.pack $ dropWhile isSpace line of
+   True  -> Just ()
+   False -> Nothing
 
 referencePattern :: String -> String
 referencePattern comment = "^([ \\t]*)" ++ escape comment
@@ -205,6 +220,19 @@ untangleSpec = do
                 (Just $ ReferenceTag "hello-world" 1 "    ")
         it "ignores fails" $
             matchReference "//" "std::cout << \"// <<this is actual code>>[9]\";" `shouldSatisfy`
+                isNothing
+    describe "Line directive" $ do
+        it "match line directive" $ do
+            let Just cpp = languageFromName "C++" defaultConfig
+            matchLineDirective cpp "#LINE 17 \"hello.c\"" `shouldSatisfy`
+                isJust
+        it "match indented line directive" $ do
+            let Just cpp = languageFromName "C++" defaultConfig
+            matchLineDirective cpp "     #LINE 17 \"hello.c\"" `shouldSatisfy`
+                isJust
+        it "ignore wrong directive" $ do
+            let Just cpp = languageFromName "C++" defaultConfig
+            matchLineDirective cpp "{-# LINE 17 \"hello.hs\" #-}" `shouldSatisfy`
                 isNothing
 
     describe "Untangle.matchEnd" $ do

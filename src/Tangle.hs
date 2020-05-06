@@ -126,8 +126,10 @@ annotate :: (MonadReader Config m)
 annotate id (CodeBlock lang _ text pos) = do
     l <- lookupLanguage' lang
     return $ do 
-        (Language _ _ comment close) <- l
-        let top      = T.pack $ topAnnotation id comment close lang pos
+        (Language _ _ comment close lineDirective) <- l
+        let top      = T.pack (topAnnotation id comment close lang pos)
+                    <> T.pack "\n"
+                    <> applyLineDirective lineDirective (sourceLine pos) (sourceName pos)
             bottom   = T.pack $ comment ++ " end" ++ close
         return $ top <> T.pack "\n" <> text <> T.pack "\n" <> bottom
 
