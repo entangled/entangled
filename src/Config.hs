@@ -5,6 +5,7 @@ module Config
     , defaultConfig
     , languageFromName
     , languageFromAbbrev
+    , disableLineDirectives
     ) where
 
 import Languages
@@ -73,3 +74,8 @@ noLineDirective = LineDirective (\_ _ -> "") (\_ -> False)
 
 defaultConfig = Config defaultLanguages
 
+disableLineDirectives :: Config -> Config
+disableLineDirectives conf =
+    conf { configLanguages = disableLineDirective <$> configLanguages conf }
+  where
+    disableLineDirective lang = lang { languageLineDirective = noLineDirective }
