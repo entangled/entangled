@@ -97,12 +97,15 @@ schema.svg: <<file|schema>>
 In `SQLite.Simple` the above schema becomes
 
 ``` {.sqlite file=data/schema.sql}
--- vim:ft=sqlite
+-- rules when editing this schema:
+-- * always use double quotes for identifiers,
+-- * align types for easy reading
 pragma synchronous = off;
 pragma journal_mode = memory;
 pragma foreign_keys = on;
 
 <<schema>>
+-- vim:ft=mysql
 ```
 
 ::: {.TODO}
@@ -129,6 +132,7 @@ createTables = do
 ### Documents
 
 ``` {.sqlite #schema}
+-- this table should be sorted on order of inclusion
 create table if not exists "documents"
     ( "id"        integer primary key autoincrement
     , "filename"  text not null
@@ -148,7 +152,8 @@ create table if not exists "codes"
     , "language"  text not null
     , "document"  integer not null
     , primary key ("name", "ordinal")
-    , foreign key ("document") references "documents"("id") );
+    , foreign key ("document") references "documents"("id")
+    );
 ```
 
 ``` {.haskell #database-insertion}
@@ -232,7 +237,8 @@ create table if not exists "targets"
     , "document"  integer not null
     , "time"      timestamp default current_timestamp not null
     -- , foreign key ("codename") references "codes"("name")
-    , foreign key ("document") references "documents"("id") );
+    , foreign key ("document") references "documents"("id")
+    );
 ```
 
 ``` {.haskell #database-insertion}

@@ -1,7 +1,7 @@
 -- ------ language="Haskell" file="src/Stitch.hs" project://lit/14-stitch.md#4
 module Stitch where
 
--- ------ begin <<stitch-imports>>[0] project://lit/14-stitch.md#73
+-- ------ begin <<stitch-imports>>[0] project://lit/14-stitch.md#74
 import ListStream (ListStream(..), tokenP)
 import Document
 import Config (Config, languageFromName, ConfigLanguage(..))
@@ -34,7 +34,7 @@ sourceDocument = do
     (_, refs) <- mconcat <$> some (sourceBlock lang)
     return refs
 -- ------ end
--- ------ begin <<source-parser>>[1] project://lit/14-stitch.md#31
+-- ------ begin <<source-parser>>[1] project://lit/14-stitch.md#32
 sourceBlock :: ( MonadParsec e (ListStream Text) m, MonadFail m )
             => ConfigLanguage -> m ([Text], [ReferencePair])
 sourceBlock lang = do
@@ -56,7 +56,7 @@ sourceLine = do
     x <- anySingle
     return ([x], [])
 -- ------ end
--- ------ begin <<stitch>>[0] project://lit/14-stitch.md#58
+-- ------ begin <<stitch>>[0] project://lit/14-stitch.md#59
 type SourceParser = ReaderT Config (Parsec Void (ListStream Text))
 
 stitch :: ( MonadReader Config m )

@@ -3,11 +3,13 @@
 DIR="$(readlink -f "$(dirname "${BASH_SOURCE[0]}")")"
 PROJECT_ROOT="$(readlink -f "${DIR}/..")"
 EXIT_CODE=0
+ENTANGLED_EXEC="$(cabal exec which entangled)"
 
 function entangled() {
         # cabal exec entangled -- $@
-        cabal run -v0 --project-file=${PROJECT_ROOT}/cabal.project entangled:entangled -- $*
-        # ${ENTANGLED_EXEC} $@
+        # cabal run -v0 --project-file=${PROJECT_ROOT}/cabal.project entangled:entangled -- $*
+        export entangled_datadir="${PROJECT_ROOT}"
+        ${ENTANGLED_EXEC} $@
 }
 
 function setup() {
@@ -31,6 +33,7 @@ function show_help() {
         echo "    -d           debug: run here instead of /tmp"
         echo "    -x           break on first failure"
         echo "    -u <unit>    only run unit"
+        echo "    -c           clean after local run (with -d)"
         echo
         echo "Available units:"
         for t in *.test; do
@@ -38,7 +41,7 @@ function show_help() {
         done
 }
 
-while getopts "hdxu:" arg
+while getopts "hdxcu:" arg
 do
         case ${arg} in
         h)      show_help
@@ -49,6 +52,11 @@ do
         x)      break_on_fail=1
                 ;;
         u)      test_only=$(basename ${OPTARG} .test)
+                ;;
+        c)      rm -f entangled.db
+                rm -f *.scm
+                git checkout "${DIR}/*.md"
+                exit 0
                 ;;
         :)      echo "Invalid option: ${OPTARG} requires an argument"
                 show_help
