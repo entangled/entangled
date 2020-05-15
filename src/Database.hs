@@ -122,6 +122,17 @@ queryCodeId (ReferenceId doc (ReferenceName name) count) = do
                       \     and `name` is ? \
                       \     and `ordinal` is ?"
 
+queryCodeSource :: ReferenceId -> SQL (Maybe Text)
+queryCodeSource (ReferenceId doc (ReferenceName name) count) = do
+    conn    <- getConnection
+    expectUnique' fromOnly =<< (liftIO $ query conn codeQuery (doc, name, count))
+    where codeQuery = "select `codes`.`source` \
+                      \ from `codes` inner join `documents` \
+                      \     on `documents`.`id` is `codes`.`document` \
+                      \ where   `documents`.`filename` is ? \
+                      \     and `name` is ? \
+                      \     and `ordinal` is ?"
+
 contentToRow :: Int64 -> Content -> SQL (Int64, Maybe Text, Maybe Int64)
 contentToRow docId (PlainText text) = return (docId, Just text, Nothing)
 contentToRow docId (Reference ref)  = do

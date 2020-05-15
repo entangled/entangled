@@ -6,6 +6,7 @@ The main program runs the daemon, but also provides a number of commands to insp
 <<import-text>>
 import qualified Data.Text.IO as T.IO
 import qualified Data.Map.Lazy as LM
+import Data.List (sortOn)
 
 import Control.Monad.IO.Class
 import Control.Monad.Reader
@@ -361,6 +362,27 @@ runInsertSources cfg files = do
                 Left e -> liftIO $ T.IO.putStrLn ("warning: " <> tshow e)
                 Right d -> insertDocument f d
 
+select :: a -> [(Bool, a)] -> a
+select defaultChoice []                     = defaultChoice
+select defaultChoice ((True,  x) : options) = x
+select defaultChoice ((False, _) : options) = select defaultChoice options
+
+deduplicateRefs :: [ReferencePair] -> SQL [ReferencePair]
+deduplicateRefs refs = dedup sorted
+    where sorted = sortOn fst refs
+          dedup [] = return []
+          dedup [x1] = return [x1]
+          dedup ((ref1, code1@CodeBlock{codeSource=s1}) : (ref2, code2@CodeBlock{codeSource=s2}) : xs)
+                | ref1 /= ref2 = ((ref1, code1) :) <$> dedup ((ref2, code2) : xs)
+                | s1 == s2     = dedup ((ref1, code1) : xs)
+                | otherwise    = do
+                    old_code <- queryCodeSource ref1
+                    case old_code of
+                        Nothing -> throwM $ StitchError $ "ambiguous update: " <> tshow ref1 <> " not in database."
+                        Just c  -> select (throwM $ StitchError $ "ambiguous update to " <> tshow ref1)
+                                    [(s1 == c && s2 /= c, dedup ((ref2, code2) : xs))
+                                    ,(s1 /= c && s2 == c, dedup ((ref1, code1) : xs))]
+
 runInsertTargets :: Config -> [FilePath] -> LoggingIO ()
 runInsertTargets cfg files = do
     dbPath <- getDatabasePath cfg
@@ -370,6 +392,6 @@ runInsertTargets cfg files = do
             refs' <- runReaderT (liftIO (T.IO.readFile f) >>= stitch f) cfg
             case refs' of
                 Left err -> logErrorN $ "Error loading '" <> T.pack f <> "': " <> formatError err
-                Right refs -> updateTarget refs
+                Right refs -> updateTarget =<< deduplicateRefs refs
 ```
 

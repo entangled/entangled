@@ -6,6 +6,7 @@
 
 ``` {.scheme file=a1.scm}
 <<a>>
+<<a>>
 (display "1")
 ```
 
