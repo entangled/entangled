@@ -204,10 +204,16 @@ run Args{..}
             -- ------ end
 -- ------ end
 -- ------ begin <<main-run>>[1] project://lit/12-main.md#283
-writeFile' :: (MonadIO m) => FilePath -> Text -> m ()
-writeFile' filename text = liftIO $ do
-    createDirectoryIfMissing True (takeDirectory filename)
-    T.IO.writeFile filename text
+changeFile' :: (MonadIO m) => FilePath -> Text -> m ()
+changeFile' filename text = do
+    rel_path <- liftIO $ makeRelativeToCurrentDirectory filename
+    liftIO $ createDirectoryIfMissing True (takeDirectory filename)
+    oldText <- tryReadFile filename
+    case oldText of
+        Just ot -> if ot /= text
+            then liftIO $ T.IO.writeFile filename text
+            else return ()
+        Nothing -> liftIO $ T.IO.writeFile filename text
 
 runTangle :: Config -> TangleArgs -> LoggingIO ()
 runTangle cfg TangleArgs{..} = do
@@ -234,7 +240,7 @@ runTangle cfg TangleArgs{..} = do
             TangleFile f  -> tangleFile f >>= (\x -> liftIO $ T.IO.putStrLn x)
             TangleAll -> do
                 fs <- listTargetFiles
-                mapM_ (\f -> tangleFile f >>= writeFile' f) fs 
+                mapM_ (\f -> tangleFile f >>= changeFile' f) fs 
 -- ------ end
 -- ------ begin <<main-run>>[2] project://lit/12-main.md#320
 runStitch :: Config -> StitchArgs -> LoggingIO ()

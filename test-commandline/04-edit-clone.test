@@ -1,0 +1,12 @@
+entangled insert -s test-04.md
+entangled tangle -a -d
+b_old_time="$( stat -c'%y' b.scm )"
+patch -s a1.scm test-04-a1.diff
+entangled insert -t a1.scm
+entangled tangle -a -d
+b_new_time="$( stat -c'%y' b.scm )"
+assert-streq "file 'b.scm' should not be touched" "${b_old_time}" "${b_new_time}"
+assert-streq "output of 'a1.scm' should be 'A1'" "$(guile --no-auto-compile a1.scm)" "A1"
+assert-streq "output of 'a2.scm' should be 'A2'" "$(guile --no-auto-compile a2.scm)" "A2"
+
+# vim:ft=bash
