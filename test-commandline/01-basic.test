@@ -11,6 +11,7 @@ assert-streq "Tangling gives an correct program #2" \
 entangled tangle -a -d
 assert-exists "'tangle -a' created 'factorial.scm'" "factorial.scm"
 assert-exists "'tangle -a' created 'hello.scm'" "hello.scm"
+assert-streq "'factorial.scm' ends in a newline" "$(tail -c 1 factorial.scm)" ""
 
 patch -s hello.scm test-01-01.diff
 entangled insert -t hello.scm 

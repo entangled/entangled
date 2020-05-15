@@ -310,11 +310,11 @@ runTangle cfg TangleArgs{..} = do
                     content <- tangleRef ref
                     case languageFromName cfg langName of
                         Nothing -> throwM $ TangleError $ "Language unknown " <> langName
-                        Just lang -> return $ unlines' [headerComment lang f, content]
+                        Just lang -> return $ T.unlines [headerComment lang f, content]
 
         case tangleQuery of
-            TangleRef tgt -> tangleRef (ReferenceName tgt) >>= (\x -> liftIO $ T.IO.putStrLn x)
-            TangleFile f  -> tangleFile f >>= (\x -> liftIO $ T.IO.putStrLn x)
+            TangleRef tgt -> tangleRef (ReferenceName tgt) >>= (\x -> liftIO $ T.IO.putStr x)
+            TangleFile f  -> tangleFile f >>= (\x -> liftIO $ T.IO.putStr x)
             TangleAll -> do
                 fs <- listTargetFiles
                 mapM_ (\f -> tangleFile f >>= changeFile' f) fs 
