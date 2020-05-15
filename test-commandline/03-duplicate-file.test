@@ -1,0 +1,7 @@
+entangled insert -s test-03-duplicate-file.md
+assert-streq "Only one file is generated" \
+        "$(entangled list)" "hello.scm"
+assert-streq "Tangling gives a correct program #1" \
+        "$(guile -c "$(entangled tangle -f hello.scm)")" "Hello, World!"
+
+# vim:ft=bash
