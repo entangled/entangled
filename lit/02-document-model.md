@@ -56,7 +56,8 @@ newtype ReferenceName = ReferenceName
     } deriving (Show, Eq, Ord)
 
 data ReferenceId = ReferenceId
-    { referenceName :: ReferenceName
+    { referenceFile :: FilePath
+    , referenceName :: ReferenceName
     , referenceCount :: Int
     } deriving (Show, Eq, Ord)
 
@@ -77,7 +78,7 @@ data Content
 
 type ReferencePair = (ReferenceId, CodeBlock)
 type ReferenceMap = Map ReferenceId CodeBlock
-type FileMap = Map FilePath ReferenceName
+type FileMap = Map FilePath (ReferenceName, Text)  -- map to ref and language
 
 data Document = Document
     { references      :: ReferenceMap

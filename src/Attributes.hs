@@ -21,12 +21,12 @@ attributes = (  codeClass
 cssIdentifier :: (MonadParsec e Text m)
               => m Text
 cssIdentifier = takeWhile1P (Just "identifier")
-                            (\c -> notElem c (" {}=<>" :: String))
+                            (\c -> notElem c (" {}=<>|" :: String))
 
 cssValue :: (MonadParsec e Text m)
          => m Text
 cssValue = takeWhileP (Just "value")
-                      (\c -> notElem c (" {}=<>" :: String))
+                      (\c -> notElem c (" {}=<>|" :: String))
 -- ------ end
 -- ------ begin <<parse-attributes>>[2] project://lit/13-tangle.md#96
 codeClass :: (MonadParsec e Text m)

@@ -299,8 +299,7 @@ runTangle cfg TangleArgs{..} = do
                 Just (Right t) -> return t
             tangleFile f = queryTargetRef f >>= \case
                 Nothing -> throwM $ TangleError $ "Target `" <> T.pack f <> "` not found."
-                Just ref -> do
-                    langName <- codeLanguage' refs ref
+                Just (ref, langName) -> do
                     content <- tangleRef ref
                     case languageFromName cfg langName of
                         Nothing -> throwM $ TangleError $ "Language unknown " <> langName

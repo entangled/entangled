@@ -212,12 +212,6 @@ loadTargetFile abs_path = do
             db $ updateTarget refs
 -- ------ end
 -- ------ begin <<daemon-writing>>[0] project://lit/10-daemon.md#344
-codeLanguage' :: ( MonadThrow m )
-              => ReferenceMap -> ReferenceName -> m Text
-codeLanguage' refs rname = case (codeLanguage $ refs M.! (ReferenceId rname 0)) of
-    KnownLanguage lang -> return lang
-    _                  -> throwM $ DatabaseError $ "Trying to tangle " <> tshow rname <> " with no known language."
-
 annotateComment' :: Config -> Annotator
 annotateComment' cfg rmap rid = runReaderT (annotateComment rmap rid) cfg
 
@@ -234,8 +228,7 @@ writeTargetFile rel_path = do
     tgt' <- db $ queryTargetRef rel_path
     case tgt' of
         Nothing  -> logErrorN $ "Target `" <> T.pack rel_path <> "` not found."
-        Just tgt -> do
-                langName <- codeLanguage' refs tgt
+        Just (tgt, langName) -> do
                 case languageFromName cfg langName of
                     Nothing -> logErrorN $ "Unknown language id " <> langName
                     Just lang -> tangleRef tgt lang

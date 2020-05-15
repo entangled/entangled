@@ -16,24 +16,21 @@ create table if not exists "documents"
 -- ------ end
 -- ------ begin <<schema>>[1] project://lit/03-database.md#144
 create table if not exists "codes"
-    ( "name"      text not null
+    ( "id"        integer primary key autoincrement
+    , "name"      text not null
     , "ordinal"   integer not null
     , "source"    text not null
     , "language"  text not null
     , "document"  integer not null
-    , primary key ("name", "ordinal")
     , foreign key ("document") references "documents"("id")
     );
 -- ------ end
 -- ------ begin <<schema>>[2] project://lit/03-database.md#185
 create table if not exists "classes"
-    ( "class"       text not null
+    ( "class"     text not null
     -- ------ begin <<reference-code>>[0] project://lit/03-database.md#175
-    , "codeName"    text not null
-    , "codeOrdinal" integer not null
-    , constraint "rcode" foreign key ("codeName", "codeOrdinal") references "codes"("name","ordinal") on delete cascade
-    -- , foreign key ("codeName") references "codes"("name")
-    -- , foreign key ("codeOrdinal") references "codes"("ordinal")
+    , "code"      text not null
+    , foreign key ("code") references "codes"("id") on delete cascade
     -- ------ end
     );
 
@@ -41,11 +38,8 @@ create table if not exists "attributes"
     ( "attribute"   text not null
     , "value"       text not null
     -- ------ begin <<reference-code>>[0] project://lit/03-database.md#175
-    , "codeName"    text not null
-    , "codeOrdinal" integer not null
-    , constraint "rcode" foreign key ("codeName", "codeOrdinal") references "codes"("name","ordinal") on delete cascade
-    -- , foreign key ("codeName") references "codes"("name")
-    -- , foreign key ("codeOrdinal") references "codes"("ordinal")
+    , "code"        text not null
+    , foreign key ("code") references "codes"("id") on delete cascade
     -- ------ end
     );
 -- ------ end
@@ -54,10 +48,9 @@ create table if not exists "content"
     ( "id"          integer primary key autoincrement
     , "document"    integer not null
     , "plain"       text
-    , "codeName"    text
-    , "codeOrdinal" integer
+    , "code"        integer
     , foreign key ("document") references "documents"("id")
-    , foreign key ("codeName", "codeOrdinal") references "codes"("name","ordinal")
+    , foreign key ("code") references "codes"("id")
     );
     -- , check ("plain" is not null or ("codeName" is not null and "codeOrdinal" is not null)) )
 -- ------ end
@@ -65,6 +58,7 @@ create table if not exists "content"
 create table if not exists "targets"
     ( "filename"  text not null unique
     , "codename"  text not null
+    , "language"  text not null
     , "document"  integer not null
     , "time"      timestamp default current_timestamp not null
     -- , foreign key ("codename") references "codes"("name")

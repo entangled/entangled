@@ -96,22 +96,27 @@ getFileMap = M.fromList . catMaybes . map filePair
     where filePair (ref, CodeBlock{..}) = do
               path <- getFilePath $ codeProperties
               case codeLanguage of
-                  KnownLanguage _ -> return (path, referenceName ref)
+                  KnownLanguage l -> return (path, (referenceName ref, l))
                   _               -> Nothing
 -- ------ end
 -- ------ begin <<parse-markdown>>[4] project://lit/13-tangle.md#240
-type ReferenceCount = Map ReferenceName Int
+data ReferenceCount = ReferenceCount
+    { currentDocument :: FilePath
+    , refCounts       :: Map ReferenceName Int }
 
 countReference :: ( MonadState ReferenceCount m )
                => ReferenceName -> m Int
 countReference r = do
-    x <- gets (M.findWithDefault 0 r)
-    modify (M.insert r (x + 1))
+    x <- gets ((M.findWithDefault 0 r) . refCounts)
+    modify $ \s -> s { refCounts = M.insert r (x + 1) (refCounts s) }
     return x
 
 newReference :: ( MonadState ReferenceCount m )
              => ReferenceName -> m ReferenceId
-newReference n = ReferenceId n <$> countReference n
+newReference n = do
+    doc <- gets currentDocument
+    x   <- countReference n
+    return $ ReferenceId doc n x
 -- ------ end
 -- ------ begin <<parse-markdown>>[5] project://lit/13-tangle.md#269
 type DocumentParser = ReaderT Config (StateT ReferenceCount (Parsec Void (ListStream Text)))
@@ -146,7 +151,7 @@ parseMarkdown :: ( MonadReader Config m )
               => FilePath -> Text -> m (Either EntangledError Document)
 parseMarkdown f t = do
     cfg <- ask
-    let result' = parse (evalStateT (runReaderT markdown cfg) mempty)
+    let result' = parse (evalStateT (runReaderT markdown cfg) (ReferenceCount f mempty))
                         f (ListStream $ T.lines t)
     return $ case result' of
         Left err              -> Left (TangleError $ T.pack $ show err)

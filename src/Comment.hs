@@ -31,7 +31,7 @@ import Text.Megaparsec.Char.Lexer
     ( decimal )
 
 import Document (CodeProperty)
-import Attributes (attributes, cssIdentifier)
+import Attributes (attributes, cssIdentifier, cssValue)
 -- ------ end
 
 -- ------ begin <<generate-comment>>[0] project://lit/13-tangle.md#460
@@ -70,7 +70,8 @@ annotateComment :: (MonadReader Config m, MonadError EntangledError m)
 annotateComment refs ref = do
     let code = refs M.! ref
     pre <- comment (codeLanguage code)
-           $ "begin <<" <> (unReferenceName $ referenceName ref) <> ">>["
+           $ "begin <<" <> (T.pack $ referenceFile ref) <> "|"
+           <> (unReferenceName $ referenceName ref) <> ">>["
            <> T.pack (show $ referenceCount ref) <> "]"
     post <- comment (codeLanguage code) "end"
     return $ unlines' [pre, (codeSource code), post]
@@ -104,11 +105,13 @@ beginBlock :: (MonadParsec e Text m)
            => m ReferenceId
 beginBlock = do
     chunk "begin <<"
+    doc  <- cssValue
+    chunk "|"
     name <- cssIdentifier
     chunk ">>["
     count <- decimal
     chunk "]"
-    return $ ReferenceId (ReferenceName name) count
+    return $ ReferenceId (T.unpack doc) (ReferenceName name) count
 
 endBlock :: (MonadParsec e Text m)
          => m ()

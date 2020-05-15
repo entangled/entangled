@@ -81,12 +81,12 @@ Anything goes, as long as it doesn't conflict with a space separated curly brace
 cssIdentifier :: (MonadParsec e Text m)
               => m Text
 cssIdentifier = takeWhile1P (Just "identifier")
-                            (\c -> notElem c (" {}=<>" :: String))
+                            (\c -> notElem c (" {}=<>|" :: String))
 
 cssValue :: (MonadParsec e Text m)
          => m Text
 cssValue = takeWhileP (Just "value")
-                      (\c -> notElem c (" {}=<>" :: String))
+                      (\c -> notElem c (" {}=<>|" :: String))
 ```
 
 #### class
@@ -228,7 +228,7 @@ getFileMap = M.fromList . catMaybes . map filePair
     where filePair (ref, CodeBlock{..}) = do
               path <- getFilePath $ codeProperties
               case codeLanguage of
-                  KnownLanguage _ -> return (path, referenceName ref)
+                  KnownLanguage l -> return (path, (referenceName ref, l))
                   _               -> Nothing
 ```
 
@@ -237,18 +237,23 @@ getFileMap = M.fromList . catMaybes . map filePair
 To build up the `ReferenceMap` we define `ReferenceCount`.
 
 ``` {.haskell #parse-markdown}
-type ReferenceCount = Map ReferenceName Int
+data ReferenceCount = ReferenceCount
+    { currentDocument :: FilePath
+    , refCounts       :: Map ReferenceName Int }
 
 countReference :: ( MonadState ReferenceCount m )
                => ReferenceName -> m Int
 countReference r = do
-    x <- gets (M.findWithDefault 0 r)
-    modify (M.insert r (x + 1))
+    x <- gets ((M.findWithDefault 0 r) . refCounts)
+    modify $ \s -> s { refCounts = M.insert r (x + 1) (refCounts s) }
     return x
 
 newReference :: ( MonadState ReferenceCount m )
              => ReferenceName -> m ReferenceId
-newReference n = ReferenceId n <$> countReference n
+newReference n = do
+    doc <- gets currentDocument
+    x   <- countReference n
+    return $ ReferenceId doc n x
 ```
 
 ### Parsing the document
@@ -298,7 +303,7 @@ parseMarkdown :: ( MonadReader Config m )
               => FilePath -> Text -> m (Either EntangledError Document)
 parseMarkdown f t = do
     cfg <- ask
-    let result' = parse (evalStateT (runReaderT markdown cfg) mempty)
+    let result' = parse (evalStateT (runReaderT markdown cfg) (ReferenceCount f mempty))
                         f (ListStream $ T.lines t)
     return $ case result' of
         Left err              -> Left (TangleError $ T.pack $ show err)
@@ -513,7 +518,8 @@ annotateComment :: (MonadReader Config m, MonadError EntangledError m)
 annotateComment refs ref = do
     let code = refs M.! ref
     pre <- comment (codeLanguage code)
-           $ "begin <<" <> (unReferenceName $ referenceName ref) <> ">>["
+           $ "begin <<" <> (T.pack $ referenceFile ref) <> "|"
+           <> (unReferenceName $ referenceName ref) <> ">>["
            <> T.pack (show $ referenceCount ref) <> "]"
     post <- comment (codeLanguage code) "end"
     return $ unlines' [pre, (codeSource code), post]
@@ -533,7 +539,7 @@ import Text.Megaparsec.Char.Lexer
     ( decimal )
 
 import Document (CodeProperty)
-import Attributes (attributes, cssIdentifier)
+import Attributes (attributes, cssIdentifier, cssValue)
 ```
 
 The same comment lines have to be parsed back when we untangle. The first line is the top header comment. We don't know yet what the language is going to be, so we `skipManyTill` we find the `delim` text.
@@ -567,11 +573,13 @@ beginBlock :: (MonadParsec e Text m)
            => m ReferenceId
 beginBlock = do
     chunk "begin <<"
+    doc  <- cssValue
+    chunk "|"
     name <- cssIdentifier
     chunk ">>["
     count <- decimal
     chunk "]"
-    return $ ReferenceId (ReferenceName name) count
+    return $ ReferenceId (T.unpack doc) (ReferenceName name) count
 
 endBlock :: (MonadParsec e Text m)
          => m ()

@@ -41,6 +41,7 @@ function show_help() {
         done
 }
 
+
 while getopts "hdxcu:" arg
 do
         case ${arg} in
@@ -53,9 +54,9 @@ do
                 ;;
         u)      test_only=$(basename ${OPTARG} .test)
                 ;;
-        c)      rm -f entangled.db
-                rm -f *.scm
-                git checkout "${DIR}/*.md"
+        c)      rm -fv "${DIR}"/entangled.db
+                rm -fv "${DIR}"/*.scm
+                git checkout "${DIR}"/*.md
                 exit 0
                 ;;
         :)      echo "Invalid option: ${OPTARG} requires an argument"
@@ -129,7 +130,7 @@ function run-test() {
 }
 
 if [ -z ${test_only} ]; then
-        for unit in *.test; do
+        for unit in "${DIR}"/*.test; do
                 run-test "${unit}"
         done
 else

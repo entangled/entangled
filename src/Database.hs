@@ -54,6 +54,16 @@ withSQL p (SQL x) = do
     logFun <- askLoggerIO
     x <- liftIO $ withConnection p (\conn -> liftIO $ runLoggingT (runReaderT x conn) logFun)
     return x
+
+expectUnique :: (MonadThrow m, Show a) => [a] -> m (Maybe a)
+expectUnique []  = return Nothing
+expectUnique [x] = return $ Just x
+expectUnique lst = throwM $ DatabaseError $ "duplicate entry: " <> tshow lst
+
+expectUnique' :: (MonadThrow m, Show a) => (a -> b) -> [a] -> m (Maybe b)
+expectUnique' _ []  = return Nothing
+expectUnique' f [x] = return $ Just (f x)
+expectUnique' _ lst = throwM $ DatabaseError $ "duplicate entry: " <> tshow lst
 -- ------ end
 -- ------ begin <<database-types>>[1] project://lit/03-database.md#65
 withTransactionM :: (MonadSQL m, MonadLoggerIO m) => m a -> m a
@@ -76,52 +86,71 @@ createTables = do
     liftIO $ schema >>= mapM_ (execute_ conn)
 -- ------ end
 -- ------ begin <<database-insertion>>[0] project://lit/03-database.md#155
+insertCode :: Int64 -> ReferencePair -> SQL ()
+insertCode docId ( ReferenceId _ (ReferenceName name) count
+                 , CodeBlock (KnownLanguage langName) attrs source ) = do
+    conn <- getConnection
+    liftIO $ do
+        execute conn "insert into `codes`(`name`,`ordinal`,`source`,`language`,`document`) \
+                     \ values (?,?,?,?,?)" (name, count, source, langName, docId)
+        codeId <- lastInsertRowId conn
+        executeMany conn "insert into `classes` values (?,?)"
+                    [(className, codeId) | className <- getClasses attrs]
+    where getClasses [] = []
+          getClasses (CodeClass c : cs) = c : getClasses cs
+          getClasses (_ : cs) = getClasses cs
+
 insertCodes :: Int64 -> ReferenceMap -> SQL ()
-insertCodes docId codes = do
-        conn <- getConnection
-        liftIO $ executeMany conn "insert into `codes` values (?,?,?,?,?)" rows
-        liftIO $ executeMany conn "insert into `classes` values (?,?,?)" classes
-    where codeRow ( (ReferenceId (ReferenceName name) count)
-                  , (CodeBlock (KnownLanguage languageName) _ source) )
-              = Just (name, count, source, languageName, docId)
-          codeRow _
-              = Nothing
-          rows = catMaybes $ map codeRow (M.toList codes)
-          classRows ( (ReferenceId (ReferenceName name) count)
-                    , block )
-              = map (\c -> (c, name, count)) $ getCodeClasses block
-          classes = concatMap classRows (M.toList codes)
+insertCodes docId codes = mapM_ (insertCode docId) (M.toList codes)
 -- ------ end
 -- ------ begin <<database-insertion>>[1] project://lit/03-database.md#215
+queryCodeId' :: Int64 -> ReferenceId -> SQL (Maybe Int64)
+queryCodeId' docId (ReferenceId _ (ReferenceName name) count) = do
+    conn <- getConnection
+    expectUnique' fromOnly =<< (liftIO $ query conn codeQuery (docId, name, count))
+    where codeQuery = "select `id` from `codes` where \
+                      \ `document` is ? and `name` is ? and `ordinal` is ?"
+
+queryCodeId :: ReferenceId -> SQL (Maybe Int64)
+queryCodeId (ReferenceId doc (ReferenceName name) count) = do
+    conn    <- getConnection
+    expectUnique' fromOnly =<< (liftIO $ query conn codeQuery (doc, name, count))
+    where codeQuery = "select `codes`.`id` \
+                      \ from `codes` inner join `documents` \
+                      \     on `documents`.`id` is `codes`.`document` \
+                      \ where   `documents`.`filename` is ? \
+                      \     and `name` is ? \
+                      \     and `ordinal` is ?"
+
+contentToRow :: Int64 -> Content -> SQL (Int64, Maybe Text, Maybe Int64)
+contentToRow docId (PlainText text) = return (docId, Just text, Nothing)
+contentToRow docId (Reference ref)  = do
+    codeId' <- queryCodeId' docId ref
+    case codeId' of
+        Nothing     -> throwM $ DatabaseError $ "expected reference: " <> tshow ref
+        Just codeId -> return (docId, Nothing, Just codeId)
+
 insertContent :: Int64 -> [Content] -> SQL ()
 insertContent docId content = do
-        conn <- getConnection
-        liftIO $ executeMany conn "insert into `content`(`document`,`plain`,`codeName`,`codeOrdinal`) values (?,?,?,?)" rows
-    where contentRow (PlainText text)
-              = (docId, Just text, Nothing, Nothing)
-          contentRow (Reference (ReferenceId (ReferenceName name) count))
-              = (docId, Nothing, Just name, Just count)
-          rows = map contentRow content
+    rows <- mapM (contentToRow docId) content
+    conn <- getConnection
+    liftIO $ executeMany conn "insert into `content`(`document`,`plain`,`code`) values (?,?,?)" rows
 -- ------ end
 -- ------ begin <<database-insertion>>[2] project://lit/03-database.md#239
-insertTargets :: Int64 -> Map FilePath ReferenceName -> SQL ()
+insertTargets :: Int64 -> FileMap -> SQL ()
 insertTargets docId files = do
         conn <- getConnection
         -- liftIO $ print rows
-        liftIO $ executeMany conn "insert into `targets`(`filename`,`codename`,`document`) values (?, ?, ?)" rows
-    where targetRow (path, ReferenceName name) = (path, name, docId)
+        liftIO $ executeMany conn "insert into `targets`(`filename`,`codename`,`language`,`document`) values (?, ?, ?, ?)" rows
+    where targetRow (path, (ReferenceName name, lang)) = (path, name, lang, docId)
           rows = map targetRow (M.toList files)
 -- ------ end
 -- ------ begin <<database-update>>[0] project://lit/03-database.md#255
 getDocumentId :: FilePath -> SQL (Maybe Int64)
 getDocumentId rel_path = do
-    conn <- getConnection
-    docId' <- liftIO $ query conn "select `id` from `documents` where `filename` is ?" (Only rel_path)
-    case docId' of
-        []             -> return Nothing
-        [(Only docId)] -> return $ Just docId
-        _              -> throwM $ DatabaseError
-                                 $ "file `" <> T.pack rel_path <> "` has multiple entries."
+        conn <- getConnection
+        expectUnique' fromOnly =<< (liftIO $ query conn documentQuery (Only rel_path))
+    where documentQuery = "select `id` from `documents` where `filename` is ?"
 
 removeDocumentData :: Int64 -> SQL ()
 removeDocumentData docId = do
@@ -148,12 +177,22 @@ insertDocument rel_path Document{..} = do
     insertTargets docId documentTargets
 -- ------ end
 -- ------ begin <<database-update>>[1] project://lit/03-database.md#298
+fromMaybeM :: Monad m => m a -> m (Maybe a) -> m a
+fromMaybeM whenNothing x = do
+    unboxed <- x
+    case unboxed of
+        Nothing -> whenNothing
+        Just x' -> return x'
+
+updateCode :: ReferencePair -> SQL ()
+updateCode (ref, CodeBlock {codeSource}) = do
+    codeId <- fromMaybeM (throwM $ DatabaseError $ "could not find code '" <> tshow ref <> "'")
+                         (queryCodeId ref)
+    conn   <- getConnection
+    liftIO $ execute conn "update `codes` set `source` = ? where `id` is ?" (codeSource, codeId)
+
 updateTarget :: [ReferencePair] -> SQL () 
-updateTarget refs = withTransactionM $ mapM_ update refs
-    where update (ReferenceId (ReferenceName name) count, CodeBlock{codeSource}) = do
-              conn <- getConnection
-              liftIO $ execute conn "update `codes` set `source` = ? where `name` is ? and `ordinal` is ?"
-                               (codeSource, name, count)
+updateTarget refs = withTransactionM $ mapM_ updateCode refs
 -- ------ end
 -- ------ begin <<database-queries>>[0] project://lit/03-database.md#309
 listTargetFiles :: SQL [FilePath]
@@ -170,14 +209,14 @@ listSourceFiles = do
         liftIO (query_ conn "select `filename` from `documents`" :: IO [Only FilePath])
 -- ------ end
 -- ------ begin <<database-queries>>[2] project://lit/03-database.md#325
-queryTargetRef :: FilePath -> SQL (Maybe ReferenceName)
+queryTargetRef :: FilePath -> SQL (Maybe (ReferenceName, Text))
 queryTargetRef rel_path = do
     conn <- getConnection
-    x' <- liftIO (query conn "select `codename` from `targets` where `filename` is ?" (Only rel_path) :: IO [Only Text])
-    case x' of
-        []  -> return Nothing
-        [Only x] -> return $ Just (ReferenceName x)
-        _   -> throwM $ DatabaseError $ "target file `" <> T.pack rel_path <> "` has multiple entries."
+    val  <- expectUnique =<< (liftIO $ query conn targetQuery (Only rel_path))
+    return $ case val of
+        Nothing           -> Nothing
+        Just (name, lang) -> Just (ReferenceName name, lang)
+    where targetQuery = "select `codename`,`language` from `targets` where `filename` is ?" 
 -- ------ end
 -- ------ begin <<database-queries>>[3] project://lit/03-database.md#336
 stitchDocument :: FilePath -> SQL Text
@@ -188,7 +227,7 @@ stitchDocument rel_path = do
         Just x  -> return x
     result <- liftIO (query conn "select coalesce(`plain`,`codes`.`source`) from `content` \
                                  \  left outer join `codes` \
-                                 \    on (`codeName`,`codeOrdinal`)=(`codes`.`name`,`codes`.`ordinal`) \
+                                 \    on `code` is `codes`.`id` \
                                  \  where `content`.`document` is ?" (Only docId) :: IO [Only Text])
     return $ unlines' $ map fromOnly result
 -- ------ end
@@ -196,12 +235,12 @@ stitchDocument rel_path = do
 queryReferenceMap :: Config -> SQL ReferenceMap
 queryReferenceMap config = do
         conn <- getConnection
-        rows <- liftIO (query_ conn "select `name`, `ordinal`, `source`, `language` from `codes`" :: IO [(Text, Int, Text, Text)])
+        rows <- liftIO (query_ conn "select `documents`.`filename`, `name`, `ordinal`, `source`, `language` from `codes` inner join `documents` on `codes`.`document` is `documents`.`id`" :: IO [(FilePath, Text, Int, Text, Text)])
         M.fromList <$> mapM (refpair config) rows
-    where refpair config (name, ordinal, source, lang) =
+    where refpair config (rel_path, name, ordinal, source, lang) =
             case (languageFromName config lang) of
                 Nothing -> throwM $ DatabaseError $ "unknown language: " <> lang
-                Just l  -> return ( ReferenceId (ReferenceName name) ordinal
+                Just l  -> return ( ReferenceId rel_path (ReferenceName name) ordinal
                                   , CodeBlock (KnownLanguage lang) [] source )
 -- ------ end
 -- ------ end
