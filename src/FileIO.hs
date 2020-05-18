@@ -15,7 +15,7 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Catch (MonadThrow, throwM)
 
 import Errors (EntangledError(SystemError))
-import Select (select)
+import Select (selectM)
 
 fromFilePath :: FilePath -> CBytes
 fromFilePath = pack
@@ -35,13 +35,11 @@ isDir path = maybe False checkMode <$> (safeStat path)
     where checkMode s = (stMode s .&. 0o170000) == 0o040000
 
 ensureDir' :: (MonadIO m, MonadThrow m) => FilePath -> m ()
-ensureDir' path = do
-    x <- exists path
-    d <- isDir path
-    select (throwM $ SystemError $ "cannot create dir: `" <> (T.pack path)
+ensureDir' path =
+    selectM (throwM $ SystemError $ "cannot create dir: `" <> (T.pack path)
                                 <> "`, exists and is a file")
-           [ (d,     return ())
-           , (not x, liftIO $ mkdir (fromFilePath path) mode) ]
+            [ (isDir path,          return ())
+            , (not <$> exists path, liftIO $ mkdir (fromFilePath path) mode) ]
     where mode = 0o0775
 
 parents :: FilePath -> [FilePath]
