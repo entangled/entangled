@@ -60,7 +60,7 @@ import Control.Monad (mapM)
 -- ------ begin <<daemon-imports>>[6] project://lit/10-daemon.md#340
 import qualified Data.Map.Lazy as LM
 -- ------ end
--- ------ begin <<daemon-imports>>[7] project://lit/10-daemon.md#383
+-- ------ begin <<daemon-imports>>[7] project://lit/10-daemon.md#376
 import System.IO (stdout, hFlush, hSetBuffering, BufferMode(..))
 -- ------ end
 -- ------ begin <<daemon-events>>[0] project://lit/10-daemon.md#53
@@ -233,7 +233,7 @@ writeTargetFile rel_path = do
                     Nothing -> logErrorN $ "Unknown language id " <> langName
                     Just lang -> tangleRef tgt lang
 -- ------ end
--- ------ begin <<daemon-writing>>[1] project://lit/10-daemon.md#374
+-- ------ begin <<daemon-writing>>[1] project://lit/10-daemon.md#367
 writeSourceFile :: FilePath -> Daemon ()
 writeSourceFile rel_path = do
     content <- db $ stitchDocument rel_path
@@ -286,12 +286,12 @@ closeWatch = do
     liftIO $ sequence_ stopActions
     logInfoN "suspended watches"
 -- ------ end
--- ------ begin <<daemon-main-loop>>[0] project://lit/10-daemon.md#389
+-- ------ begin <<daemon-main-loop>>[0] project://lit/10-daemon.md#382
 wait :: Daemon ()
 wait = liftIO $ threadDelay 100000
 
 mainLoop :: Event -> Daemon ()
--- ------ begin <<main-loop-cases>>[0] project://lit/10-daemon.md#399
+-- ------ begin <<main-loop-cases>>[0] project://lit/10-daemon.md#392
 mainLoop (WriteSource abs_path) = do
     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
 
@@ -328,7 +328,7 @@ mainLoop (WriteTarget abs_path) = do
 mainLoop _ = return () 
 -- ------ end
 -- ------ end
--- ------ begin <<daemon-start>>[0] project://lit/10-daemon.md#438
+-- ------ begin <<daemon-start>>[0] project://lit/10-daemon.md#431
 printMsg :: Doc -> Daemon ()
 printMsg = liftIO . Console.putTerminal
 

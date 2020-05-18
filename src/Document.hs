@@ -37,7 +37,7 @@ data ReferenceId = ReferenceId
 showNowebReference :: ReferenceName -> Text
 showNowebReference (ReferenceName x) = "<<" <> x <> ">>"
 -- ------ end
--- ------ begin <<document-structure>>[1] project://lit/02-document-model.md#73
+-- ------ begin <<document-structure>>[1] project://lit/02-document-model.md#74
 data Content
     = PlainText Text
     | Reference ReferenceId
@@ -53,7 +53,7 @@ data Document = Document
     , documentTargets :: FileMap
     } deriving (Show)
 -- ------ end
--- ------ begin <<document-structure>>[2] project://lit/02-document-model.md#92
+-- ------ begin <<document-structure>>[2] project://lit/02-document-model.md#93
 referenceNames :: ReferenceMap -> Set ReferenceName
 referenceNames = S.fromList . map referenceName . M.keys
 
@@ -64,7 +64,7 @@ referencesByName refs name
 codeBlocksByName :: ReferenceMap -> ReferenceName -> [CodeBlock]
 codeBlocksByName refs name = map (refs M.!) $ referencesByName refs name
 -- ------ end
--- ------ begin <<document-structure>>[3] project://lit/02-document-model.md#116
+-- ------ begin <<document-structure>>[3] project://lit/02-document-model.md#117
 data CodeProperty
     = CodeId Text
     | CodeAttribute Text Text
@@ -78,21 +78,21 @@ getAttribute (CodeAttribute k v:ps) l
     | otherwise = getAttribute ps l
 getAttribute (_:ps) l = getAttribute ps l
 -- ------ end
--- ------ begin <<document-structure>>[4] project://lit/02-document-model.md#133
+-- ------ begin <<document-structure>>[4] project://lit/02-document-model.md#134
 data CodeBlock = CodeBlock
     { codeLanguage   :: ProgrammingLanguage
     , codeProperties :: [CodeProperty]
     , codeSource     :: Text
     } deriving (Show, Eq)
 -- ------ end
--- ------ begin <<document-structure>>[5] project://lit/02-document-model.md#143
+-- ------ begin <<document-structure>>[5] project://lit/02-document-model.md#144
 data ProgrammingLanguage
     = KnownLanguage Text
     | UnknownClass Text
     | NoLanguage
     deriving (Show, Eq)
 -- ------ end
--- ------ begin <<document-structure>>[6] project://lit/02-document-model.md#153
+-- ------ begin <<document-structure>>[6] project://lit/02-document-model.md#154
 getCodeClasses :: CodeBlock -> [Text]
 getCodeClasses CodeBlock{..} = classes codeProperties
     where classes [] = []

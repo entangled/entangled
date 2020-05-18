@@ -81,6 +81,7 @@ import Text.Megaparsec
     ( MonadParsec, Parsec, parse, anySingle, manyTill, (<|>)
     , many, some, errorBundlePretty )
 import Data.Void (Void)
+import Control.Monad.Fail (MonadFail)
 <<import-text>>
 import qualified Data.Map.Strict as M
 import Control.Monad.Reader (MonadReader, ask, asks, ReaderT, runReaderT)

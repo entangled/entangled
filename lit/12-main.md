@@ -242,11 +242,12 @@ module Main where
 
 <<main-imports>>
 
-import System.Exit
+import Comment
 import Document
+import Select (select)
+import System.Exit
 import Tangle (parseMarkdown, expandedCode, annotateNaked)
 import TextUtil
-import Comment
 
 <<main-options>>
 
@@ -361,11 +362,6 @@ runInsertSources cfg files = do
             case doc of
                 Left e -> liftIO $ T.IO.putStrLn ("warning: " <> tshow e)
                 Right d -> insertDocument f d
-
-select :: a -> [(Bool, a)] -> a
-select defaultChoice []                     = defaultChoice
-select defaultChoice ((True,  x) : options) = x
-select defaultChoice ((False, _) : options) = select defaultChoice options
 
 deduplicateRefs :: [ReferencePair] -> SQL [ReferencePair]
 deduplicateRefs refs = dedup sorted

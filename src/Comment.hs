@@ -1,7 +1,7 @@
--- ------ language="Haskell" file="src/Comment.hs" project://lit/13-tangle.md#434
+-- ------ language="Haskell" file="src/Comment.hs" project://lit/13-tangle.md#439
 module Comment where
 
--- ------ begin <<comment-imports>>[0] project://lit/13-tangle.md#443
+-- ------ begin <<comment-imports>>[0] project://lit/13-tangle.md#448
 import Control.Monad.Reader
 import Control.Monad.Except
 
@@ -10,20 +10,20 @@ import qualified Data.Text as T
 import Data.Text (Text)
 -- ------ end
 -- ------ end
--- ------ begin <<comment-imports>>[1] project://lit/13-tangle.md#467
+-- ------ begin <<comment-imports>>[1] project://lit/13-tangle.md#472
 import Document
     ( ProgrammingLanguage(..)
     , EntangledError(..) )
 import Config
     ( Config(..), ConfigLanguage(..), ConfigComment(..), languageFromName )
 -- ------ end
--- ------ begin <<comment-imports>>[2] project://lit/13-tangle.md#504
+-- ------ begin <<comment-imports>>[2] project://lit/13-tangle.md#509
 import qualified Data.Map.Strict as M
 
 import Document
 import TextUtil (unlines')
 -- ------ end
--- ------ begin <<comment-imports>>[3] project://lit/13-tangle.md#529
+-- ------ begin <<comment-imports>>[3] project://lit/13-tangle.md#535
 import Text.Megaparsec
     ( MonadParsec, chunk, skipManyTill, anySingle, (<?>), takeWhileP, eof )
 import Text.Megaparsec.Char (space)
@@ -34,11 +34,11 @@ import Document (CodeProperty)
 import Attributes (attributes, cssIdentifier, cssValue)
 -- ------ end
 
--- ------ begin <<generate-comment>>[0] project://lit/13-tangle.md#460
+-- ------ begin <<generate-comment>>[0] project://lit/13-tangle.md#465
 delim :: Text
 delim = " ~\\~ "
 -- ------ end
--- ------ begin <<generate-comment>>[1] project://lit/13-tangle.md#475
+-- ------ begin <<generate-comment>>[1] project://lit/13-tangle.md#480
 comment :: (MonadReader Config m, MonadError EntangledError m)
         => ProgrammingLanguage
         -> Text
@@ -64,7 +64,7 @@ formatComment lang text = pre <> text <> post
     where pre  = (commentStart $ languageComment lang) <> delim
           post = maybe "" (" " <>) $ commentEnd $ languageComment lang
 -- ------ end
--- ------ begin <<generate-comment>>[2] project://lit/13-tangle.md#511
+-- ------ begin <<generate-comment>>[2] project://lit/13-tangle.md#516
 annotateComment :: (MonadReader Config m, MonadError EntangledError m)
                 => ReferenceMap -> ReferenceId -> m Text
 annotateComment refs ref = do
@@ -80,7 +80,7 @@ headerComment :: ConfigLanguage -> FilePath -> Text
 headerComment lang path = formatComment lang
     $ "language=" <> languageName lang <> " filename=" <> T.pack path
 -- ------ end
--- ------ begin <<parse-comment>>[0] project://lit/13-tangle.md#542
+-- ------ begin <<parse-comment>>[0] project://lit/13-tangle.md#548
 topHeader :: ( MonadParsec e Text m )
           => m [CodeProperty]
 topHeader = do
@@ -88,7 +88,7 @@ topHeader = do
                  (chunk delim)
     attributes
 -- ------ end
--- ------ begin <<parse-comment>>[1] project://lit/13-tangle.md#553
+-- ------ begin <<parse-comment>>[1] project://lit/13-tangle.md#559
 commented :: (MonadParsec e Text m)
           => ConfigLanguage -> m a -> m (a, Text)
 commented lang p = do 
@@ -100,7 +100,7 @@ commented lang p = do
     eof
     return (x, indent)
 -- ------ end
--- ------ begin <<parse-comment>>[2] project://lit/13-tangle.md#566
+-- ------ begin <<parse-comment>>[2] project://lit/13-tangle.md#572
 beginBlock :: (MonadParsec e Text m)
            => m ReferenceId
 beginBlock = do

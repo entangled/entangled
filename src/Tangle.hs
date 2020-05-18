@@ -37,13 +37,13 @@ import Config (Config, lookupLanguage, ConfigLanguage(..) )
 -- ------ begin <<tangle-imports>>[0] project://lit/13-tangle.md#46
 import Attributes (attributes)
 -- ------ end
--- ------ begin <<tangle-imports>>[1] project://lit/13-tangle.md#263
+-- ------ begin <<tangle-imports>>[1] project://lit/13-tangle.md#268
 import ListStream (parseLine, parseLineNot, tokenLine)
 -- ------ end
--- ------ begin <<tangle-imports>>[2] project://lit/13-tangle.md#340
+-- ------ begin <<tangle-imports>>[2] project://lit/13-tangle.md#345
 import TextUtil (indent, unlines')
 -- ------ end
--- ------ begin <<tangle-imports>>[3] project://lit/13-tangle.md#428
+-- ------ begin <<tangle-imports>>[3] project://lit/13-tangle.md#433
 -- import Comment (annotateComment)
 -- ------ end
 
@@ -118,7 +118,7 @@ newReference n = do
     x   <- countReference n
     return $ ReferenceId doc n x
 -- ------ end
--- ------ begin <<parse-markdown>>[5] project://lit/13-tangle.md#269
+-- ------ begin <<parse-markdown>>[5] project://lit/13-tangle.md#274
 type DocumentParser = ReaderT Config (StateT ReferenceCount (Parsec Void (ListStream Text)))
 
 codeBlock :: ( MonadParsec e (ListStream Text) m
@@ -160,14 +160,14 @@ parseMarkdown f t = do
                      content
                      (getFileMap refs)
 -- ------ end
--- ------ begin <<generate-code>>[0] project://lit/13-tangle.md#344
+-- ------ begin <<generate-code>>[0] project://lit/13-tangle.md#349
 data CodeLine = PlainCode Text
               | NowebReference ReferenceName Text
               deriving (Eq, Show)
 
 type CodeParser = Parsec Void Text
 -- ------ end
--- ------ begin <<generate-code>>[1] project://lit/13-tangle.md#359
+-- ------ begin <<generate-code>>[1] project://lit/13-tangle.md#364
 nowebReference :: CodeParser CodeLine
 nowebReference = do
     indent <- takeWhileP Nothing (`elem` (" \t" :: [Char]))
@@ -184,11 +184,11 @@ parseCode name = map parseLine . T.lines
                               (T.unpack $ unReferenceName name)
                               l
 -- ------ end
--- ------ begin <<generate-code>>[2] project://lit/13-tangle.md#382
+-- ------ begin <<generate-code>>[2] project://lit/13-tangle.md#387
 type ExpandedCode = LM.Map ReferenceName (Either EntangledError Text)
 type Annotator = ReferenceMap -> ReferenceId -> (Either EntangledError Text)
 -- ------ end
--- ------ begin <<generate-code>>[3] project://lit/13-tangle.md#398
+-- ------ begin <<generate-code>>[3] project://lit/13-tangle.md#403
 expandedCode :: Annotator -> ReferenceMap -> ExpandedCode
 expandedCode annotate refs = result
     where result = LM.fromSet expand (referenceNames refs)
@@ -204,7 +204,7 @@ expandCodeSource result name t
           codeLineToText (NowebReference name i)
               = indent i <$> result LM.! name
 -- ------ end
--- ------ begin <<generate-code>>[4] project://lit/13-tangle.md#419
+-- ------ begin <<generate-code>>[4] project://lit/13-tangle.md#424
 annotateNaked :: ReferenceMap -> ReferenceId -> Either EntangledError Text
 annotateNaked refs ref = Right $ codeSource $ refs M.! ref
 -- ------ end

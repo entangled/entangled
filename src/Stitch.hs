@@ -12,6 +12,7 @@ import Text.Megaparsec
     ( MonadParsec, Parsec, parse, anySingle, manyTill, (<|>)
     , many, some, errorBundlePretty )
 import Data.Void (Void)
+import Control.Monad.Fail (MonadFail)
 -- ------ begin <<import-text>>[0] project://lit/01-entangled.md#44
 import qualified Data.Text as T
 import Data.Text (Text)
