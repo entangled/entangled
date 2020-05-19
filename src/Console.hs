@@ -48,12 +48,8 @@ data Annotation
 type Doc = P.Doc Annotation
 
 banner :: Doc
-banner =  P.annotate Emphasise "enTangleD"
-       <> ", version 0.2.0: https://jhidding.github.io/enTangleD/"
-       <> P.line
-       <> "Copyright 2018-2019, Johan Hidding, Netherlands eScience Center"
-       <> P.line
-       <> "Licensed under the Apache License, Version 2.0"
+banner =  P.annotate Emphasise "Entangled"
+       <> ", version 1.0.0: https://entangled.github.io/"
        <> P.line <> P.line
 
 msg :: P.Pretty a => LogLevel -> a -> Doc
@@ -62,7 +58,7 @@ msg level = P.annotate (Log level) . P.pretty
 timeStamp :: MonadIO m => m Doc
 timeStamp = do
     t <- liftIO getZonedTime
-    return $ P.annotate TimeStamp 
+    return $ P.annotate TimeStamp
            $ "[" <> P.pretty (formatTime defaultTimeLocale "%T" t)
            <> "]"
 

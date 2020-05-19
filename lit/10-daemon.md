@@ -19,10 +19,16 @@ module Daemon where
 import Prelude hiding (writeFile, readFile)
 
 <<daemon-imports>>
+
+import System.FilePath (takeDirectory, equalFilePath)
+import System.Directory 
+    ( canonicalizePath
+    , doesFileExist
+    , createDirectoryIfMissing
+    , makeRelativeToCurrentDirectory )
+
 <<daemon-events>>
-<<daemon-transaction>>
 <<daemon-session>>
-<<daemon-user-io>>
 <<daemon-loading>>
 <<daemon-writing>>
 <<daemon-watches>>
@@ -63,66 +69,6 @@ data Event
     deriving (Show)
 ```
 
-### Transactions
-
-When an event happened we need to respond, usually by writing out several files. Since `IO` is a `Monoid`, we can append `IO` actions and keep track of describing the gathered events in a `Transaction`. There are some things that we may need to ask the user permission for, like overwriting files in dubious circumstances. Messaging is done through pretty-printed `Doc`.
-
-``` {.haskell #daemon-imports}
-import qualified Data.Text.Prettyprint.Doc as P
-import Console (Doc)
-import qualified Console
-```
-
-``` {.haskell #daemon-transaction}
-data Transaction = Transaction
-  { action :: Maybe (IO ())
-  , description :: Doc
-  , needConfirm :: Bool }
-```
-
-The `action` is wrapped in a `Maybe` so that we can tell if the `Transaction` does anything. A `Transaction` is a `Monoid`.
-
-``` {.haskell #daemon-transaction}
-instance Semigroup Transaction where
-    (Transaction al dl cl) <> (Transaction ar dr cr)
-      = Transaction (al <> ar) (dl <> dr) (cl || cr)
-
-instance Monoid Transaction where
-    mempty = Transaction mempty mempty False
-```
-
-We can build `Transaction`s by appending elemental parts.
-
-``` {.haskell #daemon-transaction}
-plan :: IO () -> Transaction
-plan action = Transaction (Just action) mempty False
-
-doc :: Doc -> Transaction
-doc x = Transaction Nothing x False
-
-msg :: P.Pretty a => LogLevel -> a -> Transaction
-msg level doc = Transaction Nothing (Console.msg level doc) False
-
-confirm :: Transaction
-confirm = Transaction mempty mempty True
-```
-
-In most of the program logic, `Transaction` will be available in terms of a `MonadWriter`.
-
-``` {.haskell #daemon-transaction}
-runTransaction :: Transaction -> IO ()
-runTransaction (Transaction Nothing d _) = Console.putTerminal d
-runTransaction (Transaction (Just x) d c) = do
-    Console.putTerminal d
-    if c then do
-        T.IO.putStr "confirm? (y/n) "
-        hFlush stdout
-        reply <- getLine
-        T.IO.putStrLn ""
-        when (reply == "y") x
-    else x
-```
-
 ### Session
 
 ``` {.haskell #daemon-imports}
@@ -134,6 +80,12 @@ import Database
 import Tangle (parseMarkdown, expandedCode, Annotator)
 import Comment
 import Stitch (stitch)
+import Transaction
+import FileIO
+
+import qualified Data.Text.Prettyprint.Doc as P
+import qualified Console
+import Console (Doc)
 
 import Control.Concurrent.Chan
 import Control.Concurrent
@@ -164,41 +116,8 @@ db x = do
 newtype Daemon a = Daemon { unDaemon :: RWST Config Transaction Session (LoggingT IO) a }
     deriving ( Applicative, Functor, Monad, MonadIO, MonadState Session
              , MonadReader Config, MonadWriter Transaction, MonadThrow, MonadLogger, MonadLoggerIO )
-```
 
-Every time an event happens we send it to `_eventChannel`. When we tangle we change the `_daemonState` to `Tangling`. Write events to target files are then not triggering a stitch. The other way around, if the daemon is in `Stitching` state, write events to the markdown source do not trigger a tangle. Because these events will arrive asynchronously, we use an `MVar` to change the state.
-
-Setting the state is a bit involved (a bit more than with an `IORef`), but it guarantees safe use in a multi-threaded environment. An `MVar` can only be set if it is first emptied, the combined action can be done with `modifyMVar_`.
-
-``` {.haskell #daemon-session}
-setDaemonState :: ( MonadIO m
-                  , MonadState Session m )
-               => DaemonState -> m ()
-setDaemonState s = do
-    state <- gets daemonState
-    liftIO $ modifyMVar_ state (const $ return s)
-```
-
-### File IO
-
-``` {.haskell #daemon-imports}
-import System.FilePath (takeDirectory, equalFilePath)
-import System.Directory 
-    ( canonicalizePath
-    , doesFileExist
-    , removeFile
-    , createDirectoryIfMissing
-    , makeRelativeToCurrentDirectory )
-```
-
-There is a limited set of IO file system actions that result from a tangle or stitch. We define a little language using a type class.
-
-``` {.haskell #daemon-user-io}
-class Monad m => MonadFileIO m where
-    writeFile :: FilePath -> Text -> m ()
-    deleteFile :: FilePath -> m ()
-    readFile :: FilePath -> m Text
-
+-- up for removal
 tryReadFile :: MonadIO m => FilePath -> m (Maybe Text)
 tryReadFile f = liftIO $ do
     exists <- doesFileExist f
@@ -232,7 +151,18 @@ instance MonadFileIO Daemon where
     deleteFile path = tell $ removeIfExists path
 ```
 
-These are IO actions that need logging, possible confirmation by the user and execution. Also, using this we can do some mock testing.
+Every time an event happens we send it to `_eventChannel`. When we tangle we change the `_daemonState` to `Tangling`. Write events to target files are then not triggering a stitch. The other way around, if the daemon is in `Stitching` state, write events to the markdown source do not trigger a tangle. Because these events will arrive asynchronously, we use an `MVar` to change the state.
+
+Setting the state is a bit involved (a bit more than with an `IORef`), but it guarantees safe use in a multi-threaded environment. An `MVar` can only be set if it is first emptied, the combined action can be done with `modifyMVar_`.
+
+``` {.haskell #daemon-session}
+setDaemonState :: ( MonadIO m
+                  , MonadState Session m )
+               => DaemonState -> m ()
+setDaemonState s = do
+    state <- gets daemonState
+    liftIO $ modifyMVar_ state (const $ return s)
+```
 
 ## Watching
 

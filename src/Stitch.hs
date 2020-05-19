@@ -1,7 +1,7 @@
--- ------ language="Haskell" file="src/Stitch.hs" project://lit/14-stitch.md#4
+-- ------ language="Haskell" file="src/Stitch.hs" project://lit/14-stitch.md
 module Stitch where
 
--- ------ begin <<stitch-imports>>[0] project://lit/14-stitch.md#74
+-- ------ begin <<stitch-imports>>[0] project://src/Stitch.hs#3
 import ListStream (ListStream(..), tokenP)
 import Document
 import Config (Config, languageFromName, ConfigLanguage(..))
@@ -13,7 +13,7 @@ import Text.Megaparsec
     , many, some, errorBundlePretty )
 import Data.Void (Void)
 import Control.Monad.Fail (MonadFail)
--- ------ begin <<import-text>>[0] project://lit/01-entangled.md#44
+-- ------ begin <<import-text>>[0] project://lit/01-entangled.md
 import qualified Data.Text as T
 import Data.Text (Text)
 -- ------ end
@@ -22,7 +22,7 @@ import Control.Monad.Reader (MonadReader, ask, asks, ReaderT, runReaderT)
 import Control.Monad (when)
 import Data.Maybe (isNothing, catMaybes)
 -- ------ end
--- ------ begin <<source-parser>>[0] project://lit/14-stitch.md#16
+-- ------ begin <<source-parser>>[0] project://lit/14-stitch.md
 sourceDocument :: ( MonadParsec e (ListStream Text) m
                   , MonadFail m
                   , MonadReader Config m )
@@ -35,12 +35,12 @@ sourceDocument = do
     (_, refs) <- mconcat <$> some (sourceBlock lang)
     return refs
 -- ------ end
--- ------ begin <<source-parser>>[1] project://lit/14-stitch.md#32
+-- ------ begin <<source-parser>>[1] project://lit/14-stitch.md
 sourceBlock :: ( MonadParsec e (ListStream Text) m, MonadFail m )
             => ConfigLanguage -> m ([Text], [ReferencePair])
 sourceBlock lang = do
     ((ref, beginIndent), _) <- tokenP (commented lang beginBlock)
-    (lines, refpairs) <- mconcat <$> manyTill 
+    (lines, refpairs) <- mconcat <$> manyTill
                 (sourceBlock lang <|> sourceLine)
                 (tokenP (commented lang endBlock))
     let unindentedLines = map (unindent beginIndent) lines
@@ -57,7 +57,7 @@ sourceLine = do
     x <- anySingle
     return ([x], [])
 -- ------ end
--- ------ begin <<stitch>>[0] project://lit/14-stitch.md#59
+-- ------ begin <<stitch>>[0] project://lit/14-stitch.md
 type SourceParser = ReaderT Config (Parsec Void (ListStream Text))
 
 stitch :: ( MonadReader Config m )

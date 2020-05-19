@@ -35,6 +35,7 @@ common deps
   build-depends:
       array >=0.5 && <1
     , base >=4.7 && <5
+    , bytestring >=0.10 && <1
     , containers >=0.5.9 && <0.7
     , dhall >=1.29 && <2
     , directory >=1.3 && <2
@@ -53,9 +54,9 @@ common deps
     , sqlite-simple >=0.4.16 && <0.5
     , stdio >=0.2.0 && <0.3
     , terminal-size >=0.3 && <1
-    , transformers >=0.5 && <0.6
     , text >=1.2 && <2
     , time >=1.8 && <2
+    , transformers >=0.5 && <0.6
     -- , uuid >=1.3 && <2
     -- , yaml >=0.11 && <0.12
   default-extensions:
@@ -82,6 +83,7 @@ library
       Stitch
       Tangle
       TextUtil
+      Transaction
   other-modules:
       Paths_entangled
   autogen-modules:
