@@ -76,7 +76,7 @@ data Event
     | DebugEvent Text
     deriving (Show)
 -- ------ end
--- ------ begin <<daemon-session>>[0] project://lit/10-daemon.md
+-- ------ begin <<daemon-session>>[0] project://src/Daemon.hs#22
 data Session = Session
     { watches       :: [FSNotify.StopListening]
     , manager       :: FSNotify.WatchManager

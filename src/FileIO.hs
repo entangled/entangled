@@ -42,7 +42,7 @@ import Std.IO.FileSystem ( unlink )
 import Std.IO.Resource   ( withResource )
 import Std.IO.FileSystem ( fsync, initUVFile, UVFileFlag(..) )
 import Std.IO.Buffered   ( newBufferedInput, newBufferedOutput, defaultChunkSize
-                         , readAll', writeBuffer )
+                         , readAll', writeBuffer, flushBuffer )
 -- ------ end
 
 class Monad m => MonadFileIO m where
@@ -139,6 +139,7 @@ writeIfChanged path text = liftIO $ withResource openFile $ \file -> do
             else do
                 output <- newBufferedOutput file defaultChunkSize
                 writeBuffer output new_content
+                flushBuffer output
         fsync file
     where openFile = initUVFile (fromFilePath path) (O_CREAT .|. O_RDWR) DEFAULT_MODE
 -- ------ end
