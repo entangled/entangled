@@ -46,10 +46,16 @@ let languages =
     , { name = "YAML",       identifiers = ["yaml"],          comment = comments.hash }
     ]
 
-let Config : Type =
-    { languages : List Language
-    , watchList : Optional (List Text)
-    , database  : Optional Text }
+let Config =
+    { Type =
+        { languages : List Language
+        , watchList : Optional (List Text)
+        , database  : Optional Text }
+    , default =
+        { languages = languages
+        , watchList = None (List Text)
+        , database  = None Text }
+    }
 
 in { Comment   = Comment
    , Language  = Language
