@@ -81,9 +81,10 @@ There is a limited set of IO file system actions that result from a tangle or st
 The behaviour will be such that, if a file is deleted and no other file remains in its containing directory, the directory is removed. If we write a file to a directory that does not exists, the directory is created.
 
 ``` {.haskell file=src/FileIO.hs}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 module FileIO where
 
+import RIO
 <<file-io-imports>>
 
 class Monad m => MonadFileIO m where
@@ -92,243 +93,102 @@ class Monad m => MonadFileIO m where
     readFile :: FilePath -> m Text
 
 <<file-io-prim>>
+<<file-io-instance>>
 ```
 
-## Conversion
-The `stdio` library defines its own `Text` datatype. I'm not ready to switch that deep. Issue #26 on github `haskell-stdio/stdio` gives a snippet that converts between `Bytes` and the more ubiquitous `ByteString`.
+## Primitives
 
 ``` {.haskell #file-io-imports}
-import qualified Std.Foreign.PrimArray  as F
-import qualified Data.ByteString        as BS
-import qualified Data.ByteString.Unsafe as BU
-import qualified Std.Data.CBytes        as CBytes
-import           Std.Data.Vector (Bytes)
-```
-
-``` {.haskell #file-io-prim}
-bytesToByteString :: Bytes -> IO BS.ByteString
-bytesToByteString bytes =
-  F.withPrimVectorSafe bytes (\ptr len -> BS.packCStringLen (F.castPtr ptr, len))
-
-bytesFromByteString :: BS.ByteString -> IO Bytes
-bytesFromByteString bs =
-  CBytes.toBytes <$> BU.unsafeUseAsCString bs CBytes.fromCString
-```
-
-To this we can add conversion between `Text` and `Bytes`.
-
-``` {.haskell #file-io-prim}
-textToBytes :: Text -> IO Bytes
-textToBytes = bytesFromByteString . T.Encoding.encodeUtf8 
-
-bytesToText :: Bytes -> IO Text
-bytesToText bytes = T.Encoding.decodeUtf8 <$> (bytesToByteString bytes)
-```
-
-## System calls
-
-We use the `stdio` package, hosting the `Std.IO` module. This package is rather low-level, but it features the `fsync` function. We need this to be able to synchronize the IO and have full control over what file events we listen to. `stdio` is an FFI wrapper around `libuv`, which provides a portable interface to do (a)synchronous POSIX(y) IO.
-
-``` {.haskell #file-io-imports}
-import Data.Text (Text)
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as T.Encoding
-import Data.Bits ((.&.), (.|.))
+import RIO.Text (Text)
+import qualified RIO.Text as T
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Catch (MonadThrow, throwM)
-import Control.Exception (displayException)
 
 import Errors (EntangledError(SystemError))
 import Select (selectM)
 import TextUtil (tshow)
 ```
 
-### CBytes
-
-``` {.haskell #file-io-imports}
-import Std.Data.CBytes ( CBytes, pack )
-```
-
-We keep the conversion between `FilePath` and `CBytes` in a single place.
-
-``` {.haskell #file-io-prim}
-fromFilePath :: FilePath -> CBytes
-fromFilePath = pack
-```
-
-### Stat
-
-``` {.haskell #file-io-imports}
-import Std.IO.FileSystem ( stat, UVStat(..), UVFileMode(..) )
-import Std.IO.Exception ( NoSuchThing(..), InappropriateType(..), SomeIOException(..)
-                        , Handler(..), ioeDescription, catches )
-```
-
-We will be using `stat` to identify directories from files. The `Std.IO` packages can throw exceptions. We distinguish between expectable exceptions in the proper use of the function and the ones that should cause an abort. In this case, not finding the file that we're trying to `stat` is within correct use of the `safeStat` function, while, for instance trying to `stat` a file to which we have no access should raise an exception.
-
-``` {.haskell #file-io-prim}
-safeStat :: (MonadIO m, MonadThrow m) => FilePath -> m (Maybe UVStat)
-safeStat path = liftIO $
-    (Just <$> stat (fromFilePath path)) `catches`
-        [ Handler (\ (ex :: NoSuchThing) -> return Nothing)
-        , Handler (\ (ex :: SomeIOException) -> throwM $
-                     SystemError $ "failed `stat` on `" <> (T.pack path) <> "`") ]
-```
-
-Using `safeStat` we can figure out if a file exists and if it is a directory.
-
-``` {.haskell #file-io-prim}
-exists :: (MonadIO m, MonadThrow m) => FilePath -> m Bool
-exists path = maybe False (const True) <$> (safeStat path)
-
-isDir :: (MonadIO m, MonadThrow m) => FilePath -> m Bool
-isDir path = maybe False checkMode <$> (safeStat path)
-    where checkMode s = (stMode s .&. 0o170000) == 0o040000
-```
-
-Here we have hard-coded the masks (see `man 2 stat` and `man 7 inode`). These should be present in `Std.IO` as `S_IFMT` and `S_IFDIR` bit patterns.
-
 ### Make/Remove dir
 
-The `select` function is a nice way of modelling a function that has non-local exits (see [Haskell Wiki if-then-else](https://wiki.haskell.org/If-then-else)); the first entry that evaluates to true yields the result. The `selectM` variant evaluates the predicates inside the same monad as the result.
-
-In these functions `Dir` variants act on a single directory, while `Path` variant iterates through the parents to create `mkdir -p` behaviour.
-
 ``` {.haskell #file-io-imports}
-import System.FilePath (splitDirectories, (</>))
-import Std.IO.FileSystem ( mkdir, rmdir, scandir )
+import RIO.Directory ( createDirectoryIfMissing, doesDirectoryExist
+                     , listDirectory, removeFile, removeDirectory )
+import RIO.FilePath  ( (</>), splitDirectories )
+import RIO.List      ( scanl1 )
 ```
 
 ``` {.haskell #file-io-prim}
-ensureDir :: (MonadIO m, MonadThrow m) => FilePath -> m ()
-ensureDir path =
-    selectM (throwM $ SystemError $ "cannot create dir: `" <> (T.pack path)
-                                <> "`, exists and is a file")
-            [ (isDir path,          return ())
-            , (not <$> exists path, liftIO $ mkdir (fromFilePath path) mode) ]
-    where mode = 0o0775
+ensurePath :: (MonadIO m, MonadLogger m) => FilePath -> m ()
+ensurePath path = selectM (return ())
+    [ ( not <$> doesDirectoryExist path
+      , logInfoN ("creating directory `" <> (T.pack path) <> "`")
+        >> createDirectoryIfMissing True path ) ]
+```
+
+``` {.haskell #file-io-prim}
+rmDirIfEmpty :: (MonadIO m, MonadThrow m, MonadLogger m) => FilePath -> m ()
+rmDirIfEmpty path = selectM (return ())
+    [ ( not <$> doesDirectoryExist path
+      , throwM $ SystemError $ "could not remove dir: `" <> (T.pack path) <> "`")
+    , ( null <$> listDirectory path
+      , logInfoN ("removing empty directory `" <> (T.pack path) <> "`")
+        >> removeDirectory path ) ]
 
 parents :: FilePath -> [FilePath]
 parents = scanl1 (</>) . splitDirectories
 
-ensurePath :: (MonadIO m, MonadThrow m) => FilePath -> m ()
-ensurePath = mapM_ ensureDir . parents
-```
-
-Strictly, the `rmdir` function only does anything if the directory is empty. Somehow I feel better explicitly checking if the directory is empty.
-
-``` {.haskell #file-io-prim}
-isEmptyDir :: (MonadIO m, MonadThrow m) => FilePath -> m Bool
-isEmptyDir path =
-    selectM (return False)
-            [ (not <$> isDir path, return False)
-            , (null <$> ls,        return True) ]
-    where ls = liftIO $ scandir (fromFilePath path)
-
-rmDirIfEmpty :: (MonadIO m, MonadThrow m) => FilePath -> m ()
-rmDirIfEmpty path =
-    selectM (throwM $ SystemError $ "could not remove dir: `"
-                   <> (T.pack path) <> "` not a directory")
-            [ (isEmptyDir path, liftIO $ rmdir (fromFilePath path))
-            , (isDir path,      return ()) ]
-
-rmPathIfEmpty :: (MonadIO m, MonadThrow m) => FilePath -> m ()
+rmPathIfEmpty :: (MonadIO m, MonadThrow m, MonadLogger m) => FilePath -> m ()
 rmPathIfEmpty = mapM_ rmDirIfEmpty . reverse . parents
-```
-
-### Remove file
-
-``` {.haskell #file-io-imports}
-import Std.IO.FileSystem ( unlink )
-```
-
-``` {.haskell #file-io-prim}
-removeFile :: (MonadIO m, MonadThrow m) => FilePath -> m ()
-removeFile path = liftIO $
-    (unlink (fromFilePath path)) `catches`
-        [ Handler (\ (InappropriateType ioe :: InappropriateType) -> throwEx ioe)
-        , Handler (\ (NoSuchThing ioe :: NoSuchThing) -> throwEx ioe) ]
-    where throwEx ioe = throwM $ SystemError $ "could not remove `" 
-            <> (T.pack path) <> "`, " <> (T.pack $ ioeDescription ioe)
 ```
 
 ### Write file
 
 ``` {.haskell #file-io-imports}
-import Std.IO.Resource   ( withResource )
-import Std.IO.FileSystem ( fsync, initUVFile, UVFileFlag(..) )
-import Std.IO.Buffered   ( newBufferedInput, newBufferedOutput, defaultChunkSize
-                         , readAll', writeBuffer, flushBuffer )
+import RIO.File ( writeBinaryFileDurable )
+import qualified RIO.ByteString as B
+import Control.Exception ( IOException )
 ```
 
 ``` {.haskell #file-io-prim}
-writeIfChanged :: (MonadIO m, MonadThrow m) => FilePath -> Text -> m ()
-writeIfChanged path text = liftIO $ withResource openFile $ \file -> do
-        input <- newBufferedInput file defaultChunkSize
-        old_content <- readAll' input
-        new_content <- textToBytes text
-        if old_content == new_content
-            then return ()
-            else do
-                output <- newBufferedOutput file defaultChunkSize
-                writeBuffer output new_content
-                flushBuffer output
-        fsync file
-    where openFile = initUVFile (fromFilePath path) (O_CREAT .|. O_RDWR) DEFAULT_MODE
+writeIfChanged :: (MonadIO m, MonadThrow m, MonadLogger m) => FilePath -> Text -> m ()
+writeIfChanged path text = do
+    old_content' <- liftIO $ try $ B.readFile path
+    case (old_content' :: Either IOException B.ByteString) of
+        Right old_content | old_content == new_content -> return ()
+                          | otherwise                  -> write
+        Left  _                                        -> write
+    where new_content = T.encodeUtf8 text
+          write       = logInfoN ("writing `" <> (T.pack path) <> "`")
+                      >> writeBinaryFileDurable path new_content
 ```
 
 ## FileIO instance
 
-``` {.haskell #user-io-imports}
-import System.FilePath (takeDirectory)
+``` {.haskell #file-io-imports}
+import RIO.FilePath         ( takeDirectory )
+import Control.Monad.Logger ( MonadLogger, MonadLoggerIO, LoggingT, logInfoN
+                            , runStderrLoggingT )
 ```
 
-``` {.haskell #user-io-instance}
+``` {.haskell #file-io-instance}
 newtype FileIO a = FileIO { unFileIO :: LoggingT IO a }
     deriving (Applicative, Functor, Monad, MonadIO, MonadThrow, MonadLogger, MonadLoggerIO)
 
+runFileIO :: ( MonadIO m ) => FileIO a -> m a
+runFileIO = liftIO . runStderrLoggingT . unFileIO
+
 instance MonadFileIO FileIO where
-    writeFile path text = logInfoN $ "writing `" <> (T.pack path) <> "`"
-                        >> ensurePath (takeDirectory path)
+    writeFile path text = ensurePath (takeDirectory path)
                         >> writeIfChanged path text
 
-    deleteFile path     = logInfoN $ "deleting `" <> (T.pack path) <> "`"
+    deleteFile path     = logInfoN ("deleting `" <> (T.pack path) <> "`")
                         >> removeFile path
                         >> rmPathIfEmpty (takeDirectory path)
 
-    readFile path       = logInfoN $ "reading `" <> (T.pack path) <> "`"
-                        >> T.IO.readFile path
-```
-
-``` {.haskell #user-io}
-tryReadFile :: MonadIO m => FilePath -> m (Maybe Text)
-tryReadFile f = liftIO $ do
-    exists <- doesFileExist f
-    if exists
-        then Just <$> T.IO.readFile f
-        else return Nothing
-
-changeFile :: (MonadIO m) => FilePath -> Text -> m Transaction
-changeFile filename text = do
-    rel_path <- liftIO $ makeRelativeToCurrentDirectory filename
-    liftIO $ createDirectoryIfMissing True (takeDirectory filename)
-    oldText <- tryReadFile filename
-    case oldText of
-        Just ot -> if ot /= text
-            then return $ Transaction (Just $ T.IO.writeFile filename text)
-                                   (Console.msgOverwrite rel_path) False
-            else return mempty
-        Nothing -> return $ Transaction (Just $ T.IO.writeFile filename text)
-                                     (Console.msgCreate rel_path) False
-
-removeIfExists :: FilePath -> Transaction
-removeIfExists f =
-    plan (do
-        fileExists <- doesFileExist f
-        when fileExists $ removeFile f)
-    <> doc (Console.msgDelete f)
-
+    readFile path       = logInfoN ("reading `" <> (T.pack path) <> "`")
+                        >> readFile path
 ```
 
 These are IO actions that need logging, possible confirmation by the user and execution. Also, using this we can do some mock testing.

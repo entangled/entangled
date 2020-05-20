@@ -61,7 +61,8 @@ import System.Directory
     ( canonicalizePath
     , doesFileExist
     , createDirectoryIfMissing
-    , makeRelativeToCurrentDirectory )
+    , makeRelativeToCurrentDirectory
+    , removeFile )
 
 -- ------ begin <<daemon-events>>[0] project://lit/10-daemon.md
 data DaemonState

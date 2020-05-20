@@ -25,7 +25,8 @@ import System.Directory
     ( canonicalizePath
     , doesFileExist
     , createDirectoryIfMissing
-    , makeRelativeToCurrentDirectory )
+    , makeRelativeToCurrentDirectory
+    , removeFile )
 
 <<daemon-events>>
 <<daemon-session>>
