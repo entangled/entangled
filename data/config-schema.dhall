@@ -49,11 +49,11 @@ let languages =
 let Config =
     { Type =
         { languages : List Language
-        , watchList : Optional (List Text)
+        , watchList : List Text
         , database  : Optional Text }
     , default =
         { languages = languages
-        , watchList = None (List Text)
+        , watchList = [] : List Text
         , database  = None Text }
     }
 
