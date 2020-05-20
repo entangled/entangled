@@ -1,40 +1,91 @@
-let Comment : Type = < Line : Text | Block : { start : Text, end : Text } >
-let Language : Type = { name : Text, identifiers : List Text, comment : Comment, jupyter : Optional Text }
+{- Entangled configuration file
+    ============================
+  
+    This configuration uses the Dhall language, see https://dhall-lang.org/.
+  
+    This file represents a record, as can be seen from the `let ... in { ... }`
+    structure. Configuration for the Entangled daemon and command-line utility
+    is stored in the `entangled` member of the record. Other fields are open
+    for use by `pandoc` filters or other tools.
+  
+    If you want to check the configuration for correctness, run
+  
+        dhall lint <<< ./entangled.dhall
+  -}
 
-let Config : Type =
-    { languages : List Language
-    , watchList : Optional (List Text)
-    , database  : Optional Text }
+{- Schema
+   ------
+  
+   The schema is loaded here. It is recommended to use a schema from a
+   released version of Entangled.
+  
+       let entangled = https://raw.githubusercontent.com/entangled/entangled/v1.0.0/data/config-schema.dhall
+                       sha256:3fd83a15e2ed592e5e15b123cfdb955fb46cc8473f03963bbed88322c13db5bf
+  
+   The hash is not needed, but it ensures that you get the version you're
+   expecting to, or raise an error.
+  
+   TODO: Update this line, since v1.0.0 is not out yet.
+  -}
+let entangled = https://raw.githubusercontent.com/entangled/entangled/develop/data/config-schema.dhall
+              sha256:2bc506e1dda5b0d3db168c68d3da09879103a5c533ee91a3ef6edbd55613d99e
 
-let hashComment         : Comment = Comment.Line "#"
-let lispStyleComment    : Comment = Comment.Line ";"
-let cStyleComment       : Comment = Comment.Block { start = "/*", end = "*/" }
-let cppStyleComment     : Comment = Comment.Line "//"
-let haskellStyleComment : Comment = Comment.Line "--"
-let mlStyleComment      : Comment = Comment.Block { start = "(*", end = "*)" }
-let xmlStyleComment     : Comment = Comment.Block { start = "<!--", end = "-->" }
+{- Languages
+   ---------
+  
+   Entangled has many programming languages configured by default. If your
+   favourite is not in there you can add them here. The most common commenting
+   patterns are included in `entangled.comments`
+  
+        | name         | comment pattern |
+        | ------------ | --------------- |
+        | hash         | `# ...`         |
+        | lispStyle    | `; ...`         |
+        | mlStyle      | `(* ... *)`     |
+        | cStyle       | `/* ... */`     |
+        | cppStyle     | `// ...`        |
+        | haskellStyle | `-- ...`        |
+        | texStyle     | `% ...`         |
+        | xmlStyle     | `<!-- ... -->`  |
+    
+   The language identifiers are the classes that can be used to identify a code
+   block is in a certain language. So,
+  
+        ``` {.c++ #hello}
+        std::cout << "Hello, World!\n";
+        ```
+  
+   is recognized as a C++ block, because `c++` is in the identifier list of the C++
+   language. In this example we add some esotheric languages.
+  -}
+let intercalComment = entangled.Comment.Line "PLEASE NOTE: "
 
-in { languages =
-    [ { name = "CSS"
-      , identifiers = ["css"]
-      , comment = cStyleComment
-      , jupyter = None Text }
-
-    , { name = "Python"
-      , identifiers = ["py", "python", "python3"]
-      , comment = hashComment
-      , jupyter = Some "python3" }
-
-    , { name = "Scheme"
-      , identifiers = ["scheme", "r6rs", "r7rs"]
-      , comment = lispStyleComment
-      , jupyter = Some "guile" } 
-
-    , { name = "C++"
-      , identifiers = ["cpp", "c++"]
-      , comment = cppStyleComment
-      , jupyter = None Text }
+let languages = entangled.languages #
+    [ { name = "Unlambda", identifiers = ["unlambda"], comment = entangled.comments.hash }
+    , { name = "Intercal", identifiers = ["intercal"], comment = intercalComment }
     ]
-   , watchList = Some ["lit/*.md"]
-   , database  = None Text
-   } : Config
+
+{- Database
+   --------
+  
+   Entangled is powered by SQLite3. This specifies where the database is
+   stored.  An entry of `None Text`, which is the default, keeps the database
+   in memory, but this way you cannot insert new files on a running daemon.
+  -}
+let database = Some ".entangled/db"
+
+{- Watch list
+   ----------
+  
+   List of glob patterns that the daemon needs to watch for changes. The order
+   in which files are listed here matters. If code blocks append on previous
+   blocks in different files, the blocks are concatenated in the same order as
+   the files are listed here. In the case of a glob pattern, this is
+   alpha-numerical order (same as `ls`).
+  -}
+let watchList = [ "lit/*.md" ]
+
+in { entangled = entangled.Config :: { database = database
+                                     , watchList = watchList
+                                     , languages = languages } }
+
