@@ -27,6 +27,7 @@ import Control.Exception ( IOException )
 -- ------ end
 -- ------ begin <<file-io-imports>>[3] project://lit/a4-fileio.md
 import RIO.FilePath         ( takeDirectory )
+import RIO.Text             ( decodeUtf8With, lenientDecode )
 import Control.Monad.Logger ( MonadLogger, MonadLoggerIO, LoggingT, logInfoN
                             , runStderrLoggingT )
 -- ------ end
@@ -86,6 +87,7 @@ instance MonadFileIO FileIO where
                         >> rmPathIfEmpty (takeDirectory path)
 
     readFile path       = logInfoN ("reading `" <> (T.pack path) <> "`")
-                        >> readFile path
+                        >> B.readFile path
+                        >>= return . decodeUtf8With lenientDecode
 -- ------ end
 -- ------ end

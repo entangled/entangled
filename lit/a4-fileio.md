@@ -168,6 +168,7 @@ writeIfChanged path text = do
 
 ``` {.haskell #file-io-imports}
 import RIO.FilePath         ( takeDirectory )
+import RIO.Text             ( decodeUtf8With, lenientDecode )
 import Control.Monad.Logger ( MonadLogger, MonadLoggerIO, LoggingT, logInfoN
                             , runStderrLoggingT )
 ```
@@ -188,7 +189,8 @@ instance MonadFileIO FileIO where
                         >> rmPathIfEmpty (takeDirectory path)
 
     readFile path       = logInfoN ("reading `" <> (T.pack path) <> "`")
-                        >> readFile path
+                        >> B.readFile path
+                        >>= return . decodeUtf8With lenientDecode
 ```
 
 These are IO actions that need logging, possible confirmation by the user and execution. Also, using this we can do some mock testing.
