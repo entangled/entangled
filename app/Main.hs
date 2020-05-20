@@ -42,6 +42,7 @@ import Database.SQLite.Simple
 import Stitch (stitch)
 -- ------ end
 
+import Paths_entangled
 import Comment
 import Document
 import Select (select)
@@ -92,7 +93,7 @@ parseArgs = Args
           -- ------ end
           -- ------ begin <<sub-parsers>>[1] project://lit/12-main.md
           <> command "config" (info (pure CommandConfig <**> helper)
-                                    (progDesc "Print the default configuration."))
+                                    (progDesc "Print an example configuration."))
           -- ------ end
           -- ------ begin <<sub-parsers>>[2] project://lit/12-main.md
           <> command "insert" (info parseInsertArgs ( progDesc "Insert markdown files into database." ))
@@ -184,14 +185,14 @@ run :: Args -> IO ()
 run Args{..}
     | versionFlag       = putStrLn "Entangled 1.0.0"
     | otherwise         = do
-        config <- configStack
+        config <- readLocalConfig
         case subCommand of
             NoCommand -> return ()
             -- ------ begin <<sub-runners>>[0] project://lit/12-main.md
             CommandDaemon a -> runSession config
             -- ------ end
             -- ------ begin <<sub-runners>>[1] project://lit/12-main.md
-            CommandConfig -> T.IO.putStrLn "NYI" -- T.IO.putStrLn $ Toml.encode configCodec config
+            CommandConfig -> runPrintExampleConfig
             -- ------ end
             -- ------ begin <<sub-runners>>[2] project://lit/12-main.md
             CommandInsert (InsertArgs SourceFile fs) -> runFileIO $ runInsertSources config fs
@@ -305,5 +306,10 @@ runClearOrphans cfg = do
         clearOrphanTargets
         return r
     mapM_ deleteFile lst
+-- ------ end
+-- ------ begin <<main-run>>[6] project://lit/12-main.md
+runPrintExampleConfig :: IO ()
+runPrintExampleConfig =
+    T.IO.putStr =<< T.IO.readFile =<< getDataFileName "data/example-config.dhall"
 -- ------ end
 -- ------ end

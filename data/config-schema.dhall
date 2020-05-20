@@ -1,6 +1,8 @@
+-- ------ language="Dhall" file="data/config-schema.dhall" project://lit/04-configuration.md#6
 let Comment : Type = < Line : Text | Block : { start : Text, end : Text } >
 let Language : Type = { name : Text, identifiers : List Text, comment : Comment }
 
+-- ------ begin <<config-comment-styles>>[0] project://lit/04-configuration.md#34
 let comments =
     { hash         = Comment.Line "#"
     , lispStyle    = Comment.Line ";"
@@ -11,7 +13,8 @@ let comments =
     , xmlStyle     = Comment.Block { start = "<!--", end = "-->" }
     , texStyle     = Comment.Line "%"
     }
-
+-- ------ end
+-- ------ begin <<config-languages>>[0] project://lit/04-configuration.md#47
 let languages =
     [ { name = "Awk",        identifiers = ["awk"],           comment = comments.hash }
     , { name = "C",          identifiers = ["c"],             comment = comments.cStyle }
@@ -45,6 +48,7 @@ let languages =
                                                               comment = comments.cppStyle }
     , { name = "YAML",       identifiers = ["yaml"],          comment = comments.hash }
     ]
+-- ------ end
 
 let Config =
     { Type =
@@ -63,3 +67,4 @@ in { Comment   = Comment
    , comments  = comments
    , languages = languages
    }
+-- ------ end

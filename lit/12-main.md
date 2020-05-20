@@ -75,7 +75,7 @@ run :: Args -> IO ()
 run Args{..}
     | versionFlag       = putStrLn "Entangled 1.0.0"
     | otherwise         = do
-        config <- configStack
+        config <- readLocalConfig
         case subCommand of
             NoCommand -> return ()
             <<sub-runners>>
@@ -124,11 +124,11 @@ import qualified Dhall
 
 ``` {.haskell #sub-parsers}
 <> command "config" (info (pure CommandConfig <**> helper) 
-                          (progDesc "Print the default configuration."))
+                          (progDesc "Print an example configuration."))
 ```
 
 ``` {.haskell #sub-runners}
-CommandConfig -> T.IO.putStrLn "NYI" -- T.IO.putStrLn $ Toml.encode configCodec config
+CommandConfig -> runPrintExampleConfig
 ```
 
 ### Inserting files to the database
@@ -258,6 +258,7 @@ module Main where
 
 <<main-imports>>
 
+import Paths_entangled
 import Comment
 import Document
 import Select (select)
@@ -403,4 +404,12 @@ runClearOrphans cfg = do
         clearOrphanTargets
         return r
     mapM_ deleteFile lst
+```
+
+## Print example config
+
+``` {.haskell #main-run}
+runPrintExampleConfig :: IO ()
+runPrintExampleConfig =
+    T.IO.putStr =<< T.IO.readFile =<< getDataFileName "data/example-config.dhall"
 ```
