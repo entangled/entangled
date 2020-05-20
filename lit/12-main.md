@@ -3,6 +3,7 @@
 The main program runs the daemon, but also provides a number of commands to inspect and manipulate the database.
 
 ``` {.haskell #main-imports}
+import Prelude hiding (readFile, writeFile)
 <<import-text>>
 import qualified Data.Text.IO as T.IO
 import qualified Data.Map.Lazy as LM
@@ -72,7 +73,7 @@ import Config
 ``` {.haskell #main-run}
 run :: Args -> IO ()
 run Args{..}
-    | versionFlag       = putStrLn "enTangleD 1.0.0"
+    | versionFlag       = putStrLn "Entangled 1.0.0"
     | otherwise         = do
         config <- configStack
         case subCommand of
@@ -85,7 +86,7 @@ This way we can add sub-commands independently in the following sections.
 ### Starting the daemon
 
 ``` {.haskell #main-imports}
-import Daemon
+import Daemon (runSession)
 ```
 
 ``` {.haskell #sub-commands}
@@ -159,8 +160,8 @@ parseInsertArgs = CommandInsert <$> (InsertArgs
 ```
 
 ``` {.haskell #sub-runners}
-CommandInsert (InsertArgs SourceFile fs) -> runLoggingIO $ runInsertSources config fs
-CommandInsert (InsertArgs TargetFile fs) -> runLoggingIO $ runInsertTargets config fs
+CommandInsert (InsertArgs SourceFile fs) -> runFileIO $ runInsertSources config fs
+CommandInsert (InsertArgs TargetFile fs) -> runFileIO $ runInsertTargets config fs
 ```
 
 ### Tangling a single reference
@@ -193,7 +194,7 @@ parseTangleArgs = TangleArgs
 ```
 
 ``` {.haskell #sub-runners}
-CommandTangle a -> runLoggingIO $ runTangle config a
+CommandTangle a -> runFileIO $ runTangle config a
 ```
 
 ### Stitching a markdown source
@@ -218,7 +219,7 @@ parseStitchArgs = StitchArgs
 ```
 
 ``` {.haskell #sub-runners}
-CommandStitch a -> runLoggingIO $ runStitch config a
+CommandStitch a -> runFileIO $ runStitch config a
 ```
 
 ### Listing all target files
@@ -232,7 +233,22 @@ CommandStitch a -> runLoggingIO $ runStitch config a
 ```
 
 ``` {.haskell #sub-runners}
-CommandList -> runLoggingIO $ runList config
+CommandList -> runFileIO $ runList config
+```
+
+### Cleaning orphan targets
+This action deletes orphan targets from both the database and the file system.
+
+``` {.haskell #sub-commands}
+| CommandClearOrphans
+```
+
+``` {.haskell #sub-parsers}
+<> command "clear-orphans" (info (pure CommandClearOrphans <**> helper) ( progDesc "Deletes orphan targets." ))
+```
+
+``` {.haskell #sub-runners}
+CommandClearOrphans -> runFileIO $ runClearOrphans config
 ```
 
 ## Main
@@ -246,8 +262,9 @@ import Comment
 import Document
 import Select (select)
 import System.Exit
-import Tangle (parseMarkdown, expandedCode, annotateNaked)
+import Tangle (parseMarkdown, expandedCode, annotateNaked, annotateComment')
 import TextUtil
+import FileIO
 
 <<main-options>>
 
@@ -260,12 +277,6 @@ main = do
             <> progDesc "Automatically tangles and untangles 'FILES...'."
             <> header   "enTangleD -- daemonised literate programming"
             )
-
-newtype LoggingIO a = LoggingIO { unLoggingIO :: LoggingT IO a }
-    deriving ( Applicative, Functor, Monad, MonadIO, MonadLogger, MonadLoggerIO, MonadThrow )
-
-runLoggingIO :: LoggingIO a -> IO a
-runLoggingIO x = runStdoutLoggingT $ unLoggingIO x
 
 <<main-run>>
 ```
@@ -282,18 +293,7 @@ import Database.SQLite.Simple
 ## Tangle
 
 ``` {.haskell #main-run}
-changeFile' :: (MonadIO m) => FilePath -> Text -> m ()
-changeFile' filename text = do
-    rel_path <- liftIO $ makeRelativeToCurrentDirectory filename
-    liftIO $ createDirectoryIfMissing True (takeDirectory filename)
-    oldText <- tryReadFile filename
-    case oldText of
-        Just ot -> if ot /= text
-            then liftIO $ T.IO.writeFile filename text
-            else return ()
-        Nothing -> liftIO $ T.IO.writeFile filename text
-
-runTangle :: Config -> TangleArgs -> LoggingIO ()
+runTangle :: Config -> TangleArgs -> FileIO ()
 runTangle cfg TangleArgs{..} = do
     dbPath <- getDatabasePath cfg
     withSQL dbPath $ do 
@@ -318,13 +318,13 @@ runTangle cfg TangleArgs{..} = do
             TangleFile f  -> tangleFile f >>= (\x -> liftIO $ T.IO.putStr x)
             TangleAll -> do
                 fs <- listTargetFiles
-                mapM_ (\f -> tangleFile f >>= changeFile' f) fs 
+                mapM_ (\f -> tangleFile f >>= (runFileIO . writeFile f)) fs 
 ```
 
 ## Stitch
 
 ``` {.haskell #main-run}
-runStitch :: Config -> StitchArgs -> LoggingIO ()
+runStitch :: Config -> StitchArgs -> FileIO ()
 runStitch config StitchArgs{..} = do 
     dbPath <- getDatabasePath config
     text <- withSQL dbPath $ do 
@@ -336,7 +336,7 @@ runStitch config StitchArgs{..} = do
 ## List
 
 ``` {.haskell #main-run}
-runList :: Config -> LoggingIO ()
+runList :: Config -> FileIO ()
 runList cfg = do
     dbPath <- getDatabasePath cfg
     lst <- withSQL dbPath $ do 
@@ -352,15 +352,15 @@ import Stitch (stitch)
 ```
 
 ``` {.haskell #main-run}
-runInsertSources :: Config -> [FilePath] -> LoggingIO ()
+runInsertSources :: Config -> [FilePath] -> FileIO ()
 runInsertSources cfg files = do
     dbPath <- getDatabasePath cfg
     logInfoN $ "inserting files: " <> tshow files
     withSQL dbPath $ createTables >> mapM_ readDoc files
     where readDoc f = do
-            doc <- runReaderT (liftIO (T.IO.readFile f) >>= parseMarkdown f) cfg
+            doc <- runReaderT (runFileIO (readFile f) >>= parseMarkdown f) cfg
             case doc of
-                Left e -> liftIO $ T.IO.putStrLn ("warning: " <> tshow e)
+                Left e -> liftIO $ T.IO.putStrLn ("error: " <> tshow e)
                 Right d -> insertDocument f d
 
 deduplicateRefs :: [ReferencePair] -> SQL [ReferencePair]
@@ -379,15 +379,28 @@ deduplicateRefs refs = dedup sorted
                                     [(s1 == c && s2 /= c, dedup ((ref2, code2) : xs))
                                     ,(s1 /= c && s2 == c, dedup ((ref1, code1) : xs))]
 
-runInsertTargets :: Config -> [FilePath] -> LoggingIO ()
+runInsertTargets :: Config -> [FilePath] -> FileIO ()
 runInsertTargets cfg files = do
     dbPath <- getDatabasePath cfg
     logInfoN $ "inserting files: " <> tshow files
     withSQL dbPath $ createTables >> mapM_ readTgt files
     where readTgt f = do
-            refs' <- runReaderT (liftIO (T.IO.readFile f) >>= stitch f) cfg
+            refs' <- runReaderT (runFileIO (readFile f) >>= stitch f) cfg
             case refs' of
                 Left err -> logErrorN $ "Error loading '" <> T.pack f <> "': " <> formatError err
                 Right refs -> updateTarget =<< deduplicateRefs refs
 ```
 
+## Clear orphans
+
+``` {.haskell #main-run}
+runClearOrphans :: Config -> FileIO ()
+runClearOrphans cfg = do
+    dbPath <- getDatabasePath cfg
+    lst <- withSQL dbPath $ do 
+        createTables
+        r <- listOrphanTargets
+        clearOrphanTargets
+        return r
+    mapM_ deleteFile lst
+```

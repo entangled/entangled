@@ -423,6 +423,9 @@ We have two types of annotators:
 ``` {.haskell #generate-code}
 annotateNaked :: ReferenceMap -> ReferenceId -> Either EntangledError Text
 annotateNaked refs ref = Right $ codeSource $ refs M.! ref
+
+annotateComment' :: Config -> Annotator
+annotateComment' cfg rmap rid = runReaderT (annotateComment rmap rid) cfg
 ```
 
 * Commenting annotator: adds annotations in comments, from which we can locate the original code block.
@@ -430,7 +433,7 @@ annotateNaked refs ref = Right $ codeSource $ refs M.! ref
 We put comments in a separate module, where we also address parsing back the generated comments.
 
 ``` {.haskell #tangle-imports}
--- import Comment (annotateComment)
+import Comment (annotateComment)
 ```
 
 ## Entangled comments

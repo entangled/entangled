@@ -1,0 +1,9 @@
+9,15d8
+< ```
+< 
+< ``` {.scheme file=sits/unchanged.scm}
+< (define Y
+<   (lambda (h)
+<     ((lambda (x) (h (lambda (a) ((x x) a))))
+<      (lambda (x) (h (lambda (a) ((x x) a)))))))
+

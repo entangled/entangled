@@ -78,7 +78,7 @@ import Database.SQLite.Simple
 import Document
 import Config
 import Database
-import Tangle (parseMarkdown, expandedCode, Annotator)
+import Tangle (parseMarkdown, expandedCode, Annotator, annotateComment')
 import Comment
 import Stitch (stitch)
 import Transaction
@@ -272,9 +272,6 @@ import qualified Data.Map.Lazy as LM
 ```
 
 ``` {.haskell #daemon-writing}
-annotateComment' :: Config -> Annotator
-annotateComment' cfg rmap rid = runReaderT (annotateComment rmap rid) cfg
-
 writeTargetFile :: FilePath -> Daemon ()
 writeTargetFile rel_path = do
     cfg <- ask

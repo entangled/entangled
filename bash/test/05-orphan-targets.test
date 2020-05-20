@@ -1,0 +1,18 @@
+entangled insert -s test-05.md
+entangled tangle -a
+assert-exists "file 'sits/in/nested/directories.scm' is created" "sits/in/nested/directories.scm"
+assert-exists "file 'sits/unchanged.scm' is created" "sits/unchanged.scm"
+patch -s test-05.md test-05-a.diff
+entangled insert -s test-05.md
+entangled tangle -a
+assert-exists "file 'sits/in/nested/directories.scm' still exists" "sits/in/nested/directories.scm"
+entangled clear-orphans
+assert-not-exists "directory 'sits/in' is removed" "sits/in"
+patch -s test-05.md test-05-b.diff
+entangled insert -s test-05.md
+entangled tangle -a
+entangled clear-orphans
+assert-not-exists "file 'sits/unchanged.scm is removed" "sits/unchanged.scm"
+assert-exists "file 'sits/directories.scm' still exists" "sits/directories.scm"
+
+# vim:ft=bash

@@ -25,7 +25,7 @@ import Database.SQLite.Simple
 import Document
 import Config
 import Database
-import Tangle (parseMarkdown, expandedCode, Annotator)
+import Tangle (parseMarkdown, expandedCode, Annotator, annotateComment')
 import Comment
 import Stitch (stitch)
 import Transaction
@@ -167,10 +167,7 @@ loadTargetFile abs_path = do
         Right refs ->
             db $ updateTarget refs
 -- ------ end
--- ------ begin <<daemon-writing>>[0] project://lit/10-daemon.md
-annotateComment' :: Config -> Annotator
-annotateComment' cfg rmap rid = runReaderT (annotateComment rmap rid) cfg
-
+-- ------ begin <<daemon-writing>>[0] project://src/Daemon.hs#30
 writeTargetFile :: FilePath -> Daemon ()
 writeTargetFile rel_path = do
     cfg <- ask

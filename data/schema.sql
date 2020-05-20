@@ -54,12 +54,12 @@ create table if not exists "content"
     );
     -- , check ("plain" is not null or ("codeName" is not null and "codeOrdinal" is not null)) )
 -- ------ end
--- ------ begin <<schema>>[4] project://lit/03-database.md#274
+-- ------ begin <<schema>>[4] project://data/schema.sql#15
 create table if not exists "targets"
-    ( "filename"  text not null unique
+    ( "filename"  text primary key
     , "codename"  text not null
     , "language"  text not null
-    , "document"  integer not null
+    , "document"  integer          -- in case this is null, the target is orphaned
     , "time"      timestamp default current_timestamp not null
     -- , foreign key ("codename") references "codes"("name")
     , foreign key ("document") references "documents"("id")

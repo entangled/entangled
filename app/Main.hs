@@ -1,7 +1,8 @@
--- ------ language="Haskell" file="app/Main.hs" project://app/Main.hs#2
+-- ------ language="Haskell" file="app/Main.hs" project://lit/12-main.md
 module Main where
 
 -- ------ begin <<main-imports>>[0] project://lit/12-main.md
+import Prelude hiding (readFile, writeFile)
 -- ------ begin <<import-text>>[0] project://lit/01-entangled.md
 import qualified Data.Text as T
 import Data.Text (Text)
@@ -28,7 +29,7 @@ import Options.Applicative
 import Config
 -- ------ end
 -- ------ begin <<main-imports>>[4] project://lit/12-main.md
-import Daemon
+import Daemon (runSession)
 -- ------ end
 -- ------ begin <<main-imports>>[5] project://lit/12-main.md
 import qualified Dhall
@@ -45,8 +46,9 @@ import Comment
 import Document
 import Select (select)
 import System.Exit
-import Tangle (parseMarkdown, expandedCode, annotateNaked)
+import Tangle (parseMarkdown, expandedCode, annotateNaked, annotateComment')
 import TextUtil
+import FileIO
 
 -- ------ begin <<main-options>>[0] project://lit/12-main.md
 data Args = Args
@@ -72,6 +74,9 @@ data SubCommand
     -- ------ end
     -- ------ begin <<sub-commands>>[5] project://lit/12-main.md
     | CommandList
+    -- ------ end
+    -- ------ begin <<sub-commands>>[6] project://lit/12-main.md
+    | CommandClearOrphans
     -- ------ end
 -- ------ end
 -- ------ begin <<main-options>>[1] project://lit/12-main.md
@@ -100,6 +105,9 @@ parseArgs = Args
           -- ------ end
           -- ------ begin <<sub-parsers>>[5] project://lit/12-main.md
           <> command "list" (info (pure CommandList <**> helper) ( progDesc "List generated code files." ))
+          -- ------ end
+          -- ------ begin <<sub-parsers>>[6] project://lit/12-main.md
+          <> command "clear-orphans" (info (pure CommandClearOrphans <**> helper) ( progDesc "Deletes orphan targets." ))
           -- ------ end
         ) <|> parseNoCommand )
 -- ------ end
@@ -171,16 +179,10 @@ main = do
             <> header   "enTangleD -- daemonised literate programming"
             )
 
-newtype LoggingIO a = LoggingIO { unLoggingIO :: LoggingT IO a }
-    deriving ( Applicative, Functor, Monad, MonadIO, MonadLogger, MonadLoggerIO, MonadThrow )
-
-runLoggingIO :: LoggingIO a -> IO a
-runLoggingIO x = runStdoutLoggingT $ unLoggingIO x
-
 -- ------ begin <<main-run>>[0] project://lit/12-main.md
 run :: Args -> IO ()
 run Args{..}
-    | versionFlag       = putStrLn "enTangleD 1.0.0"
+    | versionFlag       = putStrLn "Entangled 1.0.0"
     | otherwise         = do
         config <- configStack
         case subCommand of
@@ -192,32 +194,24 @@ run Args{..}
             CommandConfig -> T.IO.putStrLn "NYI" -- T.IO.putStrLn $ Toml.encode configCodec config
             -- ------ end
             -- ------ begin <<sub-runners>>[2] project://lit/12-main.md
-            CommandInsert (InsertArgs SourceFile fs) -> runLoggingIO $ runInsertSources config fs
-            CommandInsert (InsertArgs TargetFile fs) -> runLoggingIO $ runInsertTargets config fs
+            CommandInsert (InsertArgs SourceFile fs) -> runFileIO $ runInsertSources config fs
+            CommandInsert (InsertArgs TargetFile fs) -> runFileIO $ runInsertTargets config fs
             -- ------ end
             -- ------ begin <<sub-runners>>[3] project://lit/12-main.md
-            CommandTangle a -> runLoggingIO $ runTangle config a
+            CommandTangle a -> runFileIO $ runTangle config a
             -- ------ end
             -- ------ begin <<sub-runners>>[4] project://lit/12-main.md
-            CommandStitch a -> runLoggingIO $ runStitch config a
+            CommandStitch a -> runFileIO $ runStitch config a
             -- ------ end
             -- ------ begin <<sub-runners>>[5] project://lit/12-main.md
-            CommandList -> runLoggingIO $ runList config
+            CommandList -> runFileIO $ runList config
+            -- ------ end
+            -- ------ begin <<sub-runners>>[6] project://lit/12-main.md
+            CommandClearOrphans -> runFileIO $ runClearOrphans config
             -- ------ end
 -- ------ end
 -- ------ begin <<main-run>>[1] project://lit/12-main.md
-changeFile' :: (MonadIO m) => FilePath -> Text -> m ()
-changeFile' filename text = do
-    rel_path <- liftIO $ makeRelativeToCurrentDirectory filename
-    liftIO $ createDirectoryIfMissing True (takeDirectory filename)
-    oldText <- tryReadFile filename
-    case oldText of
-        Just ot -> if ot /= text
-            then liftIO $ T.IO.writeFile filename text
-            else return ()
-        Nothing -> liftIO $ T.IO.writeFile filename text
-
-runTangle :: Config -> TangleArgs -> LoggingIO ()
+runTangle :: Config -> TangleArgs -> FileIO ()
 runTangle cfg TangleArgs{..} = do
     dbPath <- getDatabasePath cfg
     withSQL dbPath $ do
@@ -242,10 +236,10 @@ runTangle cfg TangleArgs{..} = do
             TangleFile f  -> tangleFile f >>= (\x -> liftIO $ T.IO.putStr x)
             TangleAll -> do
                 fs <- listTargetFiles
-                mapM_ (\f -> tangleFile f >>= changeFile' f) fs
+                mapM_ (\f -> tangleFile f >>= (runFileIO . writeFile f)) fs
 -- ------ end
 -- ------ begin <<main-run>>[2] project://lit/12-main.md
-runStitch :: Config -> StitchArgs -> LoggingIO ()
+runStitch :: Config -> StitchArgs -> FileIO ()
 runStitch config StitchArgs{..} = do
     dbPath <- getDatabasePath config
     text <- withSQL dbPath $ do
@@ -254,7 +248,7 @@ runStitch config StitchArgs{..} = do
     liftIO $ T.IO.putStrLn text
 -- ------ end
 -- ------ begin <<main-run>>[3] project://lit/12-main.md
-runList :: Config -> LoggingIO ()
+runList :: Config -> FileIO ()
 runList cfg = do
     dbPath <- getDatabasePath cfg
     lst <- withSQL dbPath $ do
@@ -262,16 +256,16 @@ runList cfg = do
         listTargetFiles
     liftIO $ T.IO.putStrLn $ unlines' $ map T.pack lst
 -- ------ end
--- ------ begin <<main-run>>[4] project://app/Main.hs#79
-runInsertSources :: Config -> [FilePath] -> LoggingIO ()
+-- ------ begin <<main-run>>[4] project://lit/12-main.md
+runInsertSources :: Config -> [FilePath] -> FileIO ()
 runInsertSources cfg files = do
     dbPath <- getDatabasePath cfg
     logInfoN $ "inserting files: " <> tshow files
     withSQL dbPath $ createTables >> mapM_ readDoc files
     where readDoc f = do
-            doc <- runReaderT (liftIO (T.IO.readFile f) >>= parseMarkdown f) cfg
+            doc <- runReaderT (runFileIO (readFile f) >>= parseMarkdown f) cfg
             case doc of
-                Left e -> liftIO $ T.IO.putStrLn ("warning: " <> tshow e)
+                Left e -> liftIO $ T.IO.putStrLn ("error: " <> tshow e)
                 Right d -> insertDocument f d
 
 deduplicateRefs :: [ReferencePair] -> SQL [ReferencePair]
@@ -290,15 +284,26 @@ deduplicateRefs refs = dedup sorted
                                     [(s1 == c && s2 /= c, dedup ((ref2, code2) : xs))
                                     ,(s1 /= c && s2 == c, dedup ((ref1, code1) : xs))]
 
-runInsertTargets :: Config -> [FilePath] -> LoggingIO ()
+runInsertTargets :: Config -> [FilePath] -> FileIO ()
 runInsertTargets cfg files = do
     dbPath <- getDatabasePath cfg
     logInfoN $ "inserting files: " <> tshow files
     withSQL dbPath $ createTables >> mapM_ readTgt files
     where readTgt f = do
-            refs' <- runReaderT (liftIO (T.IO.readFile f) >>= stitch f) cfg
+            refs' <- runReaderT (runFileIO (readFile f) >>= stitch f) cfg
             case refs' of
                 Left err -> logErrorN $ "Error loading '" <> T.pack f <> "': " <> formatError err
                 Right refs -> updateTarget =<< deduplicateRefs refs
+-- ------ end
+-- ------ begin <<main-run>>[5] project://lit/12-main.md
+runClearOrphans :: Config -> FileIO ()
+runClearOrphans cfg = do
+    dbPath <- getDatabasePath cfg
+    lst <- withSQL dbPath $ do
+        createTables
+        r <- listOrphanTargets
+        clearOrphanTargets
+        return r
+    mapM_ deleteFile lst
 -- ------ end
 -- ------ end

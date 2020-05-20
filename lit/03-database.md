@@ -272,10 +272,10 @@ insertContent docId content = do
 
 ``` {.sqlite #schema}
 create table if not exists "targets"
-    ( "filename"  text not null unique
+    ( "filename"  text primary key
     , "codename"  text not null
     , "language"  text not null
-    , "document"  integer not null
+    , "document"  integer          -- in case this is null, the target is orphaned
     , "time"      timestamp default current_timestamp not null
     -- , foreign key ("codename") references "codes"("name")
     , foreign key ("document") references "documents"("id")
@@ -287,7 +287,7 @@ insertTargets :: Int64 -> FileMap -> SQL ()
 insertTargets docId files = do
         conn <- getConnection
         -- liftIO $ print rows
-        liftIO $ executeMany conn "insert into `targets`(`filename`,`codename`,`language`,`document`) values (?, ?, ?, ?)" rows
+        liftIO $ executeMany conn "replace into `targets`(`filename`,`codename`,`language`,`document`) values (?, ?, ?, ?)" rows
     where targetRow (path, (ReferenceName name, lang)) = (path, name, lang, docId)
           rows = map targetRow (M.toList files)
 ```
@@ -305,11 +305,21 @@ getDocumentId rel_path = do
         expectUnique' fromOnly =<< (liftIO $ query conn documentQuery (Only rel_path))
     where documentQuery = "select `id` from `documents` where `filename` is ?"
 
+orphanTargets :: Int64 -> SQL ()
+orphanTargets docId = do
+    conn <- getConnection
+    liftIO $ execute conn "update `targets` set `document` = null where `document` is ?" (Only docId)
+
+clearOrphanTargets :: SQL ()
+clearOrphanTargets = do
+    conn <- getConnection
+    liftIO $ execute_ conn "delete from `targets` where `document` is null"
+
 removeDocumentData :: Int64 -> SQL ()
 removeDocumentData docId = do
+    orphanTargets docId
     conn <- getConnection
     liftIO $ do
-        execute conn "delete from `targets` where `document` is ?" (Only docId)
         execute conn "delete from `content` where `document` is ?" (Only docId)
         execute conn "delete from `codes` where `document` is ?" (Only docId)
 
@@ -359,11 +369,17 @@ updateTarget refs = withTransactionM $ mapM_ updateCode refs
 ## Queries
 
 ``` {.haskell #database-queries}
+listOrphanTargets :: SQL [FilePath]
+listOrphanTargets = do
+    conn <- getConnection
+    map fromOnly <$>
+        liftIO (query_ conn "select `filename` from `targets` where `document` is null" :: IO [Only FilePath])
+
 listTargetFiles :: SQL [FilePath]
 listTargetFiles = do
     conn <- getConnection
     map fromOnly <$>
-        liftIO (query_ conn "select `filename` from `targets`" :: IO [Only FilePath])
+        liftIO (query_ conn "select `filename` from `targets` where `document` is not null" :: IO [Only FilePath])
 ```
 
 ``` {.haskell #database-queries}

@@ -108,7 +108,15 @@ function assert-arrayeq() {
 }        
 
 function assert-exists() {
-        if [ -f "$2" ]; then
+        if [ -e "$2" ]; then
+                report-success "$1"
+        else
+                report-failure "$@"
+        fi
+}
+
+function assert-not-exists() {
+        if [ ! -e "$2" ]; then
                 report-success "$1"
         else
                 report-failure "$@"

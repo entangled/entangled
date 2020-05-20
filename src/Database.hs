@@ -1,8 +1,8 @@
--- ------ language="Haskell" file="src/Database.hs" project://lit/03-database.md#5
+-- ------ language="Haskell" file="src/Database.hs" project://lit/03-database.md
 {-# LANGUAGE DeriveGeneric, OverloadedLabels #-}
 module Database where
 
--- ------ begin <<database-imports>>[0] project://lit/03-database.md#21
+-- ------ begin <<database-imports>>[0] project://lit/03-database.md
 import Paths_entangled
 
 import Database.SQLite.Simple
@@ -14,14 +14,14 @@ import Control.Monad.Catch
 import Control.Monad.Writer
 import Control.Monad.Logger
 
--- ------ begin <<import-text>>[0] project://lit/01-entangled.md#44
+-- ------ begin <<import-text>>[0] project://lit/01-entangled.md
 import qualified Data.Text as T
 import Data.Text (Text)
 -- ------ end
 import qualified Data.Text.IO as T.IO
 -- ------ end
--- ------ begin <<database-imports>>[1] project://lit/03-database.md#84
--- ------ begin <<import-map>>[0] project://lit/01-entangled.md#24
+-- ------ begin <<database-imports>>[1] project://lit/03-database.md
+-- ------ begin <<import-map>>[0] project://lit/01-entangled.md
 import qualified Data.Map.Strict as M
 import Data.Map.Strict (Map)
 -- ------ end
@@ -32,7 +32,7 @@ import Document
 import Config
 import TextUtil
 -- ------ end
--- ------ begin <<database-types>>[0] project://lit/03-database.md#37
+-- ------ begin <<database-types>>[0] project://lit/03-database.md
 newtype SQL a = SQL { unSQL :: ReaderT Connection (LoggingT IO) a }
     deriving (Applicative, Functor, Monad, MonadIO, MonadThrow, MonadLogger, MonadLoggerIO)
 
@@ -65,7 +65,7 @@ expectUnique' _ []  = return Nothing
 expectUnique' f [x] = return $ Just (f x)
 expectUnique' _ lst = throwM $ DatabaseError $ "duplicate entry: " <> tshow lst
 -- ------ end
--- ------ begin <<database-types>>[1] project://lit/03-database.md#75
+-- ------ begin <<database-types>>[1] project://lit/03-database.md
 withTransactionM :: (MonadSQL m, MonadLoggerIO m) => m a -> m a
 withTransactionM t = do
     conn <- getConnection
@@ -73,7 +73,7 @@ withTransactionM t = do
     x <- liftIO $ withTransaction conn (runLoggingT (runSQL conn t) logFun)
     return x
 -- ------ end
--- ------ begin <<database-create>>[0] project://lit/03-database.md#128
+-- ------ begin <<database-create>>[0] project://lit/03-database.md
 schema :: IO [Query]
 schema = do
     schema_path <- getDataFileName "data/schema.sql"
@@ -85,7 +85,7 @@ createTables = do
     conn <- getConnection
     liftIO $ schema >>= mapM_ (execute_ conn)
 -- ------ end
--- ------ begin <<database-insertion>>[0] project://lit/03-database.md#170
+-- ------ begin <<database-insertion>>[0] project://lit/03-database.md
 insertCode :: Int64 -> ReferencePair -> SQL ()
 insertCode docId ( ReferenceId _ (ReferenceName name) count
                  , CodeBlock (KnownLanguage langName) attrs source ) = do
@@ -103,7 +103,7 @@ insertCode docId ( ReferenceId _ (ReferenceName name) count
 insertCodes :: Int64 -> ReferenceMap -> SQL ()
 insertCodes docId codes = mapM_ (insertCode docId) (M.toList codes)
 -- ------ end
--- ------ begin <<database-insertion>>[1] project://lit/03-database.md#227
+-- ------ begin <<database-insertion>>[1] project://lit/03-database.md
 queryCodeId' :: Int64 -> ReferenceId -> SQL (Maybe Int64)
 queryCodeId' docId (ReferenceId _ (ReferenceName name) count) = do
     conn <- getConnection
@@ -147,27 +147,37 @@ insertContent docId content = do
     conn <- getConnection
     liftIO $ executeMany conn "insert into `content`(`document`,`plain`,`code`) values (?,?,?)" rows
 -- ------ end
--- ------ begin <<database-insertion>>[2] project://lit/03-database.md#286
+-- ------ begin <<database-insertion>>[2] project://src/Database.hs#21
 insertTargets :: Int64 -> FileMap -> SQL ()
 insertTargets docId files = do
         conn <- getConnection
         -- liftIO $ print rows
-        liftIO $ executeMany conn "insert into `targets`(`filename`,`codename`,`language`,`document`) values (?, ?, ?, ?)" rows
+        liftIO $ executeMany conn "replace into `targets`(`filename`,`codename`,`language`,`document`) values (?, ?, ?, ?)" rows
     where targetRow (path, (ReferenceName name, lang)) = (path, name, lang, docId)
           rows = map targetRow (M.toList files)
 -- ------ end
--- ------ begin <<database-update>>[0] project://lit/03-database.md#302
+-- ------ begin <<database-update>>[0] project://src/Database.hs#23
 getDocumentId :: FilePath -> SQL (Maybe Int64)
 getDocumentId rel_path = do
         conn <- getConnection
         expectUnique' fromOnly =<< (liftIO $ query conn documentQuery (Only rel_path))
     where documentQuery = "select `id` from `documents` where `filename` is ?"
 
+orphanTargets :: Int64 -> SQL ()
+orphanTargets docId = do
+    conn <- getConnection
+    liftIO $ execute conn "update `targets` set `document` = null where `document` is ?" (Only docId)
+
+clearOrphanTargets :: SQL ()
+clearOrphanTargets = do
+    conn <- getConnection
+    liftIO $ execute_ conn "delete from `targets` where `document` is null"
+
 removeDocumentData :: Int64 -> SQL ()
 removeDocumentData docId = do
+    orphanTargets docId
     conn <- getConnection
     liftIO $ do
-        execute conn "delete from `targets` where `document` is ?" (Only docId)
         execute conn "delete from `content` where `document` is ?" (Only docId)
         execute conn "delete from `codes` where `document` is ?" (Only docId)
 
@@ -187,7 +197,7 @@ insertDocument rel_path Document{..} = do
     insertContent docId documentContent
     insertTargets docId documentTargets
 -- ------ end
--- ------ begin <<database-update>>[1] project://lit/03-database.md#341
+-- ------ begin <<database-update>>[1] project://lit/03-database.md
 fromMaybeM :: Monad m => m a -> m (Maybe a) -> m a
 fromMaybeM whenNothing x = do
     unboxed <- x
@@ -202,24 +212,30 @@ updateCode (ref, CodeBlock {codeSource}) = do
     conn   <- getConnection
     liftIO $ execute conn "update `codes` set `source` = ? where `id` is ?" (codeSource, codeId)
 
-updateTarget :: [ReferencePair] -> SQL () 
+updateTarget :: [ReferencePair] -> SQL ()
 updateTarget refs = withTransactionM $ mapM_ updateCode refs
 -- ------ end
--- ------ begin <<database-queries>>[0] project://lit/03-database.md#362
+-- ------ begin <<database-queries>>[0] project://src/Database.hs#27
+listOrphanTargets :: SQL [FilePath]
+listOrphanTargets = do
+    conn <- getConnection
+    map fromOnly <$>
+        liftIO (query_ conn "select `filename` from `targets` where `document` is null" :: IO [Only FilePath])
+
 listTargetFiles :: SQL [FilePath]
 listTargetFiles = do
     conn <- getConnection
     map fromOnly <$>
-        liftIO (query_ conn "select `filename` from `targets`" :: IO [Only FilePath])
+        liftIO (query_ conn "select `filename` from `targets` where `document` is not null" :: IO [Only FilePath])
 -- ------ end
--- ------ begin <<database-queries>>[1] project://lit/03-database.md#370
+-- ------ begin <<database-queries>>[1] project://lit/03-database.md
 listSourceFiles :: SQL [FilePath]
 listSourceFiles = do
     conn <- getConnection
     map fromOnly <$>
         liftIO (query_ conn "select `filename` from `documents`" :: IO [Only FilePath])
 -- ------ end
--- ------ begin <<database-queries>>[2] project://lit/03-database.md#378
+-- ------ begin <<database-queries>>[2] project://lit/03-database.md
 queryTargetRef :: FilePath -> SQL (Maybe (ReferenceName, Text))
 queryTargetRef rel_path = do
     conn <- getConnection
@@ -227,9 +243,9 @@ queryTargetRef rel_path = do
     return $ case val of
         Nothing           -> Nothing
         Just (name, lang) -> Just (ReferenceName name, lang)
-    where targetQuery = "select `codename`,`language` from `targets` where `filename` is ?" 
+    where targetQuery = "select `codename`,`language` from `targets` where `filename` is ?"
 -- ------ end
--- ------ begin <<database-queries>>[3] project://lit/03-database.md#389
+-- ------ begin <<database-queries>>[3] project://lit/03-database.md
 stitchDocument :: FilePath -> SQL Text
 stitchDocument rel_path = do
     conn <- getConnection
@@ -242,7 +258,7 @@ stitchDocument rel_path = do
                                  \  where `content`.`document` is ?" (Only docId) :: IO [Only Text])
     return $ unlines' $ map fromOnly result
 -- ------ end
--- ------ begin <<database-queries>>[4] project://lit/03-database.md#405
+-- ------ begin <<database-queries>>[4] project://lit/03-database.md
 queryReferenceMap :: Config -> SQL ReferenceMap
 queryReferenceMap config = do
         conn <- getConnection
