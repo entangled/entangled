@@ -10,7 +10,7 @@
   
     If you want to check the configuration for correctness, run
   
-        dhall lint <<< ./entangled.dhall
+        dhall <<< ./entangled.dhall
   -}
 
 {- Schema

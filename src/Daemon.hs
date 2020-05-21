@@ -33,7 +33,7 @@ import FileIO
 
 import qualified Data.Text.Prettyprint.Doc as P
 import qualified Console
-import Console (Doc)
+import Console (Doc, msgWrite, msgCreate, msgDelete)
 
 import Control.Concurrent.Chan
 import Control.Concurrent
@@ -54,15 +54,10 @@ import qualified Data.Map.Lazy as LM
 -- ------ end
 -- ------ begin <<daemon-imports>>[5] project://lit/10-daemon.md
 import System.IO (stdout, hFlush, hSetBuffering, BufferMode(..))
+import RIO.Directory (makeRelativeToCurrentDirectory, canonicalizePath)
+import RIO.FilePath (equalFilePath, takeDirectory)
+import Control.Exception (IOException)
 -- ------ end
-
-import System.FilePath (takeDirectory, equalFilePath)
-import System.Directory
-    ( canonicalizePath
-    , doesFileExist
-    , createDirectoryIfMissing
-    , makeRelativeToCurrentDirectory
-    , removeFile )
 
 -- ------ begin <<daemon-events>>[0] project://lit/10-daemon.md
 data DaemonState
@@ -96,38 +91,22 @@ newtype Daemon a = Daemon { unDaemon :: RWST Config Transaction Session (Logging
     deriving ( Applicative, Functor, Monad, MonadIO, MonadState Session
              , MonadReader Config, MonadWriter Transaction, MonadThrow, MonadLogger, MonadLoggerIO )
 
--- up for removal
-tryReadFile :: MonadIO m => FilePath -> m (Maybe Text)
-tryReadFile f = liftIO $ do
-    exists <- doesFileExist f
-    if exists
-        then Just <$> T.IO.readFile f
-        else return Nothing
-
-changeFile :: (MonadIO m) => FilePath -> Text -> m Transaction
-changeFile filename text = do
-    rel_path <- liftIO $ makeRelativeToCurrentDirectory filename
-    liftIO $ createDirectoryIfMissing True (takeDirectory filename)
-    oldText <- tryReadFile filename
-    case oldText of
-        Just ot -> if ot /= text
-            then return $ Transaction (Just $ T.IO.writeFile filename text)
-                                   (Console.msgOverwrite rel_path) False
-            else return mempty
-        Nothing -> return $ Transaction (Just $ T.IO.writeFile filename text)
-                                     (Console.msgCreate rel_path) False
-
-removeIfExists :: FilePath -> Transaction
-removeIfExists f =
-    plan (do
-        fileExists <- doesFileExist f
-        when fileExists $ removeFile f)
-    <> doc (Console.msgDelete f)
-
 instance MonadFileIO Daemon where
-    writeFile path text = tell =<< changeFile path text
-    readFile path = liftIO $ T.IO.readFile path
-    deleteFile path = tell $ removeIfExists path
+    readFile path       = runFileIO $ readFile path
+
+    writeFile path text = do
+        old_content' <- liftIO $ try $ runFileIO $ readFile path
+        case (old_content' :: Either IOException Text) of
+            Right old_content | old_content == text -> return ()
+                              | otherwise           -> actionw
+            Left  _                                 -> actionc
+        where actionw   = tell $ doc (msgWrite path)
+                              <> plan (runFileIO $ writeFile path text)
+              actionc   = tell $ doc (msgCreate path)
+                              <> plan (runFileIO $ writeFile path text)
+
+    deleteFile path     = tell $ doc (msgDelete path)
+                              <> plan (runFileIO $ deleteFile path)
 -- ------ end
 -- ------ begin <<daemon-session>>[1] project://lit/10-daemon.md
 setDaemonState :: ( MonadIO m

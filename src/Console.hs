@@ -6,7 +6,7 @@ module Console
     , FileAction(..)
     , putTerminal
     , msgDelete
-    , msgOverwrite
+    , msgWrite
     , msgCreate
     , fileRead
     , group
@@ -34,7 +34,7 @@ import Control.Monad.Logger (LogLevel(..))
 
 -- ==== Pretty Printing document tree ==== --
 
-data FileAction = Read | OverWrite | Delete | Create deriving (Show)
+data FileAction = Read | Write | Delete | Create deriving (Show)
 
 data Annotation
     = Emphasise
@@ -69,9 +69,9 @@ bullet = (P.annotate Decoration bulletChar P.<+>)
 group :: Doc -> Doc -> Doc
 group h d = bullet (P.annotate Header h) <> P.line <> P.indent 4 d <> P.line
 
-msgOverwrite :: FilePath -> Doc
-msgOverwrite f = bullet "Overwriting"
-    P.<+> P.annotate (File OverWrite) (P.squotes $ P.pretty f)
+msgWrite :: FilePath -> Doc
+msgWrite f = bullet "Writing"
+    P.<+> P.annotate (File Write) (P.squotes $ P.pretty f)
     <> P.line
 
 msgCreate :: FilePath -> Doc
@@ -91,12 +91,12 @@ toTerminal :: Doc -> P.SimpleDocStream ANSI.AnsiStyle
 toTerminal d = P.reAnnotateS tr $ P.layoutPretty P.defaultLayoutOptions d
     where tr Emphasise = ANSI.bold
           tr Header = ANSI.bold <> ANSI.color ANSI.White
-          tr Decoration = ANSI.color ANSI.Black
-          tr TimeStamp = ANSI.color ANSI.Black
+          tr Decoration = ANSI.colorDull ANSI.Blue
+          tr TimeStamp = ANSI.colorDull ANSI.Blue
           tr (File Read) = ANSI.color ANSI.White <> ANSI.italicized
-          tr (File OverWrite) = ANSI.color ANSI.Yellow <> ANSI.italicized
+          tr (File Write) = ANSI.color ANSI.Yellow <> ANSI.italicized
           tr (File Delete) = ANSI.color ANSI.Red <> ANSI.italicized
-          tr (File Create) = ANSI.color ANSI.Green <> ANSI.italicized
+          tr (File Create) = ANSI.color ANSI.Blue <> ANSI.italicized
           tr (Log LevelError) = ANSI.color ANSI.Red <> ANSI.bold
           tr (Log LevelWarn) = ANSI.color ANSI.Yellow <> ANSI.bold
           tr (Log LevelInfo) = ANSI.colorDull ANSI.White
