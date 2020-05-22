@@ -9,7 +9,11 @@ function entangled() {
         # cabal exec entangled -- $@
         # cabal run -v0 --project-file=${PROJECT_ROOT}/cabal.project entangled:entangled -- $*
         export entangled_datadir="${PROJECT_ROOT}"
-        ${ENTANGLED_EXEC} $@
+        if [ -z $verbose ]; then
+                ${ENTANGLED_EXEC} $@
+        else
+                ${ENTANGLED_EXEC} -V $@
+        fi
 }
 
 function setup() {
@@ -34,6 +38,7 @@ function show_help() {
         echo "    -x           break on first failure"
         echo "    -u <unit>    only run unit"
         echo "    -c           clean after local run (with -d)"
+        echo "    -v           verbose entangled"
         echo
         echo "Available units:"
         for t in *.test; do
@@ -42,7 +47,7 @@ function show_help() {
 }
 
 
-while getopts "hdxcu:" arg
+while getopts "hdxcvu:" arg
 do
         case ${arg} in
         h)      show_help
@@ -53,6 +58,8 @@ do
         x)      break_on_fail=1
                 ;;
         u)      test_only=$(basename ${OPTARG} .test)
+                ;;
+        v)      verbose=1
                 ;;
         c)      rm -fv "${DIR}"/entangled.db
                 rm -fv "${DIR}"/*.scm

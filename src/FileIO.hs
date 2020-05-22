@@ -41,7 +41,7 @@ ensurePath :: (MonadIO m, MonadReader env m, HasLogFunc env)
            => FilePath -> m ()
 ensurePath path = selectM (return ())
     [ ( not <$> doesDirectoryExist path
-      , logInfo (display $ "creating directory `" <> (T.pack path) <> "`")
+      , logDebug (display $ "creating directory `" <> (T.pack path) <> "`")
         >> createDirectoryIfMissing True path ) ]
 -- ------ end
 -- ------ begin <<file-io-prim>>[1] project://src/FileIO.hs#13
@@ -51,7 +51,7 @@ rmDirIfEmpty path = selectM (return ())
     [ ( not <$> doesDirectoryExist path
       , throwM $ SystemError $ "could not remove dir: `" <> (T.pack path) <> "`")
     , ( null <$> listDirectory path
-      , logInfo (display $ "removing empty directory `" <> (T.pack path) <> "`")
+      , logDebug (display $ "removing empty directory `" <> (T.pack path) <> "`")
         >> removeDirectory path ) ]
 
 parents :: FilePath -> [FilePath]
@@ -71,12 +71,12 @@ writeIfChanged path text = do
                           | otherwise                  -> write
         Left  _                                        -> write
     where new_content = T.encodeUtf8 text
-          write       = logInfo (display $ "writing `" <> (T.pack path) <> "`")
+          write       = logDebug (display $ "writing `" <> (T.pack path) <> "`")
                       >> writeBinaryFileDurable path new_content
 
 dump' :: (MonadIO m, MonadReader env m, HasLogFunc env)
       => Text -> m ()
-dump' text = logInfo "dumping to stdio"
+dump' text = logDebug "dumping to stdio"
          >> B.hPutStr stdout (T.encodeUtf8 text)
 -- ------ end
 -- ------ begin <<file-io-instance>>[0] project://src/FileIO.hs#17
@@ -85,7 +85,7 @@ newtype FileIO env a = FileIO { unFileIO :: RIO env a }
 
 readFile' :: ( MonadIO m, HasLogFunc env, MonadReader env m, MonadThrow m )
           => FilePath -> m Text
-readFile' path = logInfo (display $ "reading `" <> (T.pack path) <> "`")
+readFile' path = logDebug (display $ "reading `" <> (T.pack path) <> "`")
                >> B.readFile path
                >>= return . decodeUtf8With lenientDecode
 
@@ -104,7 +104,7 @@ instance (HasLogFunc env) => MonadFileIO (FileIO env) where
     writeFile path text = ensurePath (takeDirectory path)
                         >> writeIfChanged path text
 
-    deleteFile path     = logInfo (display $ "deleting `" <> (T.pack path) <> "`")
+    deleteFile path     = logDebug (display $ "deleting `" <> (T.pack path) <> "`")
                         >> removeFile path
                         >> rmPathIfEmpty (takeDirectory path)
 

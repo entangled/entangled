@@ -99,7 +99,7 @@ listTargets = dump =<< (T.unlines <$> map T.pack <$> db listTargetFiles)
 insertSources :: (HasConnection env, HasLogFunc env, HasConfig env)
               => [FilePath] -> Entangled env ()
 insertSources files = do
-    logInfo $ display $ "inserting files: " <> tshow files
+    logDebug $ display $ "inserting files: " <> tshow files
     mapM_ readDoc files
     where readDoc f = do
             doc <- parseMarkdown' f =<< readFile f
@@ -108,7 +108,7 @@ insertSources files = do
 insertTargets :: (HasConnection env, HasLogFunc env, HasConfig env)
               => [FilePath] -> Entangled env ()
 insertTargets files = do
-    logInfo $ display $ "inserting files: " <> tshow files
+    logDebug $ display $ "inserting files: " <> tshow files
     mapM_ readTgt files
     where readTgt f = do
             refs <- untangle f =<< readFile f

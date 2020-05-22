@@ -366,10 +366,10 @@ insertDocument rel_path Document{..} = do
     docId' <- getDocumentId rel_path
     docId <- case docId' of
         Just docId -> do
-            logInfo $ display $ "Replacing '" <> T.pack rel_path <> "'."
+            logDebug $ display $ "Replacing '" <> T.pack rel_path <> "'."
             removeDocumentData docId >> return docId
         Nothing    -> do
-            logInfo $ display $ "Inserting new '" <> T.pack rel_path <> "'."
+            logDebug $ display $ "Inserting new '" <> T.pack rel_path <> "'."
             liftIO $ execute conn "insert into `documents`(`filename`) values (?)" (Only rel_path)
             liftIO $ lastInsertRowId conn
     insertCodes docId references

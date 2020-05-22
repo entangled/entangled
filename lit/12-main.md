@@ -4,7 +4,9 @@ The main program runs the daemon, but also provides a number of commands to insp
 
 ``` {.haskell #main-imports}
 import Prelude hiding (readFile, writeFile)
-import RIO (logError, logInfo, display, LogFunc, HasLogFunc, logFuncL, lens, logOptionsHandle, runRIO, withLogFunc, stderr, view)
+import RIO ( logError, logInfo, display, LogFunc, HasLogFunc, logFuncL, lens
+           , logOptionsHandle, runRIO, withLogFunc, stderr, view
+           , setLogVerboseFormat, setLogUseColor )
 <<import-text>>
 import qualified Data.Text.IO as T.IO
 import qualified Data.Map.Lazy as LM
@@ -44,6 +46,7 @@ All true options are left to the sub-commands. We're leaving `<<sub-commands>>` 
 ``` {.haskell #main-options}
 data Args = Args
     { versionFlag :: Bool
+    , verboseFlag :: Bool
     , subCommand :: SubCommand }
 
 data SubCommand
@@ -60,6 +63,7 @@ parseNoCommand = pure NoCommand
 parseArgs :: Parser Args
 parseArgs = Args
     <$> switch (long "version" <> short 'v' <> help "Show version information.")
+    <*> switch (long "verbose" <> short 'V' <> help "Be very verbose.")
     <*> ( subparser ( mempty
           <<sub-parsers>>
         ) <|> parseNoCommand )
@@ -92,7 +96,8 @@ run Args{..}
     | otherwise         = do
         cfg <- readLocalConfig
         dbPath <- getDatabasePath cfg
-        logOptions <- logOptionsHandle stderr True
+        logOptions <- setLogVerboseFormat True . setLogUseColor True
+                    <$> logOptionsHandle stderr verboseFlag
         withLogFunc logOptions (\logFunc
             -> withConnection dbPath (\conn
                 -> runRIO (Env conn cfg logFunc) (runEntangled $ runSubCommand subCommand)))
@@ -430,7 +435,7 @@ listTargets = dump =<< (T.unlines <$> map T.pack <$> db listTargetFiles)
 insertSources :: (HasConnection env, HasLogFunc env, HasConfig env)
               => [FilePath] -> Entangled env ()
 insertSources files = do 
-    logInfo $ display $ "inserting files: " <> tshow files
+    logDebug $ display $ "inserting files: " <> tshow files
     mapM_ readDoc files
     where readDoc f = do
             doc <- parseMarkdown' f =<< readFile f
@@ -439,7 +444,7 @@ insertSources files = do
 insertTargets :: (HasConnection env, HasLogFunc env, HasConfig env)
               => [FilePath] -> Entangled env ()
 insertTargets files = do
-    logInfo $ display $ "inserting files: " <> tshow files
+    logDebug $ display $ "inserting files: " <> tshow files
     mapM_ readTgt files
     where readTgt f = do
             refs <- untangle f =<< readFile f

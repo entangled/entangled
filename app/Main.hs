@@ -4,7 +4,9 @@ module Main where
 
 -- ------ begin <<main-imports>>[0] project://lit/12-main.md
 import Prelude hiding (readFile, writeFile)
-import RIO (logError, logInfo, display, LogFunc, HasLogFunc, logFuncL, lens, logOptionsHandle, runRIO, withLogFunc, stderr, view)
+import RIO ( logError, logInfo, display, LogFunc, HasLogFunc, logFuncL, lens
+           , logOptionsHandle, runRIO, withLogFunc, stderr, view
+           , setLogVerboseFormat, setLogUseColor )
 -- ------ begin <<import-text>>[0] project://lit/01-entangled.md
 import qualified Data.Text as T
 import Data.Text (Text)
@@ -55,6 +57,7 @@ import Config (HasConfig)
 -- ------ begin <<main-options>>[0] project://lit/12-main.md
 data Args = Args
     { versionFlag :: Bool
+    , verboseFlag :: Bool
     , subCommand :: SubCommand }
 
 data SubCommand
@@ -88,6 +91,7 @@ parseNoCommand = pure NoCommand
 parseArgs :: Parser Args
 parseArgs = Args
     <$> switch (long "version" <> short 'v' <> help "Show version information.")
+    <*> switch (long "verbose" <> short 'V' <> help "Be very verbose.")
     <*> ( subparser ( mempty
           -- ------ begin <<sub-parsers>>[0] project://lit/12-main.md
           <>  command "daemon" (info parseDaemonArgs ( progDesc "Run the entangled daemon." ))
@@ -200,7 +204,8 @@ run Args{..}
     | otherwise         = do
         cfg <- readLocalConfig
         dbPath <- getDatabasePath cfg
-        logOptions <- logOptionsHandle stderr True
+        logOptions <- setLogVerboseFormat True . setLogUseColor True
+                    <$> logOptionsHandle stderr verboseFlag
         withLogFunc logOptions (\logFunc
             -> withConnection dbPath (\conn
                 -> runRIO (Env conn cfg logFunc) (runEntangled $ runSubCommand subCommand)))
