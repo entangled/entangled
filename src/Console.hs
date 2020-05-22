@@ -1,7 +1,5 @@
 module Console
-    ( ConsoleT
-    , run
-    , msg
+    ( msg
     , Doc
     , FileAction(..)
     , putTerminal
@@ -103,35 +101,4 @@ toTerminal d = P.reAnnotateS tr $ P.layoutPretty P.defaultLayoutOptions d
 
 putTerminal :: Doc -> IO ()
 putTerminal = T.putStr . ANSI.renderStrict . toTerminal
-
--- ==== Pretty Printing document to console ==== --
-
-data Info = Info
-    { consoleSize    :: Terminal.Window Int
-    , consolePalette :: Map Text Text
-    } deriving (Show)
-
-newtype ConsoleT m a = ConsoleT {
-    runConsole :: ReaderT Info m a
-} deriving (Applicative, Functor, Monad, MonadReader Info, MonadTrans)
-
-type ColourName = T.Text
-
-getColour :: MonadReader Info m => ColourName -> m Text
-getColour n = reader (M.findWithDefault "" n . consolePalette)
-
-initInfoLinux :: IO Info
-initInfoLinux = do
-    size <- fromMaybe (Terminal.Window 24 80) <$> Terminal.size
-    let palette = M.fromList
-            [ ("decoration", "\ESC[38m")
-            , ("reset",   "\ESC[m")
-            , ("error",   "\ESC[31m")
-            , ("warning", "\ESC[33m")
-            , ("message", "\ESC[m")
-            ]
-    return $ Info size palette
-
-run :: MonadIO m => ConsoleT m a -> m a
-run x = liftIO initInfoLinux >>= runReaderT (runConsole x)
 
