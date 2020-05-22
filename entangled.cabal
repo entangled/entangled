@@ -73,6 +73,7 @@ library
       Daemon
       Database
       Document
+      Entangled
       Errors
       FileIO
       ListStream

@@ -4,6 +4,7 @@ The main program runs the daemon, but also provides a number of commands to insp
 
 ``` {.haskell #main-imports}
 import Prelude hiding (readFile, writeFile)
+import RIO (logError, logInfo, display, LogFunc, HasLogFunc, logFuncL, lens, logOptionsHandle, runRIO, withLogFunc, stderr, view)
 <<import-text>>
 import qualified Data.Text.IO as T.IO
 import qualified Data.Map.Lazy as LM
@@ -13,7 +14,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Monad.Catch
-import Control.Monad.Logger
+import Control.Monad.Logger (logInfoN)
 import System.Directory
 import System.FilePath
 ```
@@ -71,14 +72,38 @@ import Config
 ```
 
 ``` {.haskell #main-run}
+data Env = Env
+    { connection' :: Connection
+    , config'     :: Config
+    , logFunc'    :: LogFunc }
+
+instance HasConnection Env where
+    connection = lens connection' (\ x y -> x { connection' = y })
+
+instance HasConfig Env where
+    config = lens config' (\x y -> x { config' = y })
+
+instance HasLogFunc Env where
+    logFuncL = lens logFunc' (\x y -> x { logFunc' = y })
+
 run :: Args -> IO ()
 run Args{..}
     | versionFlag       = putStrLn "Entangled 1.0.0"
     | otherwise         = do
-        config <- readLocalConfig
-        case subCommand of
-            NoCommand -> return ()
-            <<sub-runners>>
+        cfg <- readLocalConfig
+        dbPath <- getDatabasePath cfg
+        logOptions <- logOptionsHandle stderr True
+        withLogFunc logOptions (\logFunc
+            -> withConnection dbPath (\conn
+                -> runRIO (Env conn cfg logFunc) (runEntangled $ runSubCommand subCommand)))
+
+runSubCommand :: (HasConfig env, HasLogFunc env, HasConnection env)
+              => SubCommand -> Entangled env ()
+runSubCommand sc = do
+    db createTables
+    case sc of
+        NoCommand -> return ()
+        <<sub-runners>>
 ```
 
 This way we can add sub-commands independently in the following sections.
@@ -109,7 +134,9 @@ parseDaemonArgs = CommandDaemon <$> DaemonArgs
 ```
 
 ``` {.haskell #sub-runners}
-CommandDaemon a -> runSession config
+CommandDaemon a -> do
+    cfg <- view config
+    liftIO $ runSession cfg
 ```
 
 ### Printing the config
@@ -128,7 +155,7 @@ import qualified Dhall
 ```
 
 ``` {.haskell #sub-runners}
-CommandConfig -> runPrintExampleConfig
+CommandConfig -> printExampleConfig
 ```
 
 ### Inserting files to the database
@@ -160,8 +187,8 @@ parseInsertArgs = CommandInsert <$> (InsertArgs
 ```
 
 ``` {.haskell #sub-runners}
-CommandInsert (InsertArgs SourceFile fs) -> runFileIO $ runInsertSources config fs
-CommandInsert (InsertArgs TargetFile fs) -> runFileIO $ runInsertTargets config fs
+CommandInsert (InsertArgs SourceFile fs) -> insertSources fs
+CommandInsert (InsertArgs TargetFile fs) -> insertTargets fs
 ```
 
 ### Tangling a single reference
@@ -175,8 +202,6 @@ CommandInsert (InsertArgs TargetFile fs) -> runFileIO $ runInsertTargets config 
 ```
 
 ``` {.haskell #main-options}
-data TangleQuery = TangleFile FilePath | TangleRef Text | TangleAll deriving (Show)
-
 data TangleArgs = TangleArgs
     { tangleQuery :: TangleQuery
     , tangleDecorate :: Bool
@@ -194,7 +219,10 @@ parseTangleArgs = TangleArgs
 ```
 
 ``` {.haskell #sub-runners}
-CommandTangle a -> runFileIO $ runTangle config a
+CommandTangle (TangleArgs {..}) -> do
+    cfg <- view config
+    let annotate = if tangleDecorate then (annotateComment' cfg) else annotateNaked
+    tangle tangleQuery annotate
 ```
 
 ### Stitching a markdown source
@@ -219,7 +247,7 @@ parseStitchArgs = StitchArgs
 ```
 
 ``` {.haskell #sub-runners}
-CommandStitch a -> runFileIO $ runStitch config a
+CommandStitch (StitchArgs {..}) -> stitch stitchTarget
 ```
 
 ### Listing all target files
@@ -233,7 +261,7 @@ CommandStitch a -> runFileIO $ runStitch config a
 ```
 
 ``` {.haskell #sub-runners}
-CommandList -> runFileIO $ runList config
+CommandList -> listTargets
 ```
 
 ### Cleaning orphan targets
@@ -248,24 +276,27 @@ This action deletes orphan targets from both the database and the file system.
 ```
 
 ``` {.haskell #sub-runners}
-CommandClearOrphans -> runFileIO $ runClearOrphans config
+CommandClearOrphans -> clearOrphans
 ```
 
 ## Main
 
 ``` {.haskell file=app/Main.hs}
+{-# LANGUAGE LambdaCase #-}
 module Main where
 
 <<main-imports>>
 
-import Paths_entangled
-import Comment
-import Document
-import Select (select)
+-- import Paths_entangled
+-- import Comment
+-- import Document
+-- import Select (select)
 import System.Exit
-import Tangle (parseMarkdown, expandedCode, annotateNaked, annotateComment')
-import TextUtil
-import FileIO
+import Tangle (annotateNaked, annotateComment')
+-- import TextUtil
+-- import FileIO
+import Entangled
+import Config (HasConfig)
 
 <<main-options>>
 
@@ -287,129 +318,144 @@ main = do
 ### Create the empty database
 
 ``` {.haskell #main-imports}
-import Database
+import Database (HasConnection, connection, createTables, db)
 import Database.SQLite.Simple
 ```
 
-## Tangle
-
-``` {.haskell #main-run}
-runTangle :: Config -> TangleArgs -> FileIO ()
-runTangle cfg TangleArgs{..} = do
-    dbPath <- getDatabasePath cfg
-    withSQL dbPath $ do 
-        createTables
-        refs <- queryReferenceMap cfg
-        let annotate = if tangleDecorate then annotateComment' cfg else annotateNaked
-            codes = expandedCode annotate refs
-            tangleRef tgt = case codes LM.!? tgt of
-                Nothing -> throwM $ TangleError $ "Reference `" <> tshow tgt <> "` not found."
-                Just (Left e) -> throwM $ TangleError $ tshow e
-                Just (Right t) -> return t
-            tangleFile f = queryTargetRef f >>= \case
-                Nothing -> throwM $ TangleError $ "Target `" <> T.pack f <> "` not found."
-                Just (ref, langName) -> do
-                    content <- tangleRef ref
-                    case languageFromName cfg langName of
-                        Nothing -> throwM $ TangleError $ "Language unknown " <> langName
-                        Just lang -> return $ T.unlines [headerComment lang f, content]
-
-        case tangleQuery of
-            TangleRef tgt -> tangleRef (ReferenceName tgt) >>= (\x -> liftIO $ T.IO.putStr x)
-            TangleFile f  -> tangleFile f >>= (\x -> liftIO $ T.IO.putStr x)
-            TangleAll -> do
-                fs <- listTargetFiles
-                mapM_ (\f -> tangleFile f >>= (runFileIO . writeFile f)) fs 
+```
+dbPath <- getDatabasePath cfg
+withSQL dbPath $ do 
 ```
 
-## Stitch
+## Wiring
 
-``` {.haskell #main-run}
-runStitch :: Config -> StitchArgs -> FileIO ()
-runStitch config StitchArgs{..} = do 
-    dbPath <- getDatabasePath config
-    text <- withSQL dbPath $ do 
-        createTables
-        stitchDocument stitchTarget
-    liftIO $ T.IO.putStrLn text
-```
+``` {.haskell file=src/Entangled.hs}
+{-# LANGUAGE NoImplicitPrelude #-}
+module Entangled where
 
-## List
+import RIO
+import RIO.Writer (MonadWriter, WriterT, runWriterT, tell)
+import qualified RIO.Text as T
 
-``` {.haskell #main-run}
-runList :: Config -> FileIO ()
-runList cfg = do
-    dbPath <- getDatabasePath cfg
-    lst <- withSQL dbPath $ do 
-        createTables
-        listTargetFiles
-    liftIO $ T.IO.putStrLn $ unlines' $ map T.pack lst
-```
+import qualified Data.Map.Lazy as LM
 
-## Insert
+import FileIO
+import Transaction
 
-``` {.haskell #main-imports}
-import Stitch (stitch)
-```
+import Console (msgWrite, msgCreate, msgDelete)
+import Paths_entangled
+import Config (config, HasConfig, languageFromName)
+import Database ( db, HasConnection, queryTargetRef, queryReferenceMap
+                , listTargetFiles, insertDocument, insertTargets, stitchDocument
+                , deduplicateRefs, updateTarget, listOrphanTargets, clearOrphanTargets )
+import Errors (EntangledError (..))
 
-``` {.haskell #main-run}
-runInsertSources :: Config -> [FilePath] -> FileIO ()
-runInsertSources cfg files = do
-    dbPath <- getDatabasePath cfg
-    logInfoN $ "inserting files: " <> tshow files
-    withSQL dbPath $ createTables >> mapM_ readDoc files
+import Comment (headerComment)
+import Document (ReferenceName(..))
+import Tangle (ExpandedCode, Annotator, expandedCode, parseMarkdown')
+import Stitch (untangle)
+
+type FileTransaction env = Transaction (FileIO env)
+
+newtype Entangled env a = Entangled { unEntangled :: WriterT (FileTransaction env) (RIO env) a }
+    deriving ( Applicative, Functor, Monad, MonadIO, MonadThrow
+             , MonadReader env, MonadWriter (FileTransaction env) )
+
+runEntangled :: (MonadIO m, MonadReader env m, HasLogFunc env)
+             => Entangled env a -> m a
+runEntangled (Entangled x) = do
+    e <- ask
+    (r, w) <- runRIO e (runWriterT x)
+    runFileIO' $ runTransaction w
+    return r
+
+instance (HasLogFunc env) => MonadFileIO (Entangled env) where
+    readFile path       = readFile' path
+    dump text           = dump' text
+
+    writeFile path text = do
+        old_content' <- liftRIO $ try $ runFileIO' $ readFile path
+        case (old_content' :: Either IOException Text) of
+            Right old_content | old_content == text -> return ()
+                              | otherwise           -> actionw
+            Left  _                                 -> actionc
+        where actionw   = tell $ doc (msgWrite path)
+                              <> plan (writeFile path text)
+              actionc   = tell $ doc (msgCreate path)
+                              <> plan (writeFile path text)
+
+    deleteFile path     = tell $ doc (msgDelete path)
+                              <> plan (deleteFile path)
+
+data TangleQuery = TangleFile FilePath | TangleRef Text | TangleAll deriving (Show)
+
+tangleRef :: ExpandedCode -> Annotator -> ReferenceName -> Entangled env Text
+tangleRef codes annotate name =
+    case codes LM.!? name of
+        Nothing        -> throwM $ TangleError $ "Reference `" <> tshow name <> "` not found."
+        Just (Left e)  -> throwM $ TangleError $ tshow e
+        Just (Right t) -> return t
+
+tangleFile :: (HasConnection env, HasLogFunc env, HasConfig env)
+           => ExpandedCode -> Annotator -> FilePath -> Entangled env Text
+tangleFile codes annotate path = do
+    cfg <- view config
+    (db $ queryTargetRef path) >>= \case
+        Nothing              -> throwM $ TangleError $ "Target `" <> T.pack path <> "` not found."
+        Just (ref, langName) -> do
+            content <- tangleRef codes annotate ref
+            case languageFromName cfg langName of
+                Nothing -> throwM $ TangleError $ "Language unknown " <> langName
+                Just lang -> return $ T.unlines [headerComment lang path, content]
+
+tangle :: (HasConnection env, HasLogFunc env, HasConfig env)
+       => TangleQuery -> Annotator -> Entangled env ()
+tangle query annotate = do
+    cfg <- view config
+    refs <- db (queryReferenceMap cfg)
+    let codes = expandedCode annotate refs
+    case query of
+        TangleRef ref   -> dump =<< tangleRef codes annotate (ReferenceName ref)
+        TangleFile path -> dump =<< tangleFile codes annotate path
+        TangleAll       -> mapM_ (\f -> writeFile f =<< tangleFile codes annotate f) =<< db listTargetFiles 
+
+stitch :: (HasConnection env, HasLogFunc env, HasConfig env)
+       => FilePath -> Entangled env ()
+stitch path = dump =<< db (stitchDocument path)
+
+listTargets :: (HasConnection env, HasLogFunc env, HasConfig env)
+            => Entangled env ()
+listTargets = dump =<< (T.unlines <$> map T.pack <$> db listTargetFiles)
+
+insertSources :: (HasConnection env, HasLogFunc env, HasConfig env)
+              => [FilePath] -> Entangled env ()
+insertSources files = do 
+    logInfo $ display $ "inserting files: " <> tshow files
+    mapM_ readDoc files
     where readDoc f = do
-            doc <- runReaderT (runFileIO (readFile f) >>= parseMarkdown f) cfg
-            case doc of
-                Left e -> liftIO $ T.IO.putStrLn ("error: " <> tshow e)
-                Right d -> insertDocument f d
+            doc <- parseMarkdown' f =<< readFile f
+            db (insertDocument f doc)
 
-deduplicateRefs :: [ReferencePair] -> SQL [ReferencePair]
-deduplicateRefs refs = dedup sorted
-    where sorted = sortOn fst refs
-          dedup [] = return []
-          dedup [x1] = return [x1]
-          dedup ((ref1, code1@CodeBlock{codeSource=s1}) : (ref2, code2@CodeBlock{codeSource=s2}) : xs)
-                | ref1 /= ref2 = ((ref1, code1) :) <$> dedup ((ref2, code2) : xs)
-                | s1 == s2     = dedup ((ref1, code1) : xs)
-                | otherwise    = do
-                    old_code <- queryCodeSource ref1
-                    case old_code of
-                        Nothing -> throwM $ StitchError $ "ambiguous update: " <> tshow ref1 <> " not in database."
-                        Just c  -> select (throwM $ StitchError $ "ambiguous update to " <> tshow ref1)
-                                    [(s1 == c && s2 /= c, dedup ((ref2, code2) : xs))
-                                    ,(s1 /= c && s2 == c, dedup ((ref1, code1) : xs))]
-
-runInsertTargets :: Config -> [FilePath] -> FileIO ()
-runInsertTargets cfg files = do
-    dbPath <- getDatabasePath cfg
-    logInfoN $ "inserting files: " <> tshow files
-    withSQL dbPath $ createTables >> mapM_ readTgt files
+insertTargets :: (HasConnection env, HasLogFunc env, HasConfig env)
+              => [FilePath] -> Entangled env ()
+insertTargets files = do
+    logInfo $ display $ "inserting files: " <> tshow files
+    mapM_ readTgt files
     where readTgt f = do
-            refs' <- runReaderT (runFileIO (readFile f) >>= stitch f) cfg
-            case refs' of
-                Left err -> logErrorN $ "Error loading '" <> T.pack f <> "': " <> formatError err
-                Right refs -> updateTarget =<< deduplicateRefs refs
-```
+            refs <- untangle f =<< readFile f
+            db (updateTarget =<< deduplicateRefs refs)
 
-## Clear orphans
-
-``` {.haskell #main-run}
-runClearOrphans :: Config -> FileIO ()
-runClearOrphans cfg = do
-    dbPath <- getDatabasePath cfg
-    lst <- withSQL dbPath $ do 
-        createTables
+clearOrphans :: (HasConnection env, HasLogFunc env, HasConfig env)
+             => Entangled env ()
+clearOrphans = do
+    files <- db $ do
         r <- listOrphanTargets
         clearOrphanTargets
         return r
-    mapM_ deleteFile lst
+    mapM_ deleteFile files
+
+printExampleConfig :: (HasLogFunc env)
+                   => Entangled env ()
+printExampleConfig = dump =<< readFile =<< liftIO (getDataFileName "data/example-config.dhall")
 ```
 
-## Print example config
-
-``` {.haskell #main-run}
-runPrintExampleConfig :: IO ()
-runPrintExampleConfig =
-    T.IO.putStr =<< T.IO.readFile =<< getDataFileName "data/example-config.dhall"
-```

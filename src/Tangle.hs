@@ -1,6 +1,7 @@
--- ------ language="Haskell" file="src/Tangle.hs" project://lit/13-tangle.md
+-- ------ language="Haskell" file="src/Tangle.hs" project://src/Tangle.hs#2
 module Tangle where
 
+import RIO (view, tshow)
 -- ------ begin <<import-text>>[0] project://lit/01-entangled.md
 import qualified Data.Text as T
 import Data.Text (Text)
@@ -26,13 +27,14 @@ import Data.Void
 
 import Control.Monad.Reader (MonadReader, reader, ReaderT, ask, runReaderT)
 import Control.Monad.State (MonadState, gets, modify, StateT, evalStateT)
+import Control.Monad.Catch (MonadThrow, throwM)
 import Control.Monad ((>=>))
 
 import Data.Maybe (catMaybes)
 
 import ListStream (ListStream (..))
 import Document
-import Config (Config, lookupLanguage, ConfigLanguage(..) )
+import Config (config, HasConfig, Config, lookupLanguage, ConfigLanguage(..) )
 
 -- ------ begin <<tangle-imports>>[0] project://lit/13-tangle.md
 import Attributes (attributes)
@@ -118,7 +120,7 @@ newReference n = do
     x   <- countReference n
     return $ ReferenceId doc n x
 -- ------ end
--- ------ begin <<parse-markdown>>[5] project://lit/13-tangle.md
+-- ------ begin <<parse-markdown>>[5] project://src/Tangle.hs#29
 type DocumentParser = ReaderT Config (StateT ReferenceCount (Parsec Void (ListStream Text)))
 
 codeBlock :: ( MonadParsec e (ListStream Text) m
@@ -146,6 +148,16 @@ normalText = do
 
 markdown :: DocumentParser ([Content], [ReferencePair])
 markdown = mconcat <$> many (codeBlock <|> normalText)
+
+parseMarkdown' :: ( MonadReader env m, HasConfig env, MonadThrow m )
+               => FilePath -> Text -> m Document
+parseMarkdown' f t = do
+    cfg <- view config
+    let result' = parse (evalStateT (runReaderT markdown cfg) (ReferenceCount f mempty))
+                        f (ListStream $ T.lines t)
+    case result' of
+        Left err              -> throwM $ TangleError $ tshow err
+        Right (content, refs) -> return $ Document (M.fromList refs) content (getFileMap refs)
 
 parseMarkdown :: ( MonadReader Config m )
               => FilePath -> Text -> m (Either EntangledError Document)

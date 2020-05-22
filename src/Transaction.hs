@@ -1,52 +1,55 @@
--- ------ language="Haskell" file="src/Transaction.hs" project://lit/a4-fileio.md
+-- ------ language="Haskell" file="src/Transaction.hs" project://src/Transaction.hs#2
+{-# LANGUAGE UndecidableInstances #-}
 module Transaction where
 
--- ------ begin <<transaction-imports>>[0] project://lit/a4-fileio.md
+-- ------ begin <<transaction-imports>>[0] project://src/Transaction.hs#3
 import qualified Data.Text.Prettyprint.Doc as P
 import Console (Doc)
 import qualified Console
 import Control.Monad.Logger (LogLevel)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Text.IO as T.IO
 import System.IO (stdout, hFlush)
 import Control.Monad (when)
 -- ------ end
 
-data Transaction = Transaction
-  { action :: Maybe (IO ())
+data Transaction m = Transaction
+  { action :: Maybe (m ())
   , description :: Doc
   , needConfirm :: Bool }
 
--- ------ begin <<transaction>>[0] project://lit/a4-fileio.md
-instance Semigroup Transaction where
+-- ------ begin <<transaction>>[0] project://src/Transaction.hs#5
+instance (Semigroup (m ())) => Semigroup (Transaction m) where
     (Transaction al dl cl) <> (Transaction ar dr cr)
       = Transaction (al <> ar) (dl <> dr) (cl || cr)
 
-instance Monoid Transaction where
+instance (Monoid (m ())) => Monoid (Transaction m) where
     mempty = Transaction mempty mempty False
 -- ------ end
--- ------ begin <<transaction>>[1] project://lit/a4-fileio.md
-plan :: IO () -> Transaction
+-- ------ begin <<transaction>>[1] project://src/Transaction.hs#7
+plan :: (Monad m) => m () -> Transaction m
 plan action = Transaction (Just action) mempty False
 
-doc :: Doc -> Transaction
+doc :: Doc -> Transaction m
 doc x = Transaction Nothing x False
 
-msg :: P.Pretty a => LogLevel -> a -> Transaction
+msg :: P.Pretty a => LogLevel -> a -> Transaction m
 msg level doc = Transaction Nothing (Console.msg level doc) False
 
-confirm :: Transaction
-confirm = Transaction mempty mempty True
+confirm :: Transaction m
+confirm = Transaction Nothing mempty True
 -- ------ end
--- ------ begin <<transaction>>[2] project://lit/a4-fileio.md
-runTransaction :: Transaction -> IO ()
-runTransaction (Transaction Nothing d _) = Console.putTerminal d
+-- ------ begin <<transaction>>[2] project://src/Transaction.hs#9
+runTransaction :: (MonadIO m) => Transaction m -> m ()
+runTransaction (Transaction Nothing d _) = liftIO $ Console.putTerminal d
 runTransaction (Transaction (Just x) d c) = do
-    Console.putTerminal d
+    liftIO $ Console.putTerminal d
     if c then do
-        T.IO.putStr "confirm? (y/n) "
-        hFlush stdout
-        reply <- getLine
-        T.IO.putStrLn ""
+        reply <- liftIO $ do
+            T.IO.putStr "confirm? (y/n) "
+            hFlush stdout
+            getLine
+        liftIO $ T.IO.putStrLn ""
         when (reply == "y") x
     else x
 -- ------ end

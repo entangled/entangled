@@ -3,6 +3,7 @@
 ```{.haskell file=src/Stitch.hs}
 module Stitch where
 
+import RIO (view)
 <<stitch-imports>>
 <<source-parser>>
 <<stitch>>
@@ -58,6 +59,13 @@ In the `stitch` function we take out the `Config` from the anonymous `MonadReade
 ``` {.haskell #stitch}
 type SourceParser = ReaderT Config (Parsec Void (ListStream Text))
 
+untangle :: ( MonadReader env m, HasConfig env, MonadThrow m )
+         => FilePath -> Text -> m [ReferencePair]
+untangle file text = do
+    doc <- runReaderT (sourceDocument :: SourceParser [ReferencePair]) <$> view config
+    either (\err -> throwM $ StitchError $ T.pack $ errorBundlePretty err)
+           return $ parse doc file $ ListStream (T.lines text)
+
 stitch :: ( MonadReader Config m )
          => FilePath -> Text
          -> m (Either EntangledError [ReferencePair])
@@ -73,7 +81,7 @@ stitch filename text = do
 ``` {.haskell #stitch-imports}
 import ListStream (ListStream(..), tokenP)
 import Document
-import Config (Config, languageFromName, ConfigLanguage(..))
+import Config (config, HasConfig, Config, languageFromName, ConfigLanguage(..))
 import Comment (topHeader, beginBlock, endBlock, commented)
 import TextUtil (indent, unindent, unlines')
 
@@ -82,6 +90,7 @@ import Text.Megaparsec
     , many, some, errorBundlePretty )
 import Data.Void (Void)
 import Control.Monad.Fail (MonadFail)
+import Control.Monad.Catch (MonadThrow, throwM)
 <<import-text>>
 import qualified Data.Map.Strict as M
 import Control.Monad.Reader (MonadReader, ask, asks, ReaderT, runReaderT)

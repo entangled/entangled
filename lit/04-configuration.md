@@ -124,17 +124,21 @@ data Config = Config
     , configDatabase  :: Maybe Text
     } deriving (Show)
 
-config :: Decoder Config
-config = record
+configDecoder :: Decoder Config
+configDecoder = record
     ( Config <$> field "languages" (setFromDistinctList configLanguage)
              <*> field "watchList" auto
              <*> field "database" auto
     )
+
+class HasConfig env where
+    config :: Lens' env Config
 ```
 
 ``` {.haskell file=src/Config.hs}
 module Config where
 
+import RIO (Lens')
 <<config-import>>
 
 import Errors
@@ -189,7 +193,7 @@ readLocalConfig :: IO Config
 readLocalConfig = do
     cfg_path <- maybe (throwM $ SystemError "no config found.") id
              <$> findFileAscending "entangled.dhall"
-    input config $ "(" <> T.pack cfg_path <> ").entangled"
+    input configDecoder $ "(" <> T.pack cfg_path <> ").entangled"
 ```
 
 ## Processing

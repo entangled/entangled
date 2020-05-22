@@ -1,8 +1,11 @@
--- ------ language="Haskell" file="src/Database.hs" project://lit/03-database.md
-{-# LANGUAGE DeriveGeneric, OverloadedLabels #-}
+-- ------ language="Haskell" file="src/Database.hs" project://src/Database.hs#2
+{-# LANGUAGE DeriveGeneric, OverloadedLabels, NoImplicitPrelude #-}
 module Database where
 
--- ------ begin <<database-imports>>[0] project://lit/03-database.md
+import RIO
+import RIO.List (initMaybe, sortOn)
+
+-- ------ begin <<database-imports>>[0] project://src/Database.hs#3
 import Paths_entangled
 
 import Database.SQLite.Simple
@@ -11,8 +14,7 @@ import Database.SQLite.Simple.FromRow
 import Control.Monad.Reader
 import Control.Monad.IO.Class
 import Control.Monad.Catch
-import Control.Monad.Writer
-import Control.Monad.Logger
+-- import Control.Monad.Logger
 
 -- ------ begin <<import-text>>[0] project://lit/01-entangled.md
 import qualified Data.Text as T
@@ -20,7 +22,7 @@ import Data.Text (Text)
 -- ------ end
 import qualified Data.Text.IO as T.IO
 -- ------ end
--- ------ begin <<database-imports>>[1] project://lit/03-database.md
+-- ------ begin <<database-imports>>[1] project://src/Database.hs#7
 -- ------ begin <<import-map>>[0] project://lit/01-entangled.md
 import qualified Data.Map.Strict as M
 import Data.Map.Strict (Map)
@@ -30,30 +32,51 @@ import Data.Int (Int64)
 
 import Document
 import Config
-import TextUtil
+import Select (select)
+import TextUtil (unlines')
 -- ------ end
--- ------ begin <<database-types>>[0] project://lit/03-database.md
-newtype SQL a = SQL { unSQL :: ReaderT Connection (LoggingT IO) a }
-    deriving (Applicative, Functor, Monad, MonadIO, MonadThrow, MonadLogger, MonadLoggerIO)
+-- ------ begin <<database-types>>[0] project://src/Database.hs#11
+class HasConnection env where
+    connection :: Lens' env Connection
 
-class (MonadIO m, MonadThrow m, MonadLogger m) => MonadSQL m where
-    getConnection :: m Connection
-    runSQL :: (MonadIO n, MonadLoggerIO n) => Connection -> m a -> n a
+data SQLEnv = SQLEnv
+    { sqlLogFunc    :: LogFunc
+    , sqlConnection :: Connection }
 
--- type LogLine = (Loc, LogSource, LogLevel, LogStr)
+newtype SQL a = SQL { unSQL :: RIO SQLEnv a }  -- ReaderT Connection (LoggingT IO) a }
+    deriving (Applicative, Functor, Monad, MonadIO, MonadThrow, MonadReader SQLEnv)
 
-instance MonadSQL SQL where
-    getConnection = SQL ask
-    runSQL conn (SQL x) = do
-        logFun <- askLoggerIO
-        x <- liftIO $ runLoggingT (runReaderT x conn) logFun
-        return x
+instance HasLogFunc SQLEnv where
+    logFuncL = lens sqlLogFunc (\x y -> x { sqlLogFunc = y })
 
-withSQL :: (MonadIO m, MonadLoggerIO m) => FilePath -> SQL a -> m a
+instance HasConnection SQLEnv where
+    connection = lens sqlConnection (\x y -> x { sqlConnection = y })
+
+getConnection :: (HasConnection env, MonadReader env m) => m Connection
+getConnection = view connection
+
+db :: (MonadIO m, MonadReader env m, HasConnection env, HasLogFunc env)
+   => SQL a -> m a
+db (SQL x) = do
+    logFunc <- view logFuncL
+    conn    <- view connection
+    runRIO (SQLEnv logFunc conn) x
+
+runSQL :: (MonadIO m) => Connection -> SQL a -> m a
+runSQL conn (SQL x) = do
+    logOptions <- logOptionsHandle stderr True
+    liftIO $ withLogFunc logOptions (\logFunc ->
+        runRIO (SQLEnv logFunc conn) x)
+
+runSQL' :: (MonadIO m) => SQLEnv -> SQL a -> m a
+runSQL' env (SQL x) = runRIO env x
+
+withSQL :: (MonadIO m) => FilePath -> SQL a -> m a
 withSQL p (SQL x) = do
-    logFun <- askLoggerIO
-    x <- liftIO $ withConnection p (\conn -> liftIO $ runLoggingT (runReaderT x conn) logFun)
-    return x
+    logOptions <- logOptionsHandle stderr True
+    liftIO $ withLogFunc logOptions (\logFunc ->
+        liftIO $ withConnection p (\conn ->
+            liftIO $ runRIO (SQLEnv logFunc conn) x))
 
 expectUnique :: (MonadThrow m, Show a) => [a] -> m (Maybe a)
 expectUnique []  = return Nothing
@@ -65,22 +88,21 @@ expectUnique' _ []  = return Nothing
 expectUnique' f [x] = return $ Just (f x)
 expectUnique' _ lst = throwM $ DatabaseError $ "duplicate entry: " <> tshow lst
 -- ------ end
--- ------ begin <<database-types>>[1] project://lit/03-database.md
-withTransactionM :: (MonadSQL m, MonadLoggerIO m) => m a -> m a
+-- ------ begin <<database-types>>[1] project://src/Database.hs#13
+withTransactionM :: SQL a -> SQL a
 withTransactionM t = do
+    env <- ask
     conn <- getConnection
-    logFun <- askLoggerIO
-    x <- liftIO $ withTransaction conn (runLoggingT (runSQL conn t) logFun)
-    return x
+    liftIO $ withTransaction conn (runSQL' env t)
 -- ------ end
--- ------ begin <<database-create>>[0] project://lit/03-database.md
+-- ------ begin <<database-create>>[0] project://src/Database.hs#15
 schema :: IO [Query]
 schema = do
     schema_path <- getDataFileName "data/schema.sql"
-    qs <-  T.splitOn ";" <$> T.IO.readFile schema_path
-    return $ map Query (init qs)
+    qs <- initMaybe <$> T.splitOn ";" <$> T.IO.readFile schema_path
+    return $ maybe [] (map Query) qs
 
-createTables :: SQL ()
+createTables :: (MonadIO m, MonadReader env m, HasConnection env) => m ()
 createTables = do
     conn <- getConnection
     liftIO $ schema >>= mapM_ (execute_ conn)
@@ -187,10 +209,10 @@ insertDocument rel_path Document{..} = do
     docId' <- getDocumentId rel_path
     docId <- case docId' of
         Just docId -> do
-            logInfoN $ "Replacing '" <> T.pack rel_path <> "'."
+            logInfo $ display $ "Replacing '" <> T.pack rel_path <> "'."
             removeDocumentData docId >> return docId
         Nothing    -> do
-            logInfoN $ "Inserting new '" <> T.pack rel_path <> "'."
+            logInfo $ display $ "Inserting new '" <> T.pack rel_path <> "'."
             liftIO $ execute conn "insert into `documents`(`filename`) values (?)" (Only rel_path)
             liftIO $ lastInsertRowId conn
     insertCodes docId references
@@ -270,4 +292,19 @@ queryReferenceMap config = do
                 Just l  -> return ( ReferenceId rel_path (ReferenceName name) ordinal
                                   , CodeBlock (KnownLanguage lang) [] source )
 -- ------ end
+
+deduplicateRefs :: [ReferencePair] -> SQL [ReferencePair]
+deduplicateRefs refs = dedup $ sortOn fst refs
+    where dedup [] = return []
+          dedup [x1] = return [x1]
+          dedup ((ref1, code1@CodeBlock{codeSource=s1}) : (ref2, code2@CodeBlock{codeSource=s2}) : xs)
+                | ref1 /= ref2 = ((ref1, code1) :) <$> dedup ((ref2, code2) : xs)
+                | s1 == s2     = dedup ((ref1, code1) : xs)
+                | otherwise    = do
+                    old_code <- queryCodeSource ref1
+                    case old_code of
+                        Nothing -> throwM $ StitchError $ "ambiguous update: " <> tshow ref1 <> " not in database."
+                        Just c  -> select (throwM $ StitchError $ "ambiguous update to " <> tshow ref1)
+                                    [(s1 == c && s2 /= c, dedup ((ref2, code2) : xs))
+                                    ,(s1 /= c && s2 == c, dedup ((ref1, code1) : xs))]
 -- ------ end

@@ -1,6 +1,7 @@
--- ------ language="Haskell" file="src/Config.hs" project://lit/04-configuration.md
+-- ------ language="Haskell" file="src/Config.hs" project://src/Config.hs#2
 module Config where
 
+import RIO (Lens')
 -- ------ begin <<config-import>>[0] project://lit/04-configuration.md
 import Dhall (Generic, FromDhall, ToDhall, input, auto, Decoder, union, record, field, list, strictText, setFromDistinctList)
 import Data.Text (Text)
@@ -29,7 +30,7 @@ import System.FilePath.Glob (glob)
 import System.Directory
 import System.FilePath
 
--- ------ begin <<config-dhall-schema>>[0] project://lit/04-configuration.md
+-- ------ begin <<config-dhall-schema>>[0] project://src/Config.hs#7
 data ConfigComment
     = Line  Text
     | Block { start :: Text, end :: Text }
@@ -63,14 +64,17 @@ data Config = Config
     , configDatabase  :: Maybe Text
     } deriving (Show)
 
-config :: Decoder Config
-config = record
+configDecoder :: Decoder Config
+configDecoder = record
     ( Config <$> field "languages" (setFromDistinctList configLanguage)
              <*> field "watchList" auto
              <*> field "database" auto
     )
+
+class HasConfig env where
+    config :: Lens' env Config
 -- ------ end
--- ------ begin <<config-input>>[0] project://lit/04-configuration.md
+-- ------ begin <<config-input>>[0] project://src/Config.hs#9
 findFileAscending :: String -> IO (Maybe FilePath)
 findFileAscending filename = do
     path <- dropTrailingPathSeparator <$> getCurrentDirectory
@@ -81,7 +85,7 @@ readLocalConfig :: IO Config
 readLocalConfig = do
     cfg_path <- maybe (throwM $ SystemError "no config found.") id
              <$> findFileAscending "entangled.dhall"
-    input config $ "(" <> T.pack cfg_path <> ").entangled"
+    input configDecoder $ "(" <> T.pack cfg_path <> ").entangled"
 -- ------ end
 -- ------ begin <<config-reader>>[0] project://lit/04-configuration.md
 lookupLanguage :: Config -> Text -> Maybe ConfigLanguage

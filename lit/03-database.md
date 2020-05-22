@@ -2,8 +2,11 @@
 We use an SQLite database to manage document content. Using SQL requires a remapping of the available data.
 
 ``` {.haskell file=src/Database.hs}
-{-# LANGUAGE DeriveGeneric, OverloadedLabels #-}
+{-# LANGUAGE DeriveGeneric, OverloadedLabels, NoImplicitPrelude #-}
 module Database where
+
+import RIO
+import RIO.List (initMaybe, sortOn)
 
 <<database-imports>>
 <<database-types>>
@@ -11,6 +14,21 @@ module Database where
 <<database-insertion>>
 <<database-update>>
 <<database-queries>>
+
+deduplicateRefs :: [ReferencePair] -> SQL [ReferencePair]
+deduplicateRefs refs = dedup $ sortOn fst refs
+    where dedup [] = return []
+          dedup [x1] = return [x1]
+          dedup ((ref1, code1@CodeBlock{codeSource=s1}) : (ref2, code2@CodeBlock{codeSource=s2}) : xs)
+                | ref1 /= ref2 = ((ref1, code1) :) <$> dedup ((ref2, code2) : xs)
+                | s1 == s2     = dedup ((ref1, code1) : xs)
+                | otherwise    = do
+                    old_code <- queryCodeSource ref1
+                    case old_code of
+                        Nothing -> throwM $ StitchError $ "ambiguous update: " <> tshow ref1 <> " not in database."
+                        Just c  -> select (throwM $ StitchError $ "ambiguous update to " <> tshow ref1)
+                                    [(s1 == c && s2 /= c, dedup ((ref2, code2) : xs))
+                                    ,(s1 /= c && s2 == c, dedup ((ref1, code1) : xs))]
 ```
 
 ## Types
@@ -26,35 +44,54 @@ import Database.SQLite.Simple.FromRow
 import Control.Monad.Reader
 import Control.Monad.IO.Class
 import Control.Monad.Catch
-import Control.Monad.Writer
-import Control.Monad.Logger
+-- import Control.Monad.Logger
 
 <<import-text>>
 import qualified Data.Text.IO as T.IO
 ```
 
 ``` {.haskell #database-types}
-newtype SQL a = SQL { unSQL :: ReaderT Connection (LoggingT IO) a }
-    deriving (Applicative, Functor, Monad, MonadIO, MonadThrow, MonadLogger, MonadLoggerIO)
+class HasConnection env where
+    connection :: Lens' env Connection
 
-class (MonadIO m, MonadThrow m, MonadLogger m) => MonadSQL m where
-    getConnection :: m Connection
-    runSQL :: (MonadIO n, MonadLoggerIO n) => Connection -> m a -> n a
+data SQLEnv = SQLEnv
+    { sqlLogFunc    :: LogFunc
+    , sqlConnection :: Connection }
 
--- type LogLine = (Loc, LogSource, LogLevel, LogStr)
+newtype SQL a = SQL { unSQL :: RIO SQLEnv a }  -- ReaderT Connection (LoggingT IO) a }
+    deriving (Applicative, Functor, Monad, MonadIO, MonadThrow, MonadReader SQLEnv)
 
-instance MonadSQL SQL where
-    getConnection = SQL ask
-    runSQL conn (SQL x) = do
-        logFun <- askLoggerIO
-        x <- liftIO $ runLoggingT (runReaderT x conn) logFun
-        return x
+instance HasLogFunc SQLEnv where
+    logFuncL = lens sqlLogFunc (\x y -> x { sqlLogFunc = y })
 
-withSQL :: (MonadIO m, MonadLoggerIO m) => FilePath -> SQL a -> m a
+instance HasConnection SQLEnv where
+    connection = lens sqlConnection (\x y -> x { sqlConnection = y })
+
+getConnection :: (HasConnection env, MonadReader env m) => m Connection
+getConnection = view connection
+
+db :: (MonadIO m, MonadReader env m, HasConnection env, HasLogFunc env)
+   => SQL a -> m a
+db (SQL x) = do
+    logFunc <- view logFuncL
+    conn    <- view connection
+    runRIO (SQLEnv logFunc conn) x
+
+runSQL :: (MonadIO m) => Connection -> SQL a -> m a
+runSQL conn (SQL x) = do 
+    logOptions <- logOptionsHandle stderr True
+    liftIO $ withLogFunc logOptions (\logFunc ->
+        runRIO (SQLEnv logFunc conn) x)
+
+runSQL' :: (MonadIO m) => SQLEnv -> SQL a -> m a
+runSQL' env (SQL x) = runRIO env x
+
+withSQL :: (MonadIO m) => FilePath -> SQL a -> m a
 withSQL p (SQL x) = do
-    logFun <- askLoggerIO
-    x <- liftIO $ withConnection p (\conn -> liftIO $ runLoggingT (runReaderT x conn) logFun)
-    return x
+    logOptions <- logOptionsHandle stderr True
+    liftIO $ withLogFunc logOptions (\logFunc ->
+        liftIO $ withConnection p (\conn ->
+            liftIO $ runRIO (SQLEnv logFunc conn) x))
 
 expectUnique :: (MonadThrow m, Show a) => [a] -> m (Maybe a)
 expectUnique []  = return Nothing
@@ -72,12 +109,11 @@ The `SQLite.Simple` function `withTransaction` takes an `IO` action as argument.
 All the `RedirectLog` code is needed to aid the type checker, or it won't know what to do.
 
 ``` {.haskell #database-types}
-withTransactionM :: (MonadSQL m, MonadLoggerIO m) => m a -> m a
+withTransactionM :: SQL a -> SQL a
 withTransactionM t = do
+    env <- ask
     conn <- getConnection
-    logFun <- askLoggerIO
-    x <- liftIO $ withTransaction conn (runLoggingT (runSQL conn t) logFun)
-    return x
+    liftIO $ withTransaction conn (runSQL' env t)
 ```
 
 ``` {.haskell #database-imports}
@@ -87,7 +123,8 @@ import Data.Int (Int64)
 
 import Document
 import Config
-import TextUtil
+import Select (select)
+import TextUtil (unlines')
 ```
 
 ::: {.note}
@@ -128,10 +165,10 @@ Implement the interface in Selda.
 schema :: IO [Query]
 schema = do
     schema_path <- getDataFileName "data/schema.sql"
-    qs <-  T.splitOn ";" <$> T.IO.readFile schema_path
-    return $ map Query (init qs)
+    qs <- initMaybe <$> T.splitOn ";" <$> T.IO.readFile schema_path
+    return $ maybe [] (map Query) qs
 
-createTables :: SQL ()
+createTables :: (MonadIO m, MonadReader env m, HasConnection env) => m ()
 createTables = do
     conn <- getConnection
     liftIO $ schema >>= mapM_ (execute_ conn)
@@ -329,10 +366,10 @@ insertDocument rel_path Document{..} = do
     docId' <- getDocumentId rel_path
     docId <- case docId' of
         Just docId -> do
-            logInfoN $ "Replacing '" <> T.pack rel_path <> "'."
+            logInfo $ display $ "Replacing '" <> T.pack rel_path <> "'."
             removeDocumentData docId >> return docId
         Nothing    -> do
-            logInfoN $ "Inserting new '" <> T.pack rel_path <> "'."
+            logInfo $ display $ "Inserting new '" <> T.pack rel_path <> "'."
             liftIO $ execute conn "insert into `documents`(`filename`) values (?)" (Only rel_path)
             liftIO $ lastInsertRowId conn
     insertCodes docId references

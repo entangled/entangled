@@ -1,4 +1,4 @@
--- ------ language="Dhall" file="data/config-schema.dhall" project://lit/04-configuration.md#6
+-- ------ language="Dhall" file="data/config-schema.dhall" project://data/config-schema.dhall#2
 let Comment : Type = < Line : Text | Block : { start : Text, end : Text } >
 let Language : Type = { name : Text, identifiers : List Text, comment : Comment }
 

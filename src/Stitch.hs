@@ -1,10 +1,11 @@
--- ------ language="Haskell" file="src/Stitch.hs" project://lit/14-stitch.md
+-- ------ language="Haskell" file="src/Stitch.hs" project://src/Stitch.hs#2
 module Stitch where
 
+import RIO (view)
 -- ------ begin <<stitch-imports>>[0] project://src/Stitch.hs#3
 import ListStream (ListStream(..), tokenP)
 import Document
-import Config (Config, languageFromName, ConfigLanguage(..))
+import Config (config, HasConfig, Config, languageFromName, ConfigLanguage(..))
 import Comment (topHeader, beginBlock, endBlock, commented)
 import TextUtil (indent, unindent, unlines')
 
@@ -13,6 +14,7 @@ import Text.Megaparsec
     , many, some, errorBundlePretty )
 import Data.Void (Void)
 import Control.Monad.Fail (MonadFail)
+import Control.Monad.Catch (MonadThrow, throwM)
 -- ------ begin <<import-text>>[0] project://lit/01-entangled.md
 import qualified Data.Text as T
 import Data.Text (Text)
@@ -57,8 +59,15 @@ sourceLine = do
     x <- anySingle
     return ([x], [])
 -- ------ end
--- ------ begin <<stitch>>[0] project://lit/14-stitch.md
+-- ------ begin <<stitch>>[0] project://src/Stitch.hs#11
 type SourceParser = ReaderT Config (Parsec Void (ListStream Text))
+
+untangle :: ( MonadReader env m, HasConfig env, MonadThrow m )
+         => FilePath -> Text -> m [ReferencePair]
+untangle file text = do
+    doc <- runReaderT (sourceDocument :: SourceParser [ReferencePair]) <$> view config
+    either (\err -> throwM $ StitchError $ T.pack $ errorBundlePretty err)
+           return $ parse doc file $ ListStream (T.lines text)
 
 stitch :: ( MonadReader Config m )
          => FilePath -> Text

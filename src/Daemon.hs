@@ -1,6 +1,8 @@
 -- ------ language="Haskell" file="src/Daemon.hs" project://lit/10-daemon.md
 -- ------ begin <<daemon>>[0] project://src/Daemon.hs#3
 module Daemon where
+{-# LANGUAGE NoImplicitPrelude #-}
+-- import RIO
 
 import Prelude hiding (writeFile, readFile)
 
@@ -24,7 +26,7 @@ import Database.SQLite.Simple
 
 import Document
 import Config
-import Database
+import Database hiding (db)
 import Tangle (parseMarkdown, expandedCode, Annotator, annotateComment')
 import Comment
 import Stitch (stitch)
@@ -52,7 +54,7 @@ import Control.Monad (mapM)
 -- ------ begin <<daemon-imports>>[4] project://lit/10-daemon.md
 import qualified Data.Map.Lazy as LM
 -- ------ end
--- ------ begin <<daemon-imports>>[5] project://lit/10-daemon.md
+-- ------ begin <<daemon-imports>>[5] project://src/Daemon.hs#18
 import System.IO (stdout, hFlush, hSetBuffering, BufferMode(..))
 import RIO.Directory (makeRelativeToCurrentDirectory, canonicalizePath)
 import RIO.FilePath (equalFilePath, takeDirectory)
@@ -79,21 +81,26 @@ data Session = Session
     , eventChannel  :: Chan Event
     , daemonState   :: MVar DaemonState
     , sqlite        :: Connection
+    -- , config        :: Config
     }
 
-db :: ( MonadIO m, MonadState Session m, MonadLoggerIO m )
+db :: ( MonadIO m, MonadState Session m )
    => SQL a -> m a
 db x = do
     conn <- gets sqlite
     runSQL conn x
 
-newtype Daemon a = Daemon { unDaemon :: RWST Config Transaction Session (LoggingT IO) a }
+newtype Daemon a = Daemon { unDaemon :: RWST Config (Transaction IO) Session (LoggingT IO) a }
     deriving ( Applicative, Functor, Monad, MonadIO, MonadState Session
-             , MonadReader Config, MonadWriter Transaction, MonadThrow, MonadLogger, MonadLoggerIO )
+             , MonadReader Config, MonadWriter (Transaction IO), MonadThrow, MonadLogger, MonadLoggerIO )
 
+-- newtype Entangled env a = Entangled { unEntangled :: WriterT Transaction (RIO env) a }
+--     deriving ( Applicative, Functor, Monad, MonadIO, MonadReader env, MonadWriter Transaction )
+
+-- instance MonadFileIO (Entangled env) where
 instance MonadFileIO Daemon where
     readFile path       = runFileIO $ readFile path
-
+    dump = runFileIO . dump'
     writeFile path text = do
         old_content' <- liftIO $ try $ runFileIO $ readFile path
         case (old_content' :: Either IOException Text) of
