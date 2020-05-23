@@ -163,22 +163,3 @@ getCodeAttributes CodeBlock{..} = attrs codeProperties
           attrs (_ : cs) = attrs cs
 ```
 
-## Conversion
-
-We can convert a reference back to text by looking up the reference. If the code block is emtpy this returns `Nothing`. This is due to the choice not to include the final newline in the code block.
-
-``` {.haskell #document-conversion}
-contentToText :: ReferenceMap -> Content -> Maybe Text
-contentToText ref (PlainText x) = Just x
-contentToText ref (Reference r) 
-    | code == "" = Nothing
-    | otherwise  = Just code
-    where CodeBlock _ _ code = ref M.! r
-```
-
-Stitching text back together:
-
-``` {.haskell #document-conversion}
-stitchText :: Document -> Text
-stitchText (Document refs c) = T.unlines $ mapMaybe (contentToText refs) c
-```
