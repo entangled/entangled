@@ -2,14 +2,13 @@
 -- ~\~ begin <<lit/13-tangle.md|src/Tangle.hs>>[0]
 module Tangle where
 
-import RIO (view, tshow)
+import RIO (view, tshow, Map)
 -- ~\~ begin <<lit/01-entangled.md|import-text>>[0]
-import qualified Data.Text as T
-import Data.Text (Text)
+import RIO (Text)
+import qualified RIO.Text as T
 -- ~\~ end
 -- ~\~ begin <<lit/01-entangled.md|import-map>>[0]
 import qualified Data.Map.Strict as M
-import Data.Map.Strict (Map)
 -- ~\~ end
 -- ~\~ begin <<lit/01-entangled.md|import-lazy-map>>[0]
 import qualified Data.Map.Lazy as LM

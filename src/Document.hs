@@ -1,27 +1,24 @@
 -- ~\~ language=Haskell filename=src/Document.hs
 -- ~\~ begin <<lit/02-document-model.md|src/Document.hs>>[0]
+{-# LANGUAGE NoImplicitPrelude #-}
 module Document
     ( module Document
     , module Errors ) where
 
+import RIO
+import RIO.List (sort)
+
 -- ~\~ begin <<lit/01-entangled.md|import-text>>[0]
-import qualified Data.Text as T
-import Data.Text (Text)
+import RIO (Text)
+import qualified RIO.Text as T
 -- ~\~ end
 -- ~\~ begin <<lit/01-entangled.md|import-map>>[0]
 import qualified Data.Map.Strict as M
-import Data.Map.Strict (Map)
 -- ~\~ end
 -- ~\~ begin <<lit/01-entangled.md|import-set>>[0]
 import qualified Data.Set as S
-import Data.Set (Set)
 -- ~\~ end
-import Data.Typeable (Typeable)
-import Data.List (sort)
 
-import Control.Monad.Catch
-
-import TextUtil (tshow)
 import Errors
 
 -- ~\~ begin <<lit/02-document-model.md|document-structure>>[0]

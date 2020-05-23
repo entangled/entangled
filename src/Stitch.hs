@@ -17,8 +17,8 @@ import Data.Void (Void)
 import Control.Monad.Fail (MonadFail)
 import Control.Monad.Catch (MonadThrow, throwM)
 -- ~\~ begin <<lit/01-entangled.md|import-text>>[0]
-import qualified Data.Text as T
-import Data.Text (Text)
+import RIO (Text)
+import qualified RIO.Text as T
 -- ~\~ end
 import qualified Data.Map.Strict as M
 import Control.Monad.Reader (MonadReader, ask, asks, ReaderT, runReaderT)

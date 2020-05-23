@@ -7,8 +7,8 @@ import Control.Monad.Reader
 import Control.Monad.Except
 
 -- ~\~ begin <<lit/01-entangled.md|import-text>>[0]
-import qualified Data.Text as T
-import Data.Text (Text)
+import RIO (Text)
+import qualified RIO.Text as T
 -- ~\~ end
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|comment-imports>>[1]

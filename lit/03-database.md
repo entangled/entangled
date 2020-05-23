@@ -165,7 +165,7 @@ Implement the interface in Selda.
 schema :: IO [Query]
 schema = do
     schema_path <- getDataFileName "data/schema.sql"
-    qs <- initMaybe <$> T.splitOn ";" <$> T.IO.readFile schema_path
+    qs <- initMaybe <$> T.split (== ';') <$> T.IO.readFile schema_path
     return $ maybe [] (map Query) qs
 
 createTables :: (MonadIO m, MonadReader env m, HasConnection env) => m ()

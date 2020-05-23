@@ -16,7 +16,6 @@ import qualified Data.Text.IO as T.IO
 import TextUtil
 -- ~\~ begin <<lit/01-entangled.md|import-set>>[0]
 import qualified Data.Set as S
-import Data.Set (Set)
 -- ~\~ end
 -- import qualified Toml
 -- import Toml (TomlCodec, (.=))

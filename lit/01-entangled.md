@@ -22,7 +22,6 @@ We use strict maps by default.
 
 ``` {.haskell #import-map}
 import qualified Data.Map.Strict as M
-import Data.Map.Strict (Map)
 ```
 
 ``` {.haskell #import-lazy-map}
@@ -33,7 +32,6 @@ import qualified Data.Map.Lazy as LM
 
 ``` {.haskell #import-set}
 import qualified Data.Set as S
-import Data.Set (Set)
 ```
 
 ## Text
@@ -41,8 +39,8 @@ import Data.Set (Set)
 We will be using the `Text` module everywhere.
 
 ``` {.haskell #import-text}
-import qualified Data.Text as T
-import Data.Text (Text)
+import RIO (Text)
+import qualified RIO.Text as T
 ```
 
 We need a version of `unlines` that doesn't append a final newline. This also means changing `T.lines` a little.

@@ -317,7 +317,7 @@ import qualified Data.Map.Lazy as LM
 import FileIO
 import Transaction
 
-import Console (msgWrite, msgCreate, msgDelete, Doc)
+import Console (msgWrite, msgCreate, msgDelete, Doc, timeStamp)
 import Paths_entangled
 import Config (config, HasConfig, languageFromName)
 import Database ( db, HasConnection, queryTargetRef, queryReferenceMap
@@ -341,7 +341,8 @@ runEntangled :: (MonadIO m, MonadReader env m, HasLogFunc env)
 runEntangled h (Entangled x) = do
     e <- ask
     (r, w) <- runRIO e (runWriterT x)
-    runFileIO' $ runTransaction h w
+    ts <- timeStamp
+    runFileIO' $ runTransaction (h >>= (\h' -> Just $ ts <> " " <> h')) w
     return r
 
 instance (HasLogFunc env) => MonadFileIO (Entangled env) where

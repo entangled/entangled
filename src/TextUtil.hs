@@ -5,8 +5,8 @@ module TextUtil where
 import Data.Char (isSpace)
 import Data.Maybe (isNothing, catMaybes)
 -- ~\~ begin <<lit/01-entangled.md|import-text>>[0]
-import qualified Data.Text as T
-import Data.Text (Text)
+import RIO (Text)
+import qualified RIO.Text as T
 -- ~\~ end
 
 -- ~\~ begin <<lit/01-entangled.md|indent>>[0]

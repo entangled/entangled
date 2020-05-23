@@ -1,19 +1,18 @@
 # Document structure
 
 ``` {.haskell file=src/Document.hs}
+{-# LANGUAGE NoImplicitPrelude #-}
 module Document
     ( module Document
     , module Errors ) where
 
+import RIO
+import RIO.List (sort)
+
 <<import-text>>
 <<import-map>>
 <<import-set>>
-import Data.Typeable (Typeable)
-import Data.List (sort)
 
-import Control.Monad.Catch
-
-import TextUtil (tshow)
 import Errors
 
 <<document-structure>>

@@ -18,15 +18,14 @@ import Control.Monad.Catch
 -- import Control.Monad.Logger
 
 -- ~\~ begin <<lit/01-entangled.md|import-text>>[0]
-import qualified Data.Text as T
-import Data.Text (Text)
+import RIO (Text)
+import qualified RIO.Text as T
 -- ~\~ end
 import qualified Data.Text.IO as T.IO
 -- ~\~ end
 -- ~\~ begin <<lit/03-database.md|database-imports>>[1]
 -- ~\~ begin <<lit/01-entangled.md|import-map>>[0]
 import qualified Data.Map.Strict as M
-import Data.Map.Strict (Map)
 -- ~\~ end
 import Data.Maybe (catMaybes)
 import Data.Int (Int64)
@@ -100,7 +99,7 @@ withTransactionM t = do
 schema :: IO [Query]
 schema = do
     schema_path <- getDataFileName "data/schema.sql"
-    qs <- initMaybe <$> T.splitOn ";" <$> T.IO.readFile schema_path
+    qs <- initMaybe <$> T.split (== ';') <$> T.IO.readFile schema_path
     return $ maybe [] (map Query) qs
 
 createTables :: (MonadIO m, MonadReader env m, HasConnection env) => m ()

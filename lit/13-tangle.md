@@ -3,7 +3,7 @@
 ``` {.haskell file=src/Tangle.hs}
 module Tangle where
 
-import RIO (view, tshow)
+import RIO (view, tshow, Map)
 <<import-text>>
 <<import-map>>
 <<import-lazy-map>>
