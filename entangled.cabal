@@ -76,6 +76,7 @@ library
       Entangled
       Errors
       FileIO
+      Linters
       ListStream
       Select
       Stitch

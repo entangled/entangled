@@ -25,6 +25,7 @@ import Database.SQLite.Simple
 import Tangle (annotateNaked, annotateComment')
 import FileIO (dump)
 import Entangled
+import Linters
 
 -- ~\~ begin <<lit/12-main.md|main-options>>[0]
 data Args = Args
@@ -53,6 +54,9 @@ data SubCommand
     | CommandList
     -- ~\~ end
     -- ~\~ begin <<lit/12-main.md|sub-commands>>[6]
+    | CommandLint LintArgs
+    -- ~\~ end
+    -- ~\~ begin <<lit/12-main.md|sub-commands>>[7]
     | CommandClearOrphans
     -- ~\~ end
 -- ~\~ end
@@ -85,6 +89,9 @@ parseArgs = Args
           <> command "list" (info (pure CommandList <**> helper) ( progDesc "List generated code files." ))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[6]
+          <> command "lint" (info (CommandLint <$> parseLintArgs) ( progDesc "Lint input on potential problems." ))
+          -- ~\~ end
+          -- ~\~ begin <<lit/12-main.md|sub-parsers>>[7]
           <> command "clear-orphans" (info (pure CommandClearOrphans <**> helper) ( progDesc "Deletes orphan targets." ))
           -- ~\~ end
         ) <|> parseNoCommand )
@@ -140,6 +147,16 @@ newtype StitchArgs = StitchArgs
 parseStitchArgs :: Parser StitchArgs
 parseStitchArgs = StitchArgs
     <$> argument str ( metavar "TARGET" )
+    <**> helper
+-- ~\~ end
+-- ~\~ begin <<lit/12-main.md|main-options>>[6]
+newtype LintArgs = LintArgs
+    { lintFlags :: [Text]
+    } deriving (Show)
+
+parseLintArgs :: Parser LintArgs
+parseLintArgs = LintArgs
+    <$> many (argument str (metavar "LINTERS"))
     <**> helper
 -- ~\~ end
 
@@ -214,6 +231,9 @@ runSubCommand sc = do
         CommandList -> listTargets
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[6]
+        CommandLint LintArgs {..} -> lint lintFlags
+        -- ~\~ end
+        -- ~\~ begin <<lit/12-main.md|sub-runners>>[7]
         CommandClearOrphans -> clearOrphans
         -- ~\~ end
 -- ~\~ end

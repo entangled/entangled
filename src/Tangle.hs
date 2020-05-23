@@ -183,9 +183,9 @@ type CodeParser = Parsec Void Text
 nowebReference :: CodeParser CodeLine
 nowebReference = do
     indent <- takeWhileP Nothing (`elem` (" \t" :: [Char]))
-    chunk "<<"
+    _ <- chunk "<<"
     id <- takeWhile1P Nothing (`notElem` (" \t<>" :: [Char]))
-    chunk ">>"
+    _ <- chunk ">>"
     space >> eof
     return $ NowebReference (ReferenceName id) indent
 
@@ -211,7 +211,7 @@ expandedCode annotate refs = result
 expandCodeSource :: ExpandedCode -> ReferenceName -> Text
                  -> Either EntangledError Text
 expandCodeSource result name t
-    = unlines' <$> sequence (map codeLineToText $ parseCode name t)
+    = unlines' <$> mapM codeLineToText (parseCode name t)
     where codeLineToText (PlainCode x) = Right x
           codeLineToText (NowebReference name i)
               = indent i <$> result LM.! name

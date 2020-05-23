@@ -244,6 +244,31 @@ CommandStitch StitchArgs {..} -> stitch (StitchFile stitchTarget)
 CommandList -> listTargets
 ```
 
+### Linter
+
+``` {.haskell #main-options}
+newtype LintArgs = LintArgs
+    { lintFlags :: [Text]
+    } deriving (Show)
+
+parseLintArgs :: Parser LintArgs
+parseLintArgs = LintArgs
+    <$> many (argument str (metavar "LINTERS"))
+    <**> helper
+```
+
+``` {.haskell #sub-commands}
+| CommandLint LintArgs
+```
+
+``` {.haskell #sub-parsers}
+<> command "lint" (info (CommandLint <$> parseLintArgs) ( progDesc "Lint input on potential problems." ))
+```
+
+``` {.haskell #sub-runners}
+CommandLint LintArgs {..} -> lint lintFlags
+```
+
 ### Cleaning orphan targets
 This action deletes orphan targets from both the database and the file system.
 
@@ -272,6 +297,7 @@ import RIO
 import Tangle (annotateNaked, annotateComment')
 import FileIO (dump)
 import Entangled
+import Linters
 
 <<main-options>>
 
