@@ -248,7 +248,8 @@ initSession = do
     rel_paths <- mapM makeRelativeToCurrentDirectory abs_paths
 
     printMsg Console.banner
-    printMsg $ P.align (P.vsep
+    printMsg $ Console.group "initializing" $
+             P.align (P.vsep
                    $ map (Console.bullet
                          . (P.pretty ("Monitoring " :: Text) <>)
                          . Console.fileRead)
