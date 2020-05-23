@@ -440,4 +440,3 @@ printExampleConfig :: (HasLogFunc env)
                    => Entangled env ()
 printExampleConfig = dump =<< readFile =<< liftIO (getDataFileName "data/example-config.dhall")
 ```
-

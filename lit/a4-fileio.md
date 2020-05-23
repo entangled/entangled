@@ -219,4 +219,3 @@ instance (HasLogFunc env) => MonadFileIO (FileIO env) where
 ```
 
 These are IO actions that need logging, possible confirmation by the user and execution. Also, using this we can do some mock testing.
-

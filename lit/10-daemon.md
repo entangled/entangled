@@ -18,6 +18,7 @@ The Entangled daemon does the following:
 module Daemon where
 
 import RIO
+import RIO.List (sort)
 import qualified RIO.Text as T
 
 <<daemon-imports>>
@@ -242,7 +243,7 @@ printMsg = liftIO . Console.putTerminal
 initSession :: Daemon ()
 initSession = do
     cfg <- view config
-    abs_paths <- getInputFiles cfg
+    abs_paths <- sort <$> getInputFiles cfg
     when (null abs_paths) $ throwM $ SystemError "No input files."
     rel_paths <- mapM makeRelativeToCurrentDirectory abs_paths
 

@@ -183,4 +183,3 @@ Stitching text back together:
 stitchText :: Document -> Text
 stitchText (Document refs c) = T.unlines $ mapMaybe (contentToText refs) c
 ```
-

@@ -151,4 +151,3 @@ describe "Parsing integers" $
     it "takeWhileP yield input" $ do
         property prop_tokens
 ```
-

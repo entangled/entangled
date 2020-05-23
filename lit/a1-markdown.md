@@ -274,4 +274,3 @@ Did I mention Pandoc command lines tend to grow out of hand?
 Granted, to unlock the full power of Markdown for the web, you'll need to know some HTML and CSS, and to tweak PDF output to your impossibly high standards you need to grok LaTeX. All the more reason to create an ecosystem of scripts, themes and tutorials to ease the learning curve. Also, code editors should offer better support for more varieties of markdown. I don't mean cluttering up the editing experience with more distracting tool-tips, snippets etc. Just this: correct and efficient highlighting and proper outline support.
 
 This was just a teaser of what is possible with Pandoc. Did I mention creating slide shows with `reveal.js`? Or how about doing some literate programming with `entangled`? The documentation of Pandoc is excellent, so just go ahead and write all your content in Markdown!
-

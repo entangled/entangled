@@ -78,7 +78,7 @@ db (SQL x) = do
     runRIO (SQLEnv logFunc conn) x
 
 runSQL :: (MonadIO m) => Connection -> SQL a -> m a
-runSQL conn (SQL x) = do 
+runSQL conn (SQL x) = do
     logOptions <- logOptionsHandle stderr True
     liftIO $ withLogFunc logOptions (\logFunc ->
         runRIO (SQLEnv logFunc conn) x)
@@ -204,19 +204,31 @@ create table if not exists "codes"
 ```
 
 ``` {.haskell #database-insertion}
-insertCode :: Int64 -> ReferencePair -> SQL ()
-insertCode docId ( ReferenceId _ (ReferenceName name) count
-                 , CodeBlock (KnownLanguage langName) attrs source ) = do
+insertCode' :: (Text, Int, Text, Maybe Text, Int64) -> [CodeProperty] -> SQL ()
+insertCode' tup attrs =  do
     conn <- getConnection
     liftIO $ do
         execute conn "insert into `codes`(`name`,`ordinal`,`source`,`language`,`document`) \
-                     \ values (?,?,?,?,?)" (name, count, source, langName, docId)
+                     \ values (?,?,?,?,?)" tup
         codeId <- lastInsertRowId conn
         executeMany conn "insert into `classes` values (?,?)"
                     [(className, codeId) | className <- getClasses attrs]
     where getClasses [] = []
           getClasses (CodeClass c : cs) = c : getClasses cs
           getClasses (_ : cs) = getClasses cs
+
+insertCode :: Int64 -> ReferencePair -> SQL ()
+insertCode docId ( ReferenceId file (ReferenceName name) count
+                 , CodeBlock lang attrs source ) = do
+    langName <- case lang of
+        UnknownClass c  -> logWarn (display $ "unknown language `" <> c <> "` in "
+                                 <> T.pack file <> ":<<" <> name <> ">>")
+                        >> return (Just c)
+        NoLanguage      -> logWarn (display $ "no language class in "
+                                 <> T.pack file <> ":<<" <> name <> ">>")
+                        >> return Nothing
+        KnownLanguage l -> return (Just l)
+    insertCode' (name, count, source, langName, docId) attrs
 
 insertCodes :: Int64 -> ReferenceMap -> SQL ()
 insertCodes docId codes = mapM_ (insertCode docId) (M.toList codes)
@@ -399,7 +411,7 @@ updateCode (ref, CodeBlock {codeSource}) = do
     conn   <- getConnection
     liftIO $ execute conn "update `codes` set `source` = ? where `id` is ?" (codeSource, codeId)
 
-updateTarget :: [ReferencePair] -> SQL () 
+updateTarget :: [ReferencePair] -> SQL ()
 updateTarget refs = withTransactionM $ mapM_ updateCode refs
 ```
 
@@ -435,7 +447,7 @@ queryTargetRef rel_path = do
     return $ case val of
         Nothing           -> Nothing
         Just (name, lang) -> Just (ReferenceName name, lang)
-    where targetQuery = "select `codename`,`language` from `targets` where `filename` is ?" 
+    where targetQuery = "select `codename`,`language` from `targets` where `filename` is ?"
 ```
 
 ``` {.haskell #database-queries}
@@ -449,7 +461,7 @@ stitchDocument rel_path = do
                                  \  left outer join `codes` \
                                  \    on `code` is `codes`.`id` \
                                  \  where `content`.`document` is ?" (Only docId) :: IO [Only Text])
-    return $ unlines' $ map fromOnly result
+    return $ T.unlines $ map fromOnly result
 ```
 
 ### References
@@ -460,12 +472,11 @@ queryReferenceMap config = do
         conn <- getConnection
         rows <- liftIO (query_ conn "select `documents`.`filename`, `name`, `ordinal`, `source`, `language` from `codes` inner join `documents` on `codes`.`document` is `documents`.`id`" :: IO [(FilePath, Text, Int, Text, Text)])
         M.fromList <$> mapM (refpair config) rows
-    where refpair config (rel_path, name, ordinal, source, lang) =
-            case (languageFromName config lang) of
-                Nothing -> throwM $ DatabaseError $ "unknown language: " <> lang
-                Just l  -> return ( ReferenceId rel_path (ReferenceName name) ordinal
-                                  , CodeBlock (KnownLanguage lang) [] source )
+    where refpair config (rel_path, name, ordinal, source, lang) = do
+            let lang' = maybe (UnknownClass lang) (const $ KnownLanguage lang)
+                              (languageFromName config lang)
+            return ( ReferenceId rel_path (ReferenceName name) ordinal
+                   , CodeBlock lang' [] source )
 ```
 
 ### Document
-

@@ -698,4 +698,3 @@ tangleEqualSpec = before (sequence $ map T.IO.readFile testFiles) $ do
             hellos `shouldBe` (replicate 3 (hellos !! 0))
     where testFiles = ["test/test01.md", "test/test02.md", "test/test03.md"]
 ```
-

@@ -62,6 +62,8 @@ let languages =
                                                               comment = comments.cStyle }
     , { name = "LaTeX",      identifiers = ["latex"],         comment = comments.texStyle }
     , { name = "Lua",        identifiers = ["lua"],           comment = comments.haskellStyle }
+    , { name = "Make",       identifiers = ["make", "makefile"],
+                                                              comment = comments.hash }
     , { name = "OCaml",      identifiers = ["ocaml"],         comment = comments.mlStyle }
     , { name = "OpenCL",     identifiers = ["opencl"],        comment = comments.cStyle }
     , { name = "PureScript", identifiers = ["purs", "purescript"],
@@ -209,4 +211,3 @@ languageFromName cfg x
     = find ((== x) . languageName)
     $ configLanguages cfg
 ```
-
