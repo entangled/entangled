@@ -1,58 +1,29 @@
 -- ------ language="Haskell" file="app/Main.hs" project://lit/12-main.md
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 module Main where
 
--- ------ begin <<main-imports>>[0] project://lit/12-main.md
-import Prelude hiding (readFile, writeFile)
-import RIO ( logError, logInfo, display, LogFunc, HasLogFunc, logFuncL, lens
-           , logOptionsHandle, runRIO, withLogFunc, stderr, view
-           , setLogVerboseFormat, setLogUseColor )
--- ------ begin <<import-text>>[0] project://lit/01-entangled.md
-import qualified Data.Text as T
-import Data.Text (Text)
--- ------ end
-import qualified Data.Text.IO as T.IO
-import qualified Data.Map.Lazy as LM
-import Data.List (sortOn)
+import RIO
 
-import Control.Monad.IO.Class
-import Control.Monad.Reader
-import Control.Monad.Writer
-import Control.Monad.Catch
-import Control.Monad.Logger (logInfoN)
-import System.Directory
-import System.FilePath
--- ------ end
--- ------ begin <<main-imports>>[1] project://lit/12-main.md
+-- ------ begin <<main-imports>>[0] project://lit/12-main.md
 import GHC.IO.Encoding
 -- ------ end
--- ------ begin <<main-imports>>[2] project://lit/12-main.md
+-- ------ begin <<main-imports>>[1] project://lit/12-main.md
 import Options.Applicative
 -- ------ end
--- ------ begin <<main-imports>>[3] project://lit/12-main.md
+-- ------ begin <<main-imports>>[2] project://lit/12-main.md
 import Config
 -- ------ end
--- ------ begin <<main-imports>>[4] project://lit/12-main.md
+-- ------ begin <<main-imports>>[3] project://lit/12-main.md
 import Daemon (runSession)
 -- ------ end
--- ------ begin <<main-imports>>[5] project://lit/12-main.md
-import qualified Dhall
--- ------ end
--- ------ begin <<main-imports>>[6] project://lit/12-main.md
+-- ------ begin <<main-imports>>[4] project://lit/12-main.md
 import Database (HasConnection, connection, createTables, db)
 import Database.SQLite.Simple
 -- ------ end
 
--- import Paths_entangled
--- import Comment
--- import Document
--- import Select (select)
-import System.Exit
 import Tangle (annotateNaked, annotateComment')
--- import TextUtil
--- import FileIO
+import FileIO (dump)
 import Entangled
-import Config (HasConfig)
 
 -- ------ begin <<main-options>>[0] project://lit/12-main.md
 data Args = Args
@@ -88,7 +59,7 @@ data SubCommand
 parseNoCommand :: Parser SubCommand
 parseNoCommand = pure NoCommand
 
-parseArgs :: Parser Args
+parseArgs :: Parser Args   {- HLINT ignore parseArgs -}
 parseArgs = Args
     <$> switch (long "version" <> short 'v' <> help "Show version information.")
     <*> switch (long "verbose" <> short 'V' <> help "Be very verbose.")
@@ -118,12 +89,12 @@ parseArgs = Args
         ) <|> parseNoCommand )
 -- ------ end
 -- ------ begin <<main-options>>[2] project://lit/12-main.md
-data DaemonArgs = DaemonArgs
+newtype DaemonArgs = DaemonArgs
     { inputFiles  :: [String]
     } deriving (Show)
 
 parseDaemonArgs :: Parser SubCommand
-parseDaemonArgs = CommandDaemon <$> DaemonArgs
+parseDaemonArgs = CommandDaemon . DaemonArgs
     <$> many (argument str (metavar "FILES..."))
     <**> helper
 -- ------ end
@@ -135,8 +106,8 @@ data InsertArgs = InsertArgs
     , insertFiles :: [FilePath] }
 
 parseFileType :: Parser FileType
-parseFileType = (flag' SourceFile $ long "source" <> short 's' <> help "insert markdown source file")
-            <|> (flag' TargetFile $ long "target" <> short 't' <> help "insert target code file")
+parseFileType = flag' SourceFile (long "source" <> short 's' <> help "insert markdown source file")
+            <|> flag' TargetFile (long "target" <> short 't' <> help "insert target code file")
 
 parseInsertArgs :: Parser SubCommand
 parseInsertArgs = CommandInsert <$> (InsertArgs
@@ -156,12 +127,12 @@ parseTangleArgs = TangleArgs
                                       <> metavar "TARGET" <> help "file target" ))
         <|> (TangleRef  <$> strOption ( long "ref"  <> short 'r'
                                       <> metavar "TARGET" <> help "reference target" ))
-        <|> (flag' TangleAll $ long "all" <> short 'a' <> help "tangle all and write to disk" ))
+        <|> flag' TangleAll (long "all" <> short 'a' <> help "tangle all and write to disk" ))
     <*> switch (long "decorate" <> short 'd' <> help "Decorate with stitching comments.")
     <**> helper
 -- ------ end
 -- ------ begin <<main-options>>[5] project://lit/12-main.md
-data StitchArgs = StitchArgs
+newtype StitchArgs = StitchArgs
     { stitchTarget :: FilePath
     } deriving (Show)
 
@@ -200,15 +171,18 @@ instance HasLogFunc Env where
 
 run :: Args -> IO ()
 run Args{..}
-    | versionFlag       = putStrLn "Entangled 1.0.0"
-    | otherwise         = do
-        cfg <- readLocalConfig
-        dbPath <- getDatabasePath cfg
-        logOptions <- setLogVerboseFormat True . setLogUseColor True
-                    <$> logOptionsHandle stderr verboseFlag
-        withLogFunc logOptions (\logFunc
-            -> withConnection dbPath (\conn
-                -> runRIO (Env conn cfg logFunc) (runEntangled $ runSubCommand subCommand)))
+    | versionFlag       = runWithEnv False (dump "Entangled 1.0.0\n")
+    | otherwise         = runWithEnv verboseFlag (runSubCommand subCommand)
+
+runWithEnv :: Bool -> Entangled Env a -> IO a
+runWithEnv verbose x = do
+    cfg <- readLocalConfig
+    dbPath <- getDatabasePath cfg
+    logOptions <- setLogVerboseFormat True . setLogUseColor True
+               <$> logOptionsHandle stderr verbose
+    withLogFunc logOptions (\logFunc
+        -> withConnection dbPath (\conn
+            -> runRIO (Env conn cfg logFunc) (runEntangled x)))
 
 runSubCommand :: (HasConfig env, HasLogFunc env, HasConnection env)
               => SubCommand -> Entangled env ()
@@ -217,9 +191,7 @@ runSubCommand sc = do
     case sc of
         NoCommand -> return ()
         -- ------ begin <<sub-runners>>[0] project://lit/12-main.md
-        CommandDaemon a -> do
-            cfg <- view config
-            liftIO $ runSession cfg
+        CommandDaemon _ -> runSession
         -- ------ end
         -- ------ begin <<sub-runners>>[1] project://lit/12-main.md
         CommandConfig -> printExampleConfig
@@ -229,13 +201,13 @@ runSubCommand sc = do
         CommandInsert (InsertArgs TargetFile fs) -> insertTargets fs
         -- ------ end
         -- ------ begin <<sub-runners>>[3] project://lit/12-main.md
-        CommandTangle (TangleArgs {..}) -> do
+        CommandTangle TangleArgs {..} -> do
             cfg <- view config
-            let annotate = if tangleDecorate then (annotateComment' cfg) else annotateNaked
+            let annotate = if tangleDecorate then annotateComment' cfg else annotateNaked
             tangle tangleQuery annotate
         -- ------ end
         -- ------ begin <<sub-runners>>[4] project://lit/12-main.md
-        CommandStitch (StitchArgs {..}) -> stitch stitchTarget
+        CommandStitch StitchArgs {..} -> stitch (StitchFile stitchTarget)
         -- ------ end
         -- ------ begin <<sub-runners>>[5] project://lit/12-main.md
         CommandList -> listTargets

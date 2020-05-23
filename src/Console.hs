@@ -17,18 +17,18 @@ import Control.Monad.Reader
 -- import Control.Monad.State.Class
 -- import Control.Monad.IO.Class
 
-import Data.Maybe (fromMaybe)
-import Data.Text (Text)
-import qualified Data.Text as T
+-- import Data.Maybe (fromMaybe)
+-- import Data.Text (Text)
+-- import qualified Data.Text as T
 import Data.Text.IO as T
-import Data.Map (Map)
-import qualified Data.Map as M
+-- import Data.Map (Map)
+-- import qualified Data.Map as M
 import qualified Data.Text.Prettyprint.Doc as P
-import qualified System.Console.Terminal.Size as Terminal
+-- import qualified System.Console.Terminal.Size as Terminal
 import qualified Data.Text.Prettyprint.Doc.Render.Terminal as ANSI
 import qualified System.Info
 import Data.Time
-import Control.Monad.Logger (LogLevel(..))
+import RIO (LogLevel(..))
 
 -- ==== Pretty Printing document tree ==== --
 
@@ -97,7 +97,7 @@ toTerminal d = P.reAnnotateS tr $ P.layoutPretty P.defaultLayoutOptions d
           tr (File Create) = ANSI.color ANSI.Blue <> ANSI.italicized
           tr (Log LevelError) = ANSI.color ANSI.Red <> ANSI.bold
           tr (Log LevelWarn) = ANSI.color ANSI.Yellow <> ANSI.bold
-          tr (Log LevelInfo) = ANSI.colorDull ANSI.White
+          tr (Log _) = ANSI.colorDull ANSI.White
 
 putTerminal :: Doc -> IO ()
 putTerminal = T.putStr . ANSI.renderStrict . toTerminal

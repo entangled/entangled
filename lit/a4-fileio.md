@@ -19,10 +19,10 @@ data Transaction m = Transaction
 When an event happened we need to respond, usually by writing out several files. Since `IO` is a `Monoid`, we can append `IO` actions and keep track of describing the gathered events in a `Transaction`. There are some things that we may need to ask the user permission for, like overwriting files in dubious circumstances. Messaging is done through pretty-printed `Doc`.
 
 ``` {.haskell #transaction-imports}
+import RIO (LogLevel)
 import qualified Data.Text.Prettyprint.Doc as P
 import Console (Doc)
 import qualified Console
-import Control.Monad.Logger (LogLevel)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Text.IO as T.IO
 import System.IO (stdout, hFlush)
@@ -50,7 +50,7 @@ doc :: Doc -> Transaction m
 doc x = Transaction Nothing x False
 
 msg :: P.Pretty a => LogLevel -> a -> Transaction m
-msg level doc = Transaction Nothing (Console.msg level doc) False
+msg level content = Transaction Nothing (Console.msg level content) False
 
 confirm :: Transaction m
 confirm = Transaction Nothing mempty True

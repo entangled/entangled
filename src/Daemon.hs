@@ -1,64 +1,41 @@
 -- ------ language="Haskell" file="src/Daemon.hs" project://lit/10-daemon.md
--- ------ begin <<daemon>>[0] project://src/Daemon.hs#3
-module Daemon where
+-- ------ begin <<daemon>>[0] project://lit/10-daemon.md
 {-# LANGUAGE NoImplicitPrelude #-}
--- import RIO
+module Daemon where
 
-import Prelude hiding (writeFile, readFile)
+import RIO
 
 -- ------ begin <<daemon-imports>>[0] project://lit/10-daemon.md
--- ------ begin <<import-text>>[0] project://lit/01-entangled.md
-import qualified Data.Text as T
-import Data.Text (Text)
--- ------ end
-import qualified Data.Text.IO as T.IO
--- ------ begin <<import-map>>[0] project://lit/01-entangled.md
-import qualified Data.Map.Strict as M
-import Data.Map.Strict (Map)
--- ------ end
-import TextUtil (tshow, unlines')
--- ------ end
--- ------ begin <<daemon-imports>>[1] project://lit/10-daemon.md
 import qualified System.FSNotify as FSNotify
 -- ------ end
--- ------ begin <<daemon-imports>>[2] project://src/Daemon.hs#12
-import Database.SQLite.Simple
+-- ------ begin <<daemon-imports>>[1] project://lit/10-daemon.md
+import Database.SQLite.Simple (Connection)
+import Database (db, connection, HasConnection, listSourceFiles, listTargetFiles)
 
-import Document
-import Config
-import Database hiding (db)
-import Tangle (parseMarkdown, expandedCode, Annotator, annotateComment')
-import Comment
-import Stitch (stitch)
-import Transaction
-import FileIO
+-- import Transaction
+-- import FileIO
+import Tangle (annotateComment')
+import Entangled
+import Config (Config, HasConfig, config, getInputFiles)
+import Errors (EntangledError(..))
 
-import qualified Data.Text.Prettyprint.Doc as P
+import Console (Doc, putTerminal)
 import qualified Console
-import Console (Doc, msgWrite, msgCreate, msgDelete)
+import qualified Data.Text.Prettyprint.Doc as P
 
-import Control.Concurrent.Chan
-import Control.Concurrent
-import Control.Monad.State
-import Control.Monad.Reader
-import Control.Monad.RWS
-import Control.Monad.IO.Class
-import Control.Monad.Writer
-import Control.Monad.Catch
-import Control.Monad.Logger
+-- import Control.Concurrent.Chan
+-- import Control.Concurrent
+-- import Control.Monad.Catch
+-- ------ end
+-- ------ begin <<daemon-imports>>[2] project://lit/10-daemon.md
+import Data.List (nub)
+-- import Control.Monad (mapM)
 -- ------ end
 -- ------ begin <<daemon-imports>>[3] project://lit/10-daemon.md
-import Data.List (nub, (\\))
-import Control.Monad (mapM)
--- ------ end
--- ------ begin <<daemon-imports>>[4] project://lit/10-daemon.md
-import qualified Data.Map.Lazy as LM
--- ------ end
--- ------ begin <<daemon-imports>>[5] project://src/Daemon.hs#18
-import System.IO (stdout, hFlush, hSetBuffering, BufferMode(..))
+-- import System.IO (stdout, hFlush, hSetBuffering, BufferMode(..))
 import RIO.Directory (makeRelativeToCurrentDirectory, canonicalizePath)
 import RIO.FilePath (equalFilePath, takeDirectory)
-import Control.Exception (IOException)
+-- import Control.Exception (IOException)
 -- ------ end
 
 -- ------ begin <<daemon-events>>[0] project://lit/10-daemon.md
@@ -74,116 +51,40 @@ data Event
     | DebugEvent Text
     deriving (Show)
 -- ------ end
--- ------ begin <<daemon-session>>[0] project://src/Daemon.hs#22
+-- ------ begin <<daemon-session>>[0] project://lit/10-daemon.md
 data Session = Session
-    { watches       :: [FSNotify.StopListening]
+    { watches       :: MVar [FSNotify.StopListening]
     , manager       :: FSNotify.WatchManager
     , eventChannel  :: Chan Event
     , daemonState   :: MVar DaemonState
-    , sqlite        :: Connection
-    -- , config        :: Config
+    , connection'   :: Connection
+    , config'       :: Config
+    , logFunc'      :: LogFunc
     }
 
-db :: ( MonadIO m, MonadState Session m )
-   => SQL a -> m a
-db x = do
-    conn <- gets sqlite
-    runSQL conn x
+instance HasConfig Session where
+    config = lens config' (\x y -> x { config' = y })
 
-newtype Daemon a = Daemon { unDaemon :: RWST Config (Transaction IO) Session (LoggingT IO) a }
-    deriving ( Applicative, Functor, Monad, MonadIO, MonadState Session
-             , MonadReader Config, MonadWriter (Transaction IO), MonadThrow, MonadLogger, MonadLoggerIO )
+instance HasLogFunc Session where
+    logFuncL = lens logFunc' (\x y -> x { logFunc' = y })
 
--- newtype Entangled env a = Entangled { unEntangled :: WriterT Transaction (RIO env) a }
---     deriving ( Applicative, Functor, Monad, MonadIO, MonadReader env, MonadWriter Transaction )
+instance HasConnection Session where
+    connection = lens connection' (\x y -> x { connection' = y })
 
--- instance MonadFileIO (Entangled env) where
-instance MonadFileIO Daemon where
-    readFile path       = runFileIO $ readFile path
-    dump = runFileIO . dump'
-    writeFile path text = do
-        old_content' <- liftIO $ try $ runFileIO $ readFile path
-        case (old_content' :: Either IOException Text) of
-            Right old_content | old_content == text -> return ()
-                              | otherwise           -> actionw
-            Left  _                                 -> actionc
-        where actionw   = tell $ doc (msgWrite path)
-                              <> plan (runFileIO $ writeFile path text)
-              actionc   = tell $ doc (msgCreate path)
-                              <> plan (runFileIO $ writeFile path text)
-
-    deleteFile path     = tell $ doc (msgDelete path)
-                              <> plan (runFileIO $ deleteFile path)
+newtype Daemon a = Daemon { unDaemon :: RIO Session a }
+    deriving ( Applicative, Functor, Monad, MonadIO, MonadReader Session, MonadThrow, MonadUnliftIO )
 -- ------ end
 -- ------ begin <<daemon-session>>[1] project://lit/10-daemon.md
-setDaemonState :: ( MonadIO m
-                  , MonadState Session m )
-               => DaemonState -> m ()
+setDaemonState :: DaemonState -> Daemon ()
 setDaemonState s = do
-    state <- gets daemonState
-    liftIO $ modifyMVar_ state (const $ return s)
--- ------ end
--- ------ begin <<daemon-loading>>[0] project://lit/10-daemon.md
-loadSourceFile :: ( MonadFileIO m, MonadLogger m
-                  , MonadReader Config m
-                  , MonadState Session m
-                  , MonadIO m, MonadLoggerIO m )
-               => FilePath -> m ()
-loadSourceFile abs_path = do
-    rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
-    doc'     <- readFile abs_path >>= parseMarkdown rel_path
-    case doc' of
-        Left err ->
-            logErrorN $ "Error loading '" <> T.pack rel_path <> "': " <> tshow err
-        Right doc ->
-            db $ insertDocument rel_path doc
--- ------ end
--- ------ begin <<daemon-loading>>[1] project://lit/10-daemon.md
-loadTargetFile :: ( MonadFileIO m, MonadLogger m
-                  , MonadReader Config m
-                  , MonadState Session m
-                  , MonadIO m, MonadLoggerIO m )
-               => FilePath -> m ()
-loadTargetFile abs_path = do
-    rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
-    refs' <- readFile abs_path >>= stitch rel_path
-    case refs' of
-        Left err ->
-            logErrorN $ "Error loading '" <> T.pack rel_path <> "':" <> tshow err
-        Right refs ->
-            db $ updateTarget refs
--- ------ end
--- ------ begin <<daemon-writing>>[0] project://src/Daemon.hs#30
-writeTargetFile :: FilePath -> Daemon ()
-writeTargetFile rel_path = do
-    cfg <- ask
-    refs <- db $ queryReferenceMap cfg
-    let codes = expandedCode (annotateComment' cfg) refs
-        tangleRef tgt lang = case codes LM.!? tgt of
-            Nothing        -> logErrorN $ "Reference `" <> tshow tgt <> "` not found."
-            Just (Left e)  -> logErrorN $ tshow e
-            Just (Right t) -> writeFile rel_path $ unlines' [headerComment lang rel_path, t]
-
-    tgt' <- db $ queryTargetRef rel_path
-    case tgt' of
-        Nothing  -> logErrorN $ "Target `" <> T.pack rel_path <> "` not found."
-        Just (tgt, langName) -> do
-                case languageFromName cfg langName of
-                    Nothing -> logErrorN $ "Unknown language id " <> langName
-                    Just lang -> tangleRef tgt lang
--- ------ end
--- ------ begin <<daemon-writing>>[1] project://lit/10-daemon.md
-writeSourceFile :: FilePath -> Daemon ()
-writeSourceFile rel_path = do
-    content <- db $ stitchDocument rel_path
-    writeFile rel_path content
+    state <- asks daemonState
+    modifyMVar_ state (const $ return s)
 -- ------ end
 -- ------ begin <<daemon-watches>>[0] project://lit/10-daemon.md
 passEvent :: MVar DaemonState -> Chan Event
           -> [FilePath] -> [FilePath] -> FSNotify.Event -> IO ()
 passEvent _      _       _    _    FSNotify.Removed {} = return ()
 passEvent state' channel srcs tgts fsEvent = do
-    putStrLn $ show fsEvent
     abs_path <- canonicalizePath $ FSNotify.eventPath fsEvent
     state    <- readMVar state'
 
@@ -203,64 +104,56 @@ setWatch :: Daemon ()
 setWatch = do
     srcs <- db listSourceFiles >>= (liftIO . mapM canonicalizePath)
     tgts <- db listTargetFiles >>= (liftIO . mapM canonicalizePath)
-    fsnotify <- gets manager
-    channel  <- gets eventChannel
+    fsnotify <- asks manager
+    channel  <- asks eventChannel
 
     let abs_dirs = nub $ map takeDirectory (srcs <> tgts)
-    rel_dirs <- liftIO $ mapM makeRelativeToCurrentDirectory abs_dirs
+    rel_dirs <- mapM makeRelativeToCurrentDirectory abs_dirs
 
-    state <- gets daemonState
+    state <- asks daemonState
     stopActions <- liftIO $ mapM
         (\dir -> FSNotify.watchDir fsnotify dir (const True)
                                    (passEvent state channel srcs tgts))
         abs_dirs
-    modify (\s -> s{ watches=stopActions })
+    watchesMVar <- asks watches
+    putMVar watchesMVar stopActions
 
-    logInfoN $ "watching: " <> tshow rel_dirs
+    logDebug $ display $ "watching: " <> tshow rel_dirs
 -- ------ end
 -- ------ begin <<daemon-watches>>[2] project://lit/10-daemon.md
 closeWatch :: Daemon ()
 closeWatch = do
-    stopActions <- gets watches
+    stopActions <- takeMVar =<< asks watches
     liftIO $ sequence_ stopActions
-    logInfoN "suspended watches"
+    logDebug "suspended watches"
 -- ------ end
 -- ------ begin <<daemon-main-loop>>[0] project://lit/10-daemon.md
-wait :: Daemon ()
-wait = liftIO $ threadDelay 100000
-
 mainLoop :: Event -> Daemon ()
 -- ------ begin <<main-loop-cases>>[0] project://lit/10-daemon.md
 mainLoop (WriteSource abs_path) = do
-    rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
+    rel_path <- makeRelativeToCurrentDirectory abs_path
+    cfg <- view config
 
-    wait
     setDaemonState Tangling
     closeWatch
 
-    old_tgts <- db listTargetFiles
-    loadSourceFile abs_path
-    new_tgts <- db listTargetFiles
-    mapM_ deleteFile $ old_tgts \\ new_tgts
-    mapM_ writeTargetFile new_tgts
+    runEntangled $ do
+        insertSources [rel_path]
+        tangle TangleAll (annotateComment' cfg)
+        clearOrphans
 
-    wait
     setWatch
     setDaemonState Idle
 
 mainLoop (WriteTarget abs_path) = do
     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
-    wait
     setDaemonState Stitching
     closeWatch
-    loadTargetFile abs_path
-    srcs <- db listSourceFiles
-    mapM_ writeSourceFile srcs
-    wait
-    -- setDaemonState Tangling
-    -- tgts <- db listTargetFiles
-    -- mapM_ writeTargetFile tgts
-    -- wait
+
+    runEntangled $ do
+        insertTargets [rel_path]
+        stitch StitchAll
+
     setWatch
     setDaemonState Idle
 
@@ -273,48 +166,43 @@ printMsg = liftIO . Console.putTerminal
 
 initSession :: Daemon ()
 initSession = do
-    config <- ask
-    abs_paths <- liftIO $ getInputFiles config
+    cfg <- view config
+    abs_paths <- getInputFiles cfg
     when (null abs_paths) $ throwM $ SystemError "No input files."
-    rel_paths <- liftIO $ mapM makeRelativeToCurrentDirectory abs_paths
-
-    db createTables
+    rel_paths <- mapM makeRelativeToCurrentDirectory abs_paths
 
     printMsg Console.banner
-    tell $ doc
-         $ (P.align $ P.vsep
+    printMsg $ P.align (P.vsep
                    $ map (Console.bullet
                          . (P.pretty ("Monitoring " :: Text) <>)
                          . Console.fileRead)
                            rel_paths)
-            <> P.line
+             <> P.line
 
-    mapM_ loadSourceFile abs_paths
-    tgts <- db listTargetFiles
-    mapM_ writeTargetFile tgts
+    runEntangled $ do
+        insertSources rel_paths
+        tangle TangleAll (annotateComment' cfg)
+
     setWatch
 
-foldx :: (Monad m) => (e -> s -> m s) -> [e] -> s -> m ()
-foldx _ [] _ = return ()
-foldx f (e:es) s = f e s >>= foldx f es
-
-runSession :: Config -> IO ()
-runSession config = do
+runSession :: (HasConfig env, HasLogFunc env, HasConnection env, MonadReader env m, MonadIO m)
+           => m ()
+runSession = do
     hSetBuffering stdout LineBuffering
-    fsnotify <- FSNotify.startManager
+
+    cfg <- view config
+    conn <- view connection
+    logFunc <- view logFuncL
+    fsnotify <- liftIO FSNotify.startManager
     channel <- newChan
-    daemon_state <- newMVar Idle
-    db_path <- getDatabasePath config
-    let dbRunner conn = do
-                    let session = Session [] fsnotify channel daemon_state conn
-                    (x, session', action) <- runStdoutLoggingT $ runRWST (unDaemon initSession) config session
-                    runTransaction action
-                    events <- getChanContents channel
-                    foldx (\e s -> do
-                                      (_, s', a) <- runStdoutLoggingT $ runRWST (unDaemon $ mainLoop e) config s
-                                      runTransaction a
-                                      return s') events session'
-    liftIO $ withConnection db_path dbRunner
+    daemonState' <- newMVar Idle
+    watches' <- newEmptyMVar
+
+    let session = Session watches' fsnotify channel daemonState' conn cfg logFunc
+    runRIO session $ unDaemon $ do
+        initSession
+        mapM_ mainLoop =<< getChanContents channel
+
     liftIO $ FSNotify.stopManager fsnotify
 -- ------ end
 -- ------ end

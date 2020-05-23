@@ -61,7 +61,7 @@ common deps
         TypeFamilies GeneralizedNewtypeDeriving NamedFieldPuns LambdaCase
         DeriveGeneric
   default-language: Haskell2010
-  ghc-options:
+  ghc-options: -Wall
 
 library
   import: deps

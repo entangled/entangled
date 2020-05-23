@@ -1,28 +1,7 @@
 # Main program
-
 The main program runs the daemon, but also provides a number of commands to inspect and manipulate the database.
 
-``` {.haskell #main-imports}
-import Prelude hiding (readFile, writeFile)
-import RIO ( logError, logInfo, display, LogFunc, HasLogFunc, logFuncL, lens
-           , logOptionsHandle, runRIO, withLogFunc, stderr, view
-           , setLogVerboseFormat, setLogUseColor )
-<<import-text>>
-import qualified Data.Text.IO as T.IO
-import qualified Data.Map.Lazy as LM
-import Data.List (sortOn)
-
-import Control.Monad.IO.Class
-import Control.Monad.Reader
-import Control.Monad.Writer
-import Control.Monad.Catch
-import Control.Monad.Logger (logInfoN)
-import System.Directory
-import System.FilePath
-```
-
 ## Encoding
-
 On linux consoles we use unicode bullet points (`•`). On Windows, those will just be asterisks (`*`). To facilitate this, we have to enable UTF-8 encoding.
 
 ``` {.haskell #main-imports}
@@ -34,7 +13,6 @@ setLocaleEncoding utf8
 ```
 
 ## Options
-
 Options are parsed using `optparse-applicative`.
 
 ``` {.haskell #main-imports}
@@ -60,7 +38,7 @@ The same goes for the sub-command parsers, which are collected in `<<sub-parsers
 parseNoCommand :: Parser SubCommand
 parseNoCommand = pure NoCommand
 
-parseArgs :: Parser Args
+parseArgs :: Parser Args   {- HLINT ignore parseArgs -}
 parseArgs = Args
     <$> switch (long "version" <> short 'v' <> help "Show version information.")
     <*> switch (long "verbose" <> short 'V' <> help "Be very verbose.")
@@ -92,15 +70,18 @@ instance HasLogFunc Env where
 
 run :: Args -> IO ()
 run Args{..}
-    | versionFlag       = putStrLn "Entangled 1.0.0"
-    | otherwise         = do
-        cfg <- readLocalConfig
-        dbPath <- getDatabasePath cfg
-        logOptions <- setLogVerboseFormat True . setLogUseColor True
-                    <$> logOptionsHandle stderr verboseFlag
-        withLogFunc logOptions (\logFunc
-            -> withConnection dbPath (\conn
-                -> runRIO (Env conn cfg logFunc) (runEntangled $ runSubCommand subCommand)))
+    | versionFlag       = runWithEnv False (dump "Entangled 1.0.0\n")
+    | otherwise         = runWithEnv verboseFlag (runSubCommand subCommand)
+
+runWithEnv :: Bool -> Entangled Env a -> IO a
+runWithEnv verbose x = do
+    cfg <- readLocalConfig
+    dbPath <- getDatabasePath cfg
+    logOptions <- setLogVerboseFormat True . setLogUseColor True
+               <$> logOptionsHandle stderr verbose
+    withLogFunc logOptions (\logFunc
+        -> withConnection dbPath (\conn
+            -> runRIO (Env conn cfg logFunc) (runEntangled x)))
 
 runSubCommand :: (HasConfig env, HasLogFunc env, HasConnection env)
               => SubCommand -> Entangled env ()
@@ -128,27 +109,21 @@ import Daemon (runSession)
 ```
 
 ``` {.haskell #main-options}
-data DaemonArgs = DaemonArgs
+newtype DaemonArgs = DaemonArgs
     { inputFiles  :: [String]
     } deriving (Show)
 
 parseDaemonArgs :: Parser SubCommand
-parseDaemonArgs = CommandDaemon <$> DaemonArgs
+parseDaemonArgs = CommandDaemon . DaemonArgs
     <$> many (argument str (metavar "FILES..."))
     <**> helper
 ```
 
 ``` {.haskell #sub-runners}
-CommandDaemon a -> do
-    cfg <- view config
-    liftIO $ runSession cfg
+CommandDaemon _ -> runSession
 ```
 
 ### Printing the config
-
-``` {.haskell #main-imports}
-import qualified Dhall
-```
 
 ``` {.haskell #sub-commands}
 | CommandConfig
@@ -181,8 +156,8 @@ data InsertArgs = InsertArgs
     , insertFiles :: [FilePath] }
 
 parseFileType :: Parser FileType
-parseFileType = (flag' SourceFile $ long "source" <> short 's' <> help "insert markdown source file")
-            <|> (flag' TargetFile $ long "target" <> short 't' <> help "insert target code file")
+parseFileType = flag' SourceFile (long "source" <> short 's' <> help "insert markdown source file")
+            <|> flag' TargetFile (long "target" <> short 't' <> help "insert target code file")
 
 parseInsertArgs :: Parser SubCommand
 parseInsertArgs = CommandInsert <$> (InsertArgs
@@ -218,15 +193,15 @@ parseTangleArgs = TangleArgs
                                       <> metavar "TARGET" <> help "file target" ))
         <|> (TangleRef  <$> strOption ( long "ref"  <> short 'r'
                                       <> metavar "TARGET" <> help "reference target" ))
-        <|> (flag' TangleAll $ long "all" <> short 'a' <> help "tangle all and write to disk" ))
+        <|> flag' TangleAll (long "all" <> short 'a' <> help "tangle all and write to disk" ))
     <*> switch (long "decorate" <> short 'd' <> help "Decorate with stitching comments.")
     <**> helper
 ```
 
 ``` {.haskell #sub-runners}
-CommandTangle (TangleArgs {..}) -> do
+CommandTangle TangleArgs {..} -> do
     cfg <- view config
-    let annotate = if tangleDecorate then (annotateComment' cfg) else annotateNaked
+    let annotate = if tangleDecorate then annotateComment' cfg else annotateNaked
     tangle tangleQuery annotate
 ```
 
@@ -241,7 +216,7 @@ CommandTangle (TangleArgs {..}) -> do
 ```
 
 ``` {.haskell #main-options}
-data StitchArgs = StitchArgs
+newtype StitchArgs = StitchArgs
     { stitchTarget :: FilePath
     } deriving (Show)
 
@@ -252,7 +227,7 @@ parseStitchArgs = StitchArgs
 ```
 
 ``` {.haskell #sub-runners}
-CommandStitch (StitchArgs {..}) -> stitch stitchTarget
+CommandStitch StitchArgs {..} -> stitch (StitchFile stitchTarget)
 ```
 
 ### Listing all target files
@@ -287,21 +262,16 @@ CommandClearOrphans -> clearOrphans
 ## Main
 
 ``` {.haskell file=app/Main.hs}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 module Main where
+
+import RIO
 
 <<main-imports>>
 
--- import Paths_entangled
--- import Comment
--- import Document
--- import Select (select)
-import System.Exit
 import Tangle (annotateNaked, annotateComment')
--- import TextUtil
--- import FileIO
+import FileIO (dump)
 import Entangled
-import Config (HasConfig)
 
 <<main-options>>
 
@@ -351,7 +321,7 @@ import Console (msgWrite, msgCreate, msgDelete)
 import Paths_entangled
 import Config (config, HasConfig, languageFromName)
 import Database ( db, HasConnection, queryTargetRef, queryReferenceMap
-                , listTargetFiles, insertDocument, insertTargets, stitchDocument
+                , listTargetFiles, insertDocument, stitchDocument, listSourceFiles
                 , deduplicateRefs, updateTarget, listOrphanTargets, clearOrphanTargets )
 import Errors (EntangledError (..))
 
@@ -375,8 +345,8 @@ runEntangled (Entangled x) = do
     return r
 
 instance (HasLogFunc env) => MonadFileIO (Entangled env) where
-    readFile path       = readFile' path
-    dump text           = dump' text
+    readFile = readFile'
+    dump = dump'
 
     writeFile path text = do
         old_content' <- liftRIO $ try $ runFileIO' $ readFile path
@@ -394,21 +364,21 @@ instance (HasLogFunc env) => MonadFileIO (Entangled env) where
 
 data TangleQuery = TangleFile FilePath | TangleRef Text | TangleAll deriving (Show)
 
-tangleRef :: ExpandedCode -> Annotator -> ReferenceName -> Entangled env Text
-tangleRef codes annotate name =
+tangleRef :: ExpandedCode -> ReferenceName -> Entangled env Text
+tangleRef codes name =
     case codes LM.!? name of
         Nothing        -> throwM $ TangleError $ "Reference `" <> tshow name <> "` not found."
         Just (Left e)  -> throwM $ TangleError $ tshow e
         Just (Right t) -> return t
 
 tangleFile :: (HasConnection env, HasLogFunc env, HasConfig env)
-           => ExpandedCode -> Annotator -> FilePath -> Entangled env Text
-tangleFile codes annotate path = do
+           => ExpandedCode -> FilePath -> Entangled env Text
+tangleFile codes path = do
     cfg <- view config
-    (db $ queryTargetRef path) >>= \case
+    db (queryTargetRef path) >>= \case
         Nothing              -> throwM $ TangleError $ "Target `" <> T.pack path <> "` not found."
         Just (ref, langName) -> do
-            content <- tangleRef codes annotate ref
+            content <- tangleRef codes ref
             case languageFromName cfg langName of
                 Nothing -> throwM $ TangleError $ "Language unknown " <> langName
                 Just lang -> return $ T.unlines [headerComment lang path, content]
@@ -420,17 +390,24 @@ tangle query annotate = do
     refs <- db (queryReferenceMap cfg)
     let codes = expandedCode annotate refs
     case query of
-        TangleRef ref   -> dump =<< tangleRef codes annotate (ReferenceName ref)
-        TangleFile path -> dump =<< tangleFile codes annotate path
-        TangleAll       -> mapM_ (\f -> writeFile f =<< tangleFile codes annotate f) =<< db listTargetFiles 
+        TangleRef ref   -> dump =<< tangleRef codes (ReferenceName ref)
+        TangleFile path -> dump =<< tangleFile codes path
+        TangleAll       -> mapM_ (\f -> writeFile f =<< tangleFile codes f) =<< db listTargetFiles 
+
+data StitchQuery = StitchFile FilePath | StitchAll
+
+stitchFile :: (HasConnection env, HasLogFunc env, HasConfig env)
+       => FilePath -> Entangled env Text
+stitchFile path = db (stitchDocument path)
 
 stitch :: (HasConnection env, HasLogFunc env, HasConfig env)
-       => FilePath -> Entangled env ()
-stitch path = dump =<< db (stitchDocument path)
+       => StitchQuery -> Entangled env ()
+stitch (StitchFile path) = dump =<< stitchFile path
+stitch StitchAll = mapM_ (\f -> writeFile f =<< stitchFile f) =<< db listSourceFiles
 
 listTargets :: (HasConnection env, HasLogFunc env, HasConfig env)
             => Entangled env ()
-listTargets = dump =<< (T.unlines <$> map T.pack <$> db listTargetFiles)
+listTargets = dump =<< (T.unlines . map T.pack <$> db listTargetFiles)
 
 insertSources :: (HasConnection env, HasLogFunc env, HasConfig env)
               => [FilePath] -> Entangled env ()
@@ -438,8 +415,8 @@ insertSources files = do
     logDebug $ display $ "inserting files: " <> tshow files
     mapM_ readDoc files
     where readDoc f = do
-            doc <- parseMarkdown' f =<< readFile f
-            db (insertDocument f doc)
+            document <- parseMarkdown' f =<< readFile f
+            db (insertDocument f document)
 
 insertTargets :: (HasConnection env, HasLogFunc env, HasConfig env)
               => [FilePath] -> Entangled env ()

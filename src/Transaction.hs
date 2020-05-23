@@ -3,10 +3,10 @@
 module Transaction where
 
 -- ------ begin <<transaction-imports>>[0] project://src/Transaction.hs#3
+import RIO (LogLevel)
 import qualified Data.Text.Prettyprint.Doc as P
 import Console (Doc)
 import qualified Console
-import Control.Monad.Logger (LogLevel)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Text.IO as T.IO
 import System.IO (stdout, hFlush)
@@ -34,7 +34,7 @@ doc :: Doc -> Transaction m
 doc x = Transaction Nothing x False
 
 msg :: P.Pretty a => LogLevel -> a -> Transaction m
-msg level doc = Transaction Nothing (Console.msg level doc) False
+msg level content = Transaction Nothing (Console.msg level content) False
 
 confirm :: Transaction m
 confirm = Transaction Nothing mempty True

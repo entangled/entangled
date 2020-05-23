@@ -15,7 +15,7 @@ import Console (msgWrite, msgCreate, msgDelete)
 import Paths_entangled
 import Config (config, HasConfig, languageFromName)
 import Database ( db, HasConnection, queryTargetRef, queryReferenceMap
-                , listTargetFiles, insertDocument, insertTargets, stitchDocument
+                , listTargetFiles, insertDocument, stitchDocument, listSourceFiles
                 , deduplicateRefs, updateTarget, listOrphanTargets, clearOrphanTargets )
 import Errors (EntangledError (..))
 
@@ -39,8 +39,8 @@ runEntangled (Entangled x) = do
     return r
 
 instance (HasLogFunc env) => MonadFileIO (Entangled env) where
-    readFile path       = readFile' path
-    dump text           = dump' text
+    readFile = readFile'
+    dump = dump'
 
     writeFile path text = do
         old_content' <- liftRIO $ try $ runFileIO' $ readFile path
@@ -58,21 +58,21 @@ instance (HasLogFunc env) => MonadFileIO (Entangled env) where
 
 data TangleQuery = TangleFile FilePath | TangleRef Text | TangleAll deriving (Show)
 
-tangleRef :: ExpandedCode -> Annotator -> ReferenceName -> Entangled env Text
-tangleRef codes annotate name =
+tangleRef :: ExpandedCode -> ReferenceName -> Entangled env Text
+tangleRef codes name =
     case codes LM.!? name of
         Nothing        -> throwM $ TangleError $ "Reference `" <> tshow name <> "` not found."
         Just (Left e)  -> throwM $ TangleError $ tshow e
         Just (Right t) -> return t
 
 tangleFile :: (HasConnection env, HasLogFunc env, HasConfig env)
-           => ExpandedCode -> Annotator -> FilePath -> Entangled env Text
-tangleFile codes annotate path = do
+           => ExpandedCode -> FilePath -> Entangled env Text
+tangleFile codes path = do
     cfg <- view config
-    (db $ queryTargetRef path) >>= \case
+    db (queryTargetRef path) >>= \case
         Nothing              -> throwM $ TangleError $ "Target `" <> T.pack path <> "` not found."
         Just (ref, langName) -> do
-            content <- tangleRef codes annotate ref
+            content <- tangleRef codes ref
             case languageFromName cfg langName of
                 Nothing -> throwM $ TangleError $ "Language unknown " <> langName
                 Just lang -> return $ T.unlines [headerComment lang path, content]
@@ -84,17 +84,24 @@ tangle query annotate = do
     refs <- db (queryReferenceMap cfg)
     let codes = expandedCode annotate refs
     case query of
-        TangleRef ref   -> dump =<< tangleRef codes annotate (ReferenceName ref)
-        TangleFile path -> dump =<< tangleFile codes annotate path
-        TangleAll       -> mapM_ (\f -> writeFile f =<< tangleFile codes annotate f) =<< db listTargetFiles
+        TangleRef ref   -> dump =<< tangleRef codes (ReferenceName ref)
+        TangleFile path -> dump =<< tangleFile codes path
+        TangleAll       -> mapM_ (\f -> writeFile f =<< tangleFile codes f) =<< db listTargetFiles
+
+data StitchQuery = StitchFile FilePath | StitchAll
+
+stitchFile :: (HasConnection env, HasLogFunc env, HasConfig env)
+       => FilePath -> Entangled env Text
+stitchFile path = db (stitchDocument path)
 
 stitch :: (HasConnection env, HasLogFunc env, HasConfig env)
-       => FilePath -> Entangled env ()
-stitch path = dump =<< db (stitchDocument path)
+       => StitchQuery -> Entangled env ()
+stitch (StitchFile path) = dump =<< stitchFile path
+stitch StitchAll = mapM_ (\f -> writeFile f =<< stitchFile f) =<< db listSourceFiles
 
 listTargets :: (HasConnection env, HasLogFunc env, HasConfig env)
             => Entangled env ()
-listTargets = dump =<< (T.unlines <$> map T.pack <$> db listTargetFiles)
+listTargets = dump =<< (T.unlines . map T.pack <$> db listTargetFiles)
 
 insertSources :: (HasConnection env, HasLogFunc env, HasConfig env)
               => [FilePath] -> Entangled env ()
@@ -102,8 +109,8 @@ insertSources files = do
     logDebug $ display $ "inserting files: " <> tshow files
     mapM_ readDoc files
     where readDoc f = do
-            doc <- parseMarkdown' f =<< readFile f
-            db (insertDocument f doc)
+            document <- parseMarkdown' f =<< readFile f
+            db (insertDocument f document)
 
 insertTargets :: (HasConnection env, HasLogFunc env, HasConfig env)
               => [FilePath] -> Entangled env ()
