@@ -1,22 +1,23 @@
--- ------ language="Haskell" file="src/Config.hs" project://src/Config.hs#2
+-- ~\~ language=Haskell filename=src/Config.hs
+-- ~\~ begin <<lit/04-configuration.md|src/Config.hs>>[0]
 module Config where
 
 import RIO (Lens')
--- ------ begin <<config-import>>[0] project://lit/04-configuration.md
+-- ~\~ begin <<lit/04-configuration.md|config-import>>[0]
 import Dhall (Generic, FromDhall, ToDhall, input, auto, Decoder, union, record, field, list, strictText, setFromDistinctList)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Set (Set)
--- ------ end
+-- ~\~ end
 
 import Errors
 
 import qualified Data.Text.IO as T.IO
 import TextUtil
--- ------ begin <<import-set>>[0] project://lit/01-entangled.md
+-- ~\~ begin <<lit/01-entangled.md|import-set>>[0]
 import qualified Data.Set as S
 import Data.Set (Set)
--- ------ end
+-- ~\~ end
 -- import qualified Toml
 -- import Toml (TomlCodec, (.=))
 
@@ -30,7 +31,7 @@ import System.FilePath.Glob (glob)
 import System.Directory
 import System.FilePath
 
--- ------ begin <<config-dhall-schema>>[0] project://src/Config.hs#7
+-- ~\~ begin <<lit/04-configuration.md|config-dhall-schema>>[0]
 data ConfigComment
     = Line  Text
     | Block { start :: Text, end :: Text }
@@ -73,8 +74,8 @@ configDecoder = record
 
 class HasConfig env where
     config :: Lens' env Config
--- ------ end
--- ------ begin <<config-input>>[0] project://src/Config.hs#9
+-- ~\~ end
+-- ~\~ begin <<lit/04-configuration.md|config-input>>[0]
 findFileAscending :: String -> IO (Maybe FilePath)
 findFileAscending filename = do
     path <- dropTrailingPathSeparator <$> getCurrentDirectory
@@ -86,8 +87,8 @@ readLocalConfig = do
     cfg_path <- maybe (throwM $ SystemError "no config found.") id
              <$> findFileAscending "entangled.dhall"
     input configDecoder $ "(" <> T.pack cfg_path <> ").entangled"
--- ------ end
--- ------ begin <<config-reader>>[0] project://lit/04-configuration.md
+-- ~\~ end
+-- ~\~ begin <<lit/04-configuration.md|config-reader>>[0]
 lookupLanguage :: Config -> Text -> Maybe ConfigLanguage
 lookupLanguage cfg x
     = find (elem x . languageIdentifiers)
@@ -97,7 +98,7 @@ languageFromName :: Config -> Text -> Maybe ConfigLanguage
 languageFromName cfg x
     = find ((== x) . languageName)
     $ configLanguages cfg
--- ------ end
+-- ~\~ end
 
 getDatabasePath :: (MonadIO m, MonadThrow m) => Config -> m FilePath
 getDatabasePath cfg = do
@@ -109,4 +110,4 @@ getDatabasePath cfg = do
 
 getInputFiles :: (MonadIO m) => Config -> m [FilePath]
 getInputFiles cfg = liftIO $ concatMapM (glob . T.unpack) (configWatchList cfg)
--- ------ end
+-- ~\~ end

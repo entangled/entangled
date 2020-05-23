@@ -1,8 +1,9 @@
--- ------ language="Haskell" file="src/Stitch.hs" project://src/Stitch.hs#2
+-- ~\~ language=Haskell filename=src/Stitch.hs
+-- ~\~ begin <<lit/14-stitch.md|src/Stitch.hs>>[0]
 module Stitch where
 
 import RIO (view)
--- ------ begin <<stitch-imports>>[0] project://src/Stitch.hs#3
+-- ~\~ begin <<lit/14-stitch.md|stitch-imports>>[0]
 import ListStream (ListStream(..), tokenP)
 import Document
 import Config (config, HasConfig, Config, languageFromName, ConfigLanguage(..))
@@ -15,16 +16,16 @@ import Text.Megaparsec
 import Data.Void (Void)
 import Control.Monad.Fail (MonadFail)
 import Control.Monad.Catch (MonadThrow, throwM)
--- ------ begin <<import-text>>[0] project://lit/01-entangled.md
+-- ~\~ begin <<lit/01-entangled.md|import-text>>[0]
 import qualified Data.Text as T
 import Data.Text (Text)
--- ------ end
+-- ~\~ end
 import qualified Data.Map.Strict as M
 import Control.Monad.Reader (MonadReader, ask, asks, ReaderT, runReaderT)
 import Control.Monad (when)
 import Data.Maybe (isNothing, catMaybes)
--- ------ end
--- ------ begin <<source-parser>>[0] project://lit/14-stitch.md
+-- ~\~ end
+-- ~\~ begin <<lit/14-stitch.md|source-parser>>[0]
 sourceDocument :: ( MonadParsec e (ListStream Text) m
                   , MonadFail m
                   , MonadReader Config m )
@@ -36,8 +37,8 @@ sourceDocument = do
                   $ getAttribute prop "language" >>= languageFromName config
     (_, refs) <- mconcat <$> some (sourceBlock lang)
     return refs
--- ------ end
--- ------ begin <<source-parser>>[1] project://lit/14-stitch.md
+-- ~\~ end
+-- ~\~ begin <<lit/14-stitch.md|source-parser>>[1]
 sourceBlock :: ( MonadParsec e (ListStream Text) m, MonadFail m )
             => ConfigLanguage -> m ([Text], [ReferencePair])
 sourceBlock lang = do
@@ -58,8 +59,8 @@ sourceLine :: ( MonadParsec e (ListStream Text) m )
 sourceLine = do
     x <- anySingle
     return ([x], [])
--- ------ end
--- ------ begin <<stitch>>[0] project://src/Stitch.hs#11
+-- ~\~ end
+-- ~\~ begin <<lit/14-stitch.md|stitch>>[0]
 type SourceParser = ReaderT Config (Parsec Void (ListStream Text))
 
 untangle :: ( MonadReader env m, HasConfig env, MonadThrow m )
@@ -77,5 +78,5 @@ stitch filename text = do
     let refs = parse p filename $ ListStream (T.lines text)
     return $ either (\e -> Left $ StitchError $ T.pack $ errorBundlePretty e)
                     Right refs
--- ------ end
--- ------ end
+-- ~\~ end
+-- ~\~ end

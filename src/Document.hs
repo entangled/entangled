@@ -1,20 +1,21 @@
--- ------ language="Haskell" file="src/Document.hs" project://lit/02-document-model.md#4
+-- ~\~ language=Haskell filename=src/Document.hs
+-- ~\~ begin <<lit/02-document-model.md|src/Document.hs>>[0]
 module Document
     ( module Document
     , module Errors ) where
 
--- ------ begin <<import-text>>[0] project://lit/01-entangled.md#44
+-- ~\~ begin <<lit/01-entangled.md|import-text>>[0]
 import qualified Data.Text as T
 import Data.Text (Text)
--- ------ end
--- ------ begin <<import-map>>[0] project://lit/01-entangled.md#24
+-- ~\~ end
+-- ~\~ begin <<lit/01-entangled.md|import-map>>[0]
 import qualified Data.Map.Strict as M
 import Data.Map.Strict (Map)
--- ------ end
--- ------ begin <<import-set>>[0] project://lit/01-entangled.md#35
+-- ~\~ end
+-- ~\~ begin <<lit/01-entangled.md|import-set>>[0]
 import qualified Data.Set as S
 import Data.Set (Set)
--- ------ end
+-- ~\~ end
 import Data.Typeable (Typeable)
 import Data.List (sort)
 
@@ -23,7 +24,7 @@ import Control.Monad.Catch
 import TextUtil (tshow)
 import Errors
 
--- ------ begin <<document-structure>>[0] project://lit/02-document-model.md#54
+-- ~\~ begin <<lit/02-document-model.md|document-structure>>[0]
 newtype ReferenceName = ReferenceName
     { unReferenceName :: Text
     } deriving (Show, Eq, Ord)
@@ -36,8 +37,8 @@ data ReferenceId = ReferenceId
 
 showNowebReference :: ReferenceName -> Text
 showNowebReference (ReferenceName x) = "<<" <> x <> ">>"
--- ------ end
--- ------ begin <<document-structure>>[1] project://lit/02-document-model.md#74
+-- ~\~ end
+-- ~\~ begin <<lit/02-document-model.md|document-structure>>[1]
 data Content
     = PlainText Text
     | Reference ReferenceId
@@ -52,8 +53,8 @@ data Document = Document
     , documentContent :: [Content]
     , documentTargets :: FileMap
     } deriving (Show)
--- ------ end
--- ------ begin <<document-structure>>[2] project://lit/02-document-model.md#93
+-- ~\~ end
+-- ~\~ begin <<lit/02-document-model.md|document-structure>>[2]
 referenceNames :: ReferenceMap -> Set ReferenceName
 referenceNames = S.fromList . map referenceName . M.keys
 
@@ -63,8 +64,8 @@ referencesByName refs name
 
 codeBlocksByName :: ReferenceMap -> ReferenceName -> [CodeBlock]
 codeBlocksByName refs name = map (refs M.!) $ referencesByName refs name
--- ------ end
--- ------ begin <<document-structure>>[3] project://lit/02-document-model.md#117
+-- ~\~ end
+-- ~\~ begin <<lit/02-document-model.md|document-structure>>[3]
 data CodeProperty
     = CodeId Text
     | CodeAttribute Text Text
@@ -77,22 +78,22 @@ getAttribute (CodeAttribute k v:ps) l
     | k == l    = Just v
     | otherwise = getAttribute ps l
 getAttribute (_:ps) l = getAttribute ps l
--- ------ end
--- ------ begin <<document-structure>>[4] project://lit/02-document-model.md#134
+-- ~\~ end
+-- ~\~ begin <<lit/02-document-model.md|document-structure>>[4]
 data CodeBlock = CodeBlock
     { codeLanguage   :: ProgrammingLanguage
     , codeProperties :: [CodeProperty]
     , codeSource     :: Text
     } deriving (Show, Eq)
--- ------ end
--- ------ begin <<document-structure>>[5] project://lit/02-document-model.md#144
+-- ~\~ end
+-- ~\~ begin <<lit/02-document-model.md|document-structure>>[5]
 data ProgrammingLanguage
     = KnownLanguage Text
     | UnknownClass Text
     | NoLanguage
     deriving (Show, Eq)
--- ------ end
--- ------ begin <<document-structure>>[6] project://lit/02-document-model.md#154
+-- ~\~ end
+-- ~\~ begin <<lit/02-document-model.md|document-structure>>[6]
 getCodeClasses :: CodeBlock -> [Text]
 getCodeClasses CodeBlock{..} = classes codeProperties
     where classes [] = []
@@ -104,5 +105,5 @@ getCodeAttributes CodeBlock{..} = attrs codeProperties
     where attrs [] = []
           attrs (CodeAttribute k v : cs) = (k, v) : attrs cs
           attrs (_ : cs) = attrs cs
--- ------ end
--- ------ end
+-- ~\~ end
+-- ~\~ end

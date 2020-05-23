@@ -1,30 +1,31 @@
--- ------ language="Haskell" file="src/TextUtil.hs" project://lit/01-entangled.md#101
+-- ~\~ language=Haskell filename=src/TextUtil.hs
+-- ~\~ begin <<lit/01-entangled.md|src/TextUtil.hs>>[0]
 module TextUtil where
 
 import Data.Char (isSpace)
 import Data.Maybe (isNothing, catMaybes)
--- ------ begin <<import-text>>[0] project://lit/01-entangled.md#44
+-- ~\~ begin <<lit/01-entangled.md|import-text>>[0]
 import qualified Data.Text as T
 import Data.Text (Text)
--- ------ end
+-- ~\~ end
 
--- ------ begin <<indent>>[0] project://lit/01-entangled.md#115
+-- ~\~ begin <<lit/01-entangled.md|indent>>[0]
 indent :: Text -> Text -> Text
 indent pre text
     = unlines' $ map indentLine $ lines' text
     where indentLine line
             | line == "" = line
             | otherwise  = pre <> line
--- ------ end
--- ------ begin <<unindent>>[0] project://lit/01-entangled.md#124
+-- ~\~ end
+-- ~\~ begin <<lit/01-entangled.md|unindent>>[0]
 unindent :: Text -> Text -> Maybe Text
 unindent prefix s
     = unlines' <$> sequence (map unindentLine $ lines' s)
     where unindentLine t
             | T.all isSpace t = Just ""
             | otherwise       = T.stripPrefix prefix t
--- ------ end
--- ------ begin <<unlines>>[0] project://lit/01-entangled.md#51
+-- ~\~ end
+-- ~\~ begin <<lit/01-entangled.md|unlines>>[0]
 lines' :: Text -> [Text]
 lines' text
     | text == ""               = [""]
@@ -33,8 +34,8 @@ lines' text
 
 unlines' :: [Text] -> Text
 unlines' = T.intercalate "\n"
--- ------ end
--- ------ begin <<maybe-unlines>>[0] project://lit/01-entangled.md#70
+-- ~\~ end
+-- ~\~ begin <<lit/01-entangled.md|maybe-unlines>>[0]
 mLines :: Maybe Text -> [Text]
 mLines Nothing = []
 mLines (Just text) = lines' text
@@ -42,9 +43,9 @@ mLines (Just text) = lines' text
 mUnlines :: [Text] -> Maybe Text
 mUnlines [] = Nothing
 mUnlines ts = Just $ unlines' ts
--- ------ end
--- ------ begin <<tshow>>[0] project://lit/01-entangled.md#94
+-- ~\~ end
+-- ~\~ begin <<lit/01-entangled.md|tshow>>[0]
 tshow :: (Show a) => a -> Text
 tshow = T.pack . show
--- ------ end
--- ------ end
+-- ~\~ end
+-- ~\~ end

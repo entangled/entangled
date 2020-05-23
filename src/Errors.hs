@@ -1,14 +1,15 @@
--- ------ language="Haskell" file="src/Errors.hs" project://lit/01-entangled.md#202
+-- ~\~ language=Haskell filename=src/Errors.hs
+-- ~\~ begin <<lit/01-entangled.md|src/Errors.hs>>[0]
 module Errors where
 
 import Control.Exception
 import Data.Typeable
 import TextUtil
 
--- ------ begin <<import-text>>[0] project://lit/01-entangled.md#44
+-- ~\~ begin <<lit/01-entangled.md|import-text>>[0]
 import qualified Data.Text as T
 import Data.Text (Text)
--- ------ end
+-- ~\~ end
 
 data EntangledError
     = TangleError Text
@@ -33,4 +34,4 @@ formatError :: EntangledError -> Text
 formatError (TangleError t) = "tangling: " <> t
 formatError (StitchError t) = "stitching: " <> t
 formatError x = tshow x
--- ------ end
+-- ~\~ end

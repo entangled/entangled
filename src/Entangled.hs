@@ -1,4 +1,5 @@
--- ------ language="Haskell" file="src/Entangled.hs" project://lit/12-main.md
+-- ~\~ language=Haskell filename=src/Entangled.hs
+-- ~\~ begin <<lit/12-main.md|src/Entangled.hs>>[0]
 {-# LANGUAGE NoImplicitPrelude #-}
 module Entangled where
 
@@ -133,4 +134,4 @@ clearOrphans = do
 printExampleConfig :: (HasLogFunc env)
                    => Entangled env ()
 printExampleConfig = dump =<< readFile =<< liftIO (getDataFileName "data/example-config.dhall")
--- ------ end
+-- ~\~ end

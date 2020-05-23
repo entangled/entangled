@@ -1,9 +1,10 @@
--- ------ language="Haskell" file="src/FileIO.hs" project://src/FileIO.hs#2
+-- ~\~ language=Haskell filename=src/FileIO.hs
+-- ~\~ begin <<lit/a4-fileio.md|src/FileIO.hs>>[0]
 {-# LANGUAGE NoImplicitPrelude #-}
 module FileIO where
 
 import RIO
--- ------ begin <<file-io-imports>>[0] project://lit/a4-fileio.md
+-- ~\~ begin <<lit/a4-fileio.md|file-io-imports>>[0]
 import RIO.Text (Text)
 import qualified RIO.Text as T
 
@@ -13,22 +14,22 @@ import Control.Monad.Catch (MonadThrow, throwM)
 import Errors (EntangledError(SystemError))
 import Select (selectM)
 import TextUtil (tshow)
--- ------ end
--- ------ begin <<file-io-imports>>[1] project://lit/a4-fileio.md
+-- ~\~ end
+-- ~\~ begin <<lit/a4-fileio.md|file-io-imports>>[1]
 import RIO.Directory ( createDirectoryIfMissing, doesDirectoryExist
                      , listDirectory, removeFile, removeDirectory )
 import RIO.FilePath  ( (</>), splitDirectories )
 import RIO.List      ( scanl1 )
--- ------ end
--- ------ begin <<file-io-imports>>[2] project://lit/a4-fileio.md
+-- ~\~ end
+-- ~\~ begin <<lit/a4-fileio.md|file-io-imports>>[2]
 import RIO.File ( writeBinaryFileDurable )
 import qualified RIO.ByteString as B
 import Control.Exception ( IOException )
--- ------ end
--- ------ begin <<file-io-imports>>[3] project://src/FileIO.hs#9
+-- ~\~ end
+-- ~\~ begin <<lit/a4-fileio.md|file-io-imports>>[3]
 import RIO.FilePath         ( takeDirectory )
 import RIO.Text             ( decodeUtf8With, lenientDecode )
--- ------ end
+-- ~\~ end
 
 class Monad m => MonadFileIO m where
     writeFile :: FilePath -> Text -> m ()
@@ -36,15 +37,15 @@ class Monad m => MonadFileIO m where
     readFile :: FilePath -> m Text
     dump :: Text -> m ()
 
--- ------ begin <<file-io-prim>>[0] project://src/FileIO.hs#11
+-- ~\~ begin <<lit/a4-fileio.md|file-io-prim>>[0]
 ensurePath :: (MonadIO m, MonadReader env m, HasLogFunc env)
            => FilePath -> m ()
 ensurePath path = selectM (return ())
     [ ( not <$> doesDirectoryExist path
       , logDebug (display $ "creating directory `" <> (T.pack path) <> "`")
         >> createDirectoryIfMissing True path ) ]
--- ------ end
--- ------ begin <<file-io-prim>>[1] project://src/FileIO.hs#13
+-- ~\~ end
+-- ~\~ begin <<lit/a4-fileio.md|file-io-prim>>[1]
 rmDirIfEmpty :: (MonadIO m, MonadThrow m, MonadReader env m, HasLogFunc env)
              => FilePath -> m ()
 rmDirIfEmpty path = selectM (return ())
@@ -60,8 +61,8 @@ parents = scanl1 (</>) . splitDirectories
 rmPathIfEmpty :: (MonadIO m, MonadThrow m, MonadReader env m, HasLogFunc env)
               => FilePath -> m ()
 rmPathIfEmpty = mapM_ rmDirIfEmpty . reverse . parents
--- ------ end
--- ------ begin <<file-io-prim>>[2] project://src/FileIO.hs#15
+-- ~\~ end
+-- ~\~ begin <<lit/a4-fileio.md|file-io-prim>>[2]
 writeIfChanged :: (MonadIO m, MonadThrow m, MonadReader env m, HasLogFunc env)
                => FilePath -> Text -> m ()
 writeIfChanged path text = do
@@ -78,8 +79,8 @@ dump' :: (MonadIO m, MonadReader env m, HasLogFunc env)
       => Text -> m ()
 dump' text = logDebug "dumping to stdio"
          >> B.hPutStr stdout (T.encodeUtf8 text)
--- ------ end
--- ------ begin <<file-io-instance>>[0] project://src/FileIO.hs#17
+-- ~\~ end
+-- ~\~ begin <<lit/a4-fileio.md|file-io-instance>>[0]
 newtype FileIO env a = FileIO { unFileIO :: RIO env a }
     deriving (Applicative, Functor, Semigroup, Monoid, Monad, MonadIO, MonadThrow, MonadReader env)
 
@@ -111,5 +112,5 @@ instance (HasLogFunc env) => MonadFileIO (FileIO env) where
     readFile            = readFile'
 
     dump                = dump'
--- ------ end
--- ------ end
+-- ~\~ end
+-- ~\~ end

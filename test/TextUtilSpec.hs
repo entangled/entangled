@@ -1,10 +1,11 @@
--- ------ language="Haskell" file="test/TextUtilSpec.hs" project://lit/01-entangled.md#135
+-- ~\~ language=Haskell filename=test/TextUtilSpec.hs
+-- ~\~ begin <<lit/01-entangled.md|test/TextUtilSpec.hs>>[0]
 module TextUtilSpec where
 
--- ------ begin <<import-text>>[0] project://lit/01-entangled.md#44
+-- ~\~ begin <<lit/01-entangled.md|import-text>>[0]
 import qualified Data.Text as T
 import Data.Text (Text)
--- ------ end
+-- ~\~ end
 import Data.Maybe (catMaybes, isJust)
 import Test.Hspec
 import Test.QuickCheck
@@ -13,16 +14,16 @@ import Test.QuickCheck.Instances.Text
 import TextUtil
 
 propUnlines :: Maybe Text -> Bool
-propUnlines t = 
-    -- ------ begin <<test-unlines-inverse>>[0] project://lit/01-entangled.md#82
+propUnlines t =
+    -- ~\~ begin <<lit/01-entangled.md|test-unlines-inverse>>[0]
     t == mUnlines (mLines t)
-    -- ------ end
+    -- ~\~ end
 
 propUnlineLists :: ([Text], [Text]) -> Bool
 propUnlineLists (a, b) =
-    -- ------ begin <<test-unlines-associative>>[0] project://lit/01-entangled.md#88
+    -- ~\~ begin <<lit/01-entangled.md|test-unlines-associative>>[0]
     mUnlines (catMaybes [mUnlines a, mUnlines b]) == mUnlines (a <> b)
-    -- ------ end
+    -- ~\~ end
 
 genLine :: Gen Text
 genLine = T.pack <$> (listOf $ elements ['!'..'~'])
@@ -53,4 +54,4 @@ textUtilSpec = do
             property $ forAll (genPair genLine genText)  propIndent
         it "unindent fails on wrong indent" $
             property $ forAll (genPair genLine genLine) propIndent
--- ------ end
+-- ~\~ end

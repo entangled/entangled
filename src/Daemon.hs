@@ -1,15 +1,16 @@
--- ------ language="Haskell" file="src/Daemon.hs" project://lit/10-daemon.md
--- ------ begin <<daemon>>[0] project://lit/10-daemon.md
+-- ~\~ language=Haskell filename=src/Daemon.hs
+-- ~\~ begin <<lit/10-daemon.md|src/Daemon.hs>>[0]
+-- ~\~ begin <<lit/10-daemon.md|daemon>>[0]
 {-# LANGUAGE NoImplicitPrelude #-}
 module Daemon where
 
 import RIO
 import qualified RIO.Text as T
 
--- ------ begin <<daemon-imports>>[0] project://lit/10-daemon.md
+-- ~\~ begin <<lit/10-daemon.md|daemon-imports>>[0]
 import qualified System.FSNotify as FSNotify
--- ------ end
--- ------ begin <<daemon-imports>>[1] project://lit/10-daemon.md
+-- ~\~ end
+-- ~\~ begin <<lit/10-daemon.md|daemon-imports>>[1]
 import Database.SQLite.Simple (Connection)
 import Database (db, connection, HasConnection, listSourceFiles, listTargetFiles)
 
@@ -27,19 +28,19 @@ import qualified Data.Text.Prettyprint.Doc as P
 -- import Control.Concurrent.Chan
 -- import Control.Concurrent
 -- import Control.Monad.Catch
--- ------ end
--- ------ begin <<daemon-imports>>[2] project://lit/10-daemon.md
+-- ~\~ end
+-- ~\~ begin <<lit/10-daemon.md|daemon-imports>>[2]
 import Data.List (nub)
 -- import Control.Monad (mapM)
--- ------ end
--- ------ begin <<daemon-imports>>[3] project://lit/10-daemon.md
+-- ~\~ end
+-- ~\~ begin <<lit/10-daemon.md|daemon-imports>>[3]
 -- import System.IO (stdout, hFlush, hSetBuffering, BufferMode(..))
 import RIO.Directory (makeRelativeToCurrentDirectory, canonicalizePath)
 import RIO.FilePath (equalFilePath, takeDirectory)
 -- import Control.Exception (IOException)
--- ------ end
+-- ~\~ end
 
--- ------ begin <<daemon-events>>[0] project://lit/10-daemon.md
+-- ~\~ begin <<lit/10-daemon.md|daemon-events>>[0]
 data DaemonState
     = Idle
     | Tangling
@@ -51,8 +52,8 @@ data Event
     | WriteTarget FilePath
     | DebugEvent Text
     deriving (Show)
--- ------ end
--- ------ begin <<daemon-session>>[0] project://lit/10-daemon.md
+-- ~\~ end
+-- ~\~ begin <<lit/10-daemon.md|daemon-session>>[0]
 data Session = Session
     { watches       :: MVar [FSNotify.StopListening]
     , manager       :: FSNotify.WatchManager
@@ -74,14 +75,14 @@ instance HasConnection Session where
 
 newtype Daemon a = Daemon { unDaemon :: RIO Session a }
     deriving ( Applicative, Functor, Monad, MonadIO, MonadReader Session, MonadThrow, MonadUnliftIO )
--- ------ end
--- ------ begin <<daemon-session>>[1] project://lit/10-daemon.md
+-- ~\~ end
+-- ~\~ begin <<lit/10-daemon.md|daemon-session>>[1]
 setDaemonState :: DaemonState -> Daemon ()
 setDaemonState s = do
     state <- asks daemonState
     modifyMVar_ state (const $ return s)
--- ------ end
--- ------ begin <<daemon-watches>>[0] project://lit/10-daemon.md
+-- ~\~ end
+-- ~\~ begin <<lit/10-daemon.md|daemon-watches>>[0]
 passEvent :: MVar DaemonState -> Chan Event
           -> [FilePath] -> [FilePath] -> FSNotify.Event -> IO ()
 passEvent _      _       _    _    FSNotify.Removed {} = return ()
@@ -99,8 +100,8 @@ passEvent state' channel srcs tgts fsEvent = do
     when pass $ do
         let etype = if isSourceFile then WriteSource else WriteTarget
         writeChan channel (etype abs_path)
--- ------ end
--- ------ begin <<daemon-watches>>[1] project://lit/10-daemon.md
+-- ~\~ end
+-- ~\~ begin <<lit/10-daemon.md|daemon-watches>>[1]
 setWatch :: Daemon ()
 setWatch = do
     srcs <- db listSourceFiles >>= (liftIO . mapM canonicalizePath)
@@ -120,17 +121,17 @@ setWatch = do
     putMVar watchesMVar stopActions
 
     logDebug $ display $ "watching: " <> tshow rel_dirs
--- ------ end
--- ------ begin <<daemon-watches>>[2] project://lit/10-daemon.md
+-- ~\~ end
+-- ~\~ begin <<lit/10-daemon.md|daemon-watches>>[2]
 closeWatch :: Daemon ()
 closeWatch = do
     stopActions <- takeMVar =<< asks watches
     liftIO $ sequence_ stopActions
     logDebug "suspended watches"
--- ------ end
--- ------ begin <<daemon-main-loop>>[0] project://lit/10-daemon.md
+-- ~\~ end
+-- ~\~ begin <<lit/10-daemon.md|daemon-main-loop>>[0]
 mainLoop :: Event -> Daemon ()
--- ------ begin <<main-loop-cases>>[0] project://lit/10-daemon.md
+-- ~\~ begin <<lit/10-daemon.md|main-loop-cases>>[0]
 mainLoop (WriteSource abs_path) = do
     rel_path <- makeRelativeToCurrentDirectory abs_path
     logDebug $ display $ "tangle triggered on `" <> T.pack rel_path <> "`"
@@ -161,9 +162,9 @@ mainLoop (WriteTarget abs_path) = do
     setDaemonState Idle
 
 mainLoop _ = return ()
--- ------ end
--- ------ end
--- ------ begin <<daemon-start>>[0] project://lit/10-daemon.md
+-- ~\~ end
+-- ~\~ end
+-- ~\~ begin <<lit/10-daemon.md|daemon-start>>[0]
 printMsg :: Doc -> Daemon ()
 printMsg = liftIO . Console.putTerminal
 
@@ -208,6 +209,6 @@ runSession inputFiles = do
         mapM_ mainLoop =<< getChanContents channel
 
     liftIO $ FSNotify.stopManager fsnotify
--- ------ end
--- ------ end
--- ------ end
+-- ~\~ end
+-- ~\~ end
+-- ~\~ end

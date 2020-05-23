@@ -1,13 +1,14 @@
--- ------ language="Haskell" file="test/TangleSpec.hs" project://lit/13-tangle.md#592
+-- ~\~ language=Haskell filename=test/TangleSpec.hs
+-- ~\~ begin <<lit/13-tangle.md|test/TangleSpec.hs>>[0]
 module TangleSpec where
 
 import Test.Hspec
 import Test.Hspec.Megaparsec
 
--- ------ begin <<import-text>>[0] project://lit/01-entangled.md#44
+-- ~\~ begin <<lit/01-entangled.md|import-text>>[0]
 import qualified Data.Text as T
 import Data.Text (Text)
--- ------ end
+-- ~\~ end
 import qualified Data.Text.IO as T.IO
 
 import qualified Data.Map.Lazy as LM
@@ -95,4 +96,4 @@ tangleEqualSpec = before (sequence $ map T.IO.readFile testFiles) $ do
                 hellos = map (LM.! (ReferenceName "hello.cc")) codes
             hellos `shouldBe` (replicate 3 (hellos !! 0))
     where testFiles = ["test/test01.md", "test/test02.md", "test/test03.md"]
--- ------ end
+-- ~\~ end

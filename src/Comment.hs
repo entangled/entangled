@@ -1,29 +1,30 @@
--- ------ language="Haskell" file="src/Comment.hs" project://lit/13-tangle.md#439
+-- ~\~ language=Haskell filename=src/Comment.hs
+-- ~\~ begin <<lit/13-tangle.md|src/Comment.hs>>[0]
 module Comment where
 
--- ------ begin <<comment-imports>>[0] project://lit/13-tangle.md#448
+-- ~\~ begin <<lit/13-tangle.md|comment-imports>>[0]
 import Control.Monad.Reader
 import Control.Monad.Except
 
--- ------ begin <<import-text>>[0] project://lit/01-entangled.md#44
+-- ~\~ begin <<lit/01-entangled.md|import-text>>[0]
 import qualified Data.Text as T
 import Data.Text (Text)
--- ------ end
--- ------ end
--- ------ begin <<comment-imports>>[1] project://lit/13-tangle.md#472
+-- ~\~ end
+-- ~\~ end
+-- ~\~ begin <<lit/13-tangle.md|comment-imports>>[1]
 import Document
     ( ProgrammingLanguage(..)
     , EntangledError(..) )
 import Config
     ( Config(..), ConfigLanguage(..), ConfigComment(..), languageFromName )
--- ------ end
--- ------ begin <<comment-imports>>[2] project://lit/13-tangle.md#509
+-- ~\~ end
+-- ~\~ begin <<lit/13-tangle.md|comment-imports>>[2]
 import qualified Data.Map.Strict as M
 
 import Document
 import TextUtil (unlines')
--- ------ end
--- ------ begin <<comment-imports>>[3] project://lit/13-tangle.md#535
+-- ~\~ end
+-- ~\~ begin <<lit/13-tangle.md|comment-imports>>[3]
 import Text.Megaparsec
     ( MonadParsec, chunk, skipManyTill, anySingle, (<?>), takeWhileP, eof )
 import Text.Megaparsec.Char (space)
@@ -32,13 +33,13 @@ import Text.Megaparsec.Char.Lexer
 
 import Document (CodeProperty)
 import Attributes (attributes, cssIdentifier, cssValue)
--- ------ end
+-- ~\~ end
 
--- ------ begin <<generate-comment>>[0] project://lit/13-tangle.md#465
+-- ~\~ begin <<lit/13-tangle.md|generate-comment>>[0]
 delim :: Text
 delim = " ~\\~ "
--- ------ end
--- ------ begin <<generate-comment>>[1] project://lit/13-tangle.md#480
+-- ~\~ end
+-- ~\~ begin <<lit/13-tangle.md|generate-comment>>[1]
 comment :: (MonadReader Config m, MonadError EntangledError m)
         => ProgrammingLanguage
         -> Text
@@ -63,8 +64,8 @@ formatComment :: ConfigLanguage -> Text -> Text
 formatComment lang text = pre <> text <> post
     where pre  = (commentStart $ languageComment lang) <> delim
           post = maybe "" (" " <>) $ commentEnd $ languageComment lang
--- ------ end
--- ------ begin <<generate-comment>>[2] project://lit/13-tangle.md#516
+-- ~\~ end
+-- ~\~ begin <<lit/13-tangle.md|generate-comment>>[2]
 annotateComment :: (MonadReader Config m, MonadError EntangledError m)
                 => ReferenceMap -> ReferenceId -> m Text
 annotateComment refs ref = do
@@ -79,19 +80,19 @@ annotateComment refs ref = do
 headerComment :: ConfigLanguage -> FilePath -> Text
 headerComment lang path = formatComment lang
     $ "language=" <> languageName lang <> " filename=" <> T.pack path
--- ------ end
--- ------ begin <<parse-comment>>[0] project://lit/13-tangle.md#548
+-- ~\~ end
+-- ~\~ begin <<lit/13-tangle.md|parse-comment>>[0]
 topHeader :: ( MonadParsec e Text m )
           => m [CodeProperty]
 topHeader = do
     skipManyTill (anySingle <?> "open comment")
                  (chunk delim)
     attributes
--- ------ end
--- ------ begin <<parse-comment>>[1] project://lit/13-tangle.md#559
+-- ~\~ end
+-- ~\~ begin <<lit/13-tangle.md|parse-comment>>[1]
 commented :: (MonadParsec e Text m)
           => ConfigLanguage -> m a -> m (a, Text)
-commented lang p = do 
+commented lang p = do
     indent <- takeWhileP (Just "initial indent") (`elem` (" \t" :: [Char]))
     pre <- chunk $ (commentStart $ languageComment lang) <> delim
     x <- p
@@ -99,8 +100,8 @@ commented lang p = do
     space
     eof
     return (x, indent)
--- ------ end
--- ------ begin <<parse-comment>>[2] project://lit/13-tangle.md#572
+-- ~\~ end
+-- ~\~ begin <<lit/13-tangle.md|parse-comment>>[2]
 beginBlock :: (MonadParsec e Text m)
            => m ReferenceId
 beginBlock = do
@@ -116,5 +117,5 @@ beginBlock = do
 endBlock :: (MonadParsec e Text m)
          => m ()
 endBlock = chunk "end" >> return ()
--- ------ end
--- ------ end
+-- ~\~ end
+-- ~\~ end
