@@ -120,7 +120,7 @@ parseDaemonArgs = CommandDaemon . DaemonArgs
 ```
 
 ``` {.haskell #sub-runners}
-CommandDaemon _ -> runSession
+CommandDaemon DaemonArgs {..} -> runSession inputFiles
 ```
 
 ### Printing the config

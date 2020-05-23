@@ -18,6 +18,7 @@ The Entangled daemon does the following:
 module Daemon where
 
 import RIO
+import qualified RIO.Text as T
 
 <<daemon-imports>>
 
@@ -64,7 +65,7 @@ import Database (db, connection, HasConnection, listSourceFiles, listTargetFiles
 -- import FileIO
 import Tangle (annotateComment')
 import Entangled
-import Config (Config, HasConfig, config, getInputFiles)
+import Config (Config, HasConfig, config, getInputFiles, configWatchList)
 import Errors (EntangledError(..))
 
 import Console (Doc, putTerminal)
@@ -202,6 +203,7 @@ After the first event we need to wait a bit, there may be more comming.
 ``` {.haskell #main-loop-cases}
 mainLoop (WriteSource abs_path) = do
     rel_path <- makeRelativeToCurrentDirectory abs_path
+    logDebug $ display $ "tangle triggered on `" <> T.pack rel_path <> "`"
     cfg <- view config
 
     setDaemonState Tangling
@@ -217,6 +219,7 @@ mainLoop (WriteSource abs_path) = do
 
 mainLoop (WriteTarget abs_path) = do
     rel_path <- liftIO $ makeRelativeToCurrentDirectory abs_path
+    logDebug $ display $ "stitch triggered on `" <> T.pack rel_path <> "`"
     setDaemonState Stitching
     closeWatch
 
@@ -258,11 +261,12 @@ initSession = do
     setWatch
 
 runSession :: (HasConfig env, HasLogFunc env, HasConnection env, MonadReader env m, MonadIO m)
-           => m ()
-runSession = do
+           => [FilePath] -> m ()
+runSession inputFiles = do
     hSetBuffering stdout LineBuffering
 
-    cfg <- view config
+    cfg' <- view config
+    let cfg = cfg' { configWatchList = configWatchList cfg' <> map T.pack inputFiles }
     conn <- view connection
     logFunc <- view logFuncL
     fsnotify <- liftIO FSNotify.startManager

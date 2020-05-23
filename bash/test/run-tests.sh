@@ -16,6 +16,23 @@ function entangled() {
         fi
 }
 
+function entangled-daemon() {
+        export entangled_datadir="${PROJECT_ROOT}"
+        if [ -z $verbose ]; then
+                ${ENTANGLED_EXEC} daemon $@ &
+        else
+                ${ENTANGLED_EXEC} -V daemon $@ &
+        fi
+        daemon_pid=$!
+        echo "Running 'entangled daemon' with PID=$daemon_pid"
+        sleep 0.1
+}
+
+function kill-daemon() {
+        echo "Killing PID $daemon_pid"
+        kill $daemon_pid
+}
+
 function setup() {
         TMPDIR=$(mktemp --tmpdir -d entangled-test-XXXXXXXX)
         echo "Setting up in ${TMPDIR} ..."

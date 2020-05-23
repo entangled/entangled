@@ -191,7 +191,7 @@ runSubCommand sc = do
     case sc of
         NoCommand -> return ()
         -- ------ begin <<sub-runners>>[0] project://lit/12-main.md
-        CommandDaemon _ -> runSession
+        CommandDaemon DaemonArgs {..} -> runSession inputFiles
         -- ------ end
         -- ------ begin <<sub-runners>>[1] project://lit/12-main.md
         CommandConfig -> printExampleConfig

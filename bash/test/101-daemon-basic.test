@@ -1,0 +1,28 @@
+entangled-daemon test-01.md
+
+assert-arrayeq "Source contains expected files" \
+        "$(entangled list | sort)" "factorial.scm hello.scm"
+assert-streq "Stitching conserves content" \
+        "$(entangled stitch test-01.md)" "$(cat test-01.md)"
+
+assert-exists "daemon created 'factorial.scm'" "factorial.scm"
+assert-exists "daemon created 'hello.scm'" "hello.scm"
+assert-streq "'factorial.scm' ends in a newline" "$(tail -c 1 factorial.scm)" ""
+
+assert-streq "Tangling gives an correct program #1" \
+        "$(guile --no-auto-compile factorial.scm)" "3628800"
+assert-streq "Tangling gives an correct program #2" \
+        "$(guile --no-auto-compile hello.scm)" "Hello, World!"
+
+patch -s hello.scm test-01-01.diff
+assert-streq "Tangling gives an correct program #3" \
+        "$(guile -c "$(entangled tangle -f hello.scm)")" "Hello, Universe!"
+
+patch -s test-01.md test-01-02.diff
+assert-streq "Tangling gives an correct program #4" \
+        "$(guile --no-auto-compile fib.scm)" \
+        "(1 1 2 3 5 8 13 21 34 55 89 144)"
+
+kill-daemon
+
+# vim:ft=bash
