@@ -618,7 +618,7 @@ import Data.List ((!!))
 import Tangle
 import Attributes
 import Document
-import Config (Config, defaultConfig, languageFromName)
+import Config (Config, readLocalConfig, languageFromName)
 import ListStream
 
 import Text.Megaparsec (parse, Parsec)
@@ -639,14 +639,16 @@ p x t = parse x "" t
 
 type ParserC = StateT ReferenceCount (ReaderT Config (Parsec Void (ListStream Text)))
 
-pc :: ParserC a -> ListStream Text -> Either (ParseErrorBundle (ListStream Text) Void) a
-pc x t = parse (runReaderT (evalStateT x mempty) defaultConfig) "" t
+emptyrc = ReferenceCount "" mempty
 
-pd :: Text -> Either EntangledError Document
-pd t = runReader (parseMarkdown "" t) defaultConfig
+pc :: Config -> ParserC a -> ListStream Text -> Either (ParseErrorBundle (ListStream Text) Void) a
+pc cfg x = parse (runReaderT (evalStateT x emptyrc) cfg) ""
 
-tangleSpec :: Spec
-tangleSpec = do
+pd :: Config -> Text -> Either EntangledError Document
+pd cfg t = runReader (parseMarkdown "" t) cfg
+
+tangleSpec :: Config -> Spec
+tangleSpec cfg = do
     describe "Parsing fenced code attributes" $ do
         it "parses a class" $ do
             p codeClass ".hello" `shouldParse` CodeClass "hello"
@@ -675,26 +677,25 @@ tangleSpec = do
                     [ "``` {.python #hello-world}"
                     , "print(\"Hello, World!\")"
                     , "```" ]
-            python = fromJust $ languageFromName defaultConfig "Python"
         it "parses a code block" $ do
-            pc codeBlock test1 `shouldParse`
+            pc cfg codeBlock test1 `shouldParse`
                 ( [ PlainText "``` {.python #hello-world}"
-                  , Reference $ ReferenceId (ReferenceName "hello-world") 0
+                  , Reference $ ReferenceId "" (ReferenceName "hello-world") 0
                   , PlainText "```" ]
-                , [ ( ReferenceId (ReferenceName "hello-world") 0
-                    , CodeBlock (KnownLanguage python)
+                , [ ( ReferenceId "" (ReferenceName "hello-world") 0
+                    , CodeBlock (KnownLanguage "Python")
                                 [CodeClass "python", CodeId "hello-world"]
                                 "print(\"Hello, World!\")"
                     ) ]
                 )
 
-tangleEqualSpec :: Spec
-tangleEqualSpec = before (sequence $ map T.IO.readFile testFiles) $ do
+tangleEqualSpec :: Config -> Spec
+tangleEqualSpec cfg = before (mapM T.IO.readFile testFiles) $ do
     describe "Code expansion on test0[1-3].md" $ do
         it "expands to identical code" $ \files -> do
-            let docs = rights $ map pd files
-                codes = map (expandedCode annotateNaked) docs
-                hellos = map (LM.! (ReferenceName "hello.cc")) codes
+            let docs = rights $ map (pd cfg) files
+                codes = map (expandedCode annotateNaked . references) docs
+                hellos = map (LM.! ReferenceName "hello.cc") codes
             hellos `shouldBe` (replicate 3 (hellos !! 0))
     where testFiles = ["test/test01.md", "test/test02.md", "test/test03.md"]
 ```
