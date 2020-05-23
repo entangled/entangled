@@ -19,6 +19,7 @@ module Daemon where
 
 import RIO
 import RIO.List (sort)
+import RIO.Writer (tell)
 import qualified RIO.Text as T
 
 <<daemon-imports>>
@@ -62,7 +63,7 @@ data Event
 import Database.SQLite.Simple (Connection)
 import Database (db, connection, HasConnection, listSourceFiles, listTargetFiles)
 
--- import Transaction
+import Transaction (doc)
 -- import FileIO
 import Tangle (annotateComment')
 import Entangled
@@ -210,7 +211,7 @@ mainLoop (WriteSource abs_path) = do
     setDaemonState Tangling
     closeWatch
 
-    runEntangled $ do
+    runEntangled (Just $ "tangling on `" <> P.pretty rel_path <> "`") $ do
         insertSources [rel_path]
         tangle TangleAll (annotateComment' cfg)
         clearOrphans
@@ -224,7 +225,7 @@ mainLoop (WriteTarget abs_path) = do
     setDaemonState Stitching
     closeWatch
 
-    runEntangled $ do
+    runEntangled (Just $ "stitching on `" <> P.pretty rel_path <> "`") $ do
         insertTargets [rel_path]
         stitch StitchAll
 
@@ -248,7 +249,8 @@ initSession = do
     rel_paths <- mapM makeRelativeToCurrentDirectory abs_paths
 
     printMsg Console.banner
-    printMsg $ Console.group "initializing" $
+    runEntangled (Just "initializing") $ do
+        tell $ doc $
              P.align (P.vsep
                    $ map (Console.bullet
                          . (P.pretty ("Monitoring " :: Text) <>)
@@ -256,7 +258,6 @@ initSession = do
                            rel_paths)
              <> P.line
 
-    runEntangled $ do
         insertSources rel_paths
         tangle TangleAll (annotateComment' cfg)
 

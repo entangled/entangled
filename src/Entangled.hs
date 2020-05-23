@@ -12,7 +12,7 @@ import qualified Data.Map.Lazy as LM
 import FileIO
 import Transaction
 
-import Console (msgWrite, msgCreate, msgDelete)
+import Console (msgWrite, msgCreate, msgDelete, Doc)
 import Paths_entangled
 import Config (config, HasConfig, languageFromName)
 import Database ( db, HasConnection, queryTargetRef, queryReferenceMap
@@ -32,11 +32,11 @@ newtype Entangled env a = Entangled { unEntangled :: WriterT (FileTransaction en
              , MonadReader env, MonadWriter (FileTransaction env) )
 
 runEntangled :: (MonadIO m, MonadReader env m, HasLogFunc env)
-             => Entangled env a -> m a
-runEntangled (Entangled x) = do
+             => Maybe Doc -> Entangled env a -> m a
+runEntangled h (Entangled x) = do
     e <- ask
     (r, w) <- runRIO e (runWriterT x)
-    runFileIO' $ runTransaction w
+    runFileIO' $ runTransaction h w
     return r
 
 instance (HasLogFunc env) => MonadFileIO (Entangled env) where

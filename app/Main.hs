@@ -183,7 +183,7 @@ runWithEnv verbose x = do
                <$> logOptionsHandle stderr verbose
     withLogFunc logOptions (\logFunc
         -> withConnection dbPath (\conn
-            -> runRIO (Env conn cfg logFunc) (runEntangled x)))
+            -> runRIO (Env conn cfg logFunc) (runEntangled Nothing x)))
 
 runSubCommand :: (HasConfig env, HasLogFunc env, HasConnection env)
               => SubCommand -> Entangled env ()

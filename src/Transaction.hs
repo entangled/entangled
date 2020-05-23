@@ -6,7 +6,7 @@ module Transaction where
 -- ~\~ begin <<lit/a4-fileio.md|transaction-imports>>[0]
 import RIO (LogLevel)
 import qualified Data.Text.Prettyprint.Doc as P
-import Console (Doc)
+import Console (Doc, group)
 import qualified Console
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Text.IO as T.IO
@@ -41,10 +41,11 @@ confirm :: Transaction m
 confirm = Transaction Nothing mempty True
 -- ~\~ end
 -- ~\~ begin <<lit/a4-fileio.md|transaction>>[2]
-runTransaction :: (MonadIO m) => Transaction m -> m ()
-runTransaction (Transaction Nothing d _) = liftIO $ Console.putTerminal d
-runTransaction (Transaction (Just x) d c) = do
-    liftIO $ Console.putTerminal d
+runTransaction :: (MonadIO m) => Maybe Doc -> Transaction m -> m ()
+runTransaction (Just h) (Transaction Nothing d _) = liftIO $ Console.putTerminal $ group h d
+runTransaction Nothing (Transaction Nothing d _) = liftIO $ Console.putTerminal d
+runTransaction h (Transaction (Just x) d c) = do
+    liftIO $ Console.putTerminal $ maybe d (`group` d) h
     if c then do
         reply <- liftIO $ do
             T.IO.putStr "confirm? (y/n) "
