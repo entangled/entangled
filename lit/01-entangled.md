@@ -89,11 +89,13 @@ mUnlines (catMaybes [mUnlines a, mUnlines b]) == mUnlines (a <> b)
 ### `TextUtils` module 
 
 ``` {.haskell file=src/TextUtil.hs}
+{-# LANGUAGE NoImplicitPrelude #-}
 module TextUtil where
 
+import RIO
+import qualified RIO.Text as T
+
 import Data.Char (isSpace)
-import Data.Maybe (isNothing, catMaybes)
-<<import-text>>
 
 <<indent>>
 <<unindent>>
@@ -113,7 +115,7 @@ indent pre text
 ``` {.haskell #unindent}
 unindent :: Text -> Text -> Maybe Text
 unindent prefix s
-    = unlines' <$> sequence (map unindentLine $ lines' s)
+    = unlines' <$> mapM unindentLine (lines' s)
     where unindentLine t
             | T.all isSpace t = Just ""
             | otherwise       = T.stripPrefix prefix t
@@ -180,10 +182,9 @@ import Text.Megaparsec
     ( MonadParsec, Parsec, parse
     , chunk, many, some, eof
     , manyTill, anySingle, try, lookAhead, takeWhile1P, takeWhileP
-    , (<|>), (<?>) )
+    , (<?>) )
 import Text.Megaparsec.Char
     ( space )
-import Data.Void
 ```
 
 ## Errors

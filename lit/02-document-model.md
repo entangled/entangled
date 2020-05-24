@@ -8,11 +8,8 @@ module Document
 
 import RIO
 import RIO.List (sort)
-
-<<import-text>>
-<<import-map>>
-<<import-set>>
-
+import qualified RIO.Set as S
+import qualified RIO.Map as M
 import Errors
 
 <<document-structure>>
@@ -97,7 +94,7 @@ referencesByName refs name
     = (sort . filter ((== name) . referenceName) . M.keys) refs
 
 codeBlocksByName :: ReferenceMap -> ReferenceName -> [CodeBlock]
-codeBlocksByName refs name = map (refs M.!) $ referencesByName refs name
+codeBlocksByName refs name = mapMaybe (refs M.!?) $ referencesByName refs name
 ```
 
 ### Code blocks

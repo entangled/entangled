@@ -3,9 +3,10 @@
 ## Transactions
 
 ``` {.haskell file=src/Transaction.hs}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoImplicitPrelude,UndecidableInstances #-}
 module Transaction where
 
+import RIO
 <<transaction-imports>>
 
 data Transaction m = Transaction
@@ -19,14 +20,10 @@ data Transaction m = Transaction
 When an event happened we need to respond, usually by writing out several files. Since `IO` is a `Monoid`, we can append `IO` actions and keep track of describing the gathered events in a `Transaction`. There are some things that we may need to ask the user permission for, like overwriting files in dubious circumstances. Messaging is done through pretty-printed `Doc`.
 
 ``` {.haskell #transaction-imports}
-import RIO (LogLevel)
-import qualified Data.Text.Prettyprint.Doc as P
+-- import qualified Data.Text.Prettyprint.Doc as P
 import Console (Doc, group)
 import qualified Console
-import Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Text.IO as T.IO
-import System.IO (stdout, hFlush)
-import Control.Monad (when)
 ```
 
 The `action` is wrapped in a `Maybe` so that we can tell if the `Transaction` does anything. A `Transaction` is a `Monoid`.
@@ -65,7 +62,7 @@ runTransaction h (Transaction (Just x) d c) = do
         reply <- liftIO $ do
             T.IO.putStr "confirm? (y/n) "
             hFlush stdout
-            getLine
+            T.IO.getLine
         liftIO $ T.IO.putStrLn ""
         when (reply == "y") x
     else x
@@ -101,11 +98,7 @@ class Monad m => MonadFileIO m where
 ## Primitives
 
 ``` {.haskell #file-io-imports}
-import RIO.Text (Text)
 import qualified RIO.Text as T
-
-import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Catch (MonadThrow, throwM)
 
 import Errors (EntangledError(SystemError))
 import Select (selectM)
@@ -116,7 +109,7 @@ import Select (selectM)
 ``` {.haskell #file-io-imports}
 import RIO.Directory ( createDirectoryIfMissing, doesDirectoryExist
                      , listDirectory, removeFile, removeDirectory )
-import RIO.FilePath  ( (</>), splitDirectories )
+import RIO.FilePath  ( (</>), splitDirectories, takeDirectory )
 import RIO.List      ( scanl1 )
 ```
 
@@ -125,7 +118,7 @@ ensurePath :: (MonadIO m, MonadReader env m, HasLogFunc env)
            => FilePath -> m ()
 ensurePath path = selectM (return ())
     [ ( not <$> doesDirectoryExist path
-      , logDebug (display $ "creating directory `" <> (T.pack path) <> "`")
+      , logDebug (display $ "creating directory `" <> T.pack path <> "`")
         >> createDirectoryIfMissing True path ) ]
 ```
 
@@ -134,9 +127,9 @@ rmDirIfEmpty :: (MonadIO m, MonadThrow m, MonadReader env m, HasLogFunc env)
              => FilePath -> m ()
 rmDirIfEmpty path = selectM (return ())
     [ ( not <$> doesDirectoryExist path
-      , throwM $ SystemError $ "could not remove dir: `" <> (T.pack path) <> "`")
+      , throwM $ SystemError $ "could not remove dir: `" <> T.pack path <> "`")
     , ( null <$> listDirectory path
-      , logDebug (display $ "removing empty directory `" <> (T.pack path) <> "`")
+      , logDebug (display $ "removing empty directory `" <> T.pack path <> "`")
         >> removeDirectory path ) ]
 
 parents :: FilePath -> [FilePath]
@@ -152,7 +145,6 @@ rmPathIfEmpty = mapM_ rmDirIfEmpty . reverse . parents
 ``` {.haskell #file-io-imports}
 import RIO.File ( writeBinaryFileDurable )
 import qualified RIO.ByteString as B
-import Control.Exception ( IOException )
 ```
 
 ``` {.haskell #file-io-prim}
@@ -165,7 +157,7 @@ writeIfChanged path text = do
                           | otherwise                  -> write
         Left  _                                        -> write
     where new_content = T.encodeUtf8 text
-          write       = logDebug (display $ "writing `" <> (T.pack path) <> "`")
+          write       = logDebug (display $ "writing `" <> T.pack path <> "`")
                       >> writeBinaryFileDurable path new_content
 
 dump' :: (MonadIO m, MonadReader env m, HasLogFunc env)
@@ -187,9 +179,9 @@ newtype FileIO env a = FileIO { unFileIO :: RIO env a }
 
 readFile' :: ( MonadIO m, HasLogFunc env, MonadReader env m, MonadThrow m )
           => FilePath -> m Text
-readFile' path = logDebug (display $ "reading `" <> (T.pack path) <> "`")
-               >> B.readFile path
-               >>= return . decodeUtf8With lenientDecode
+readFile' path = decodeUtf8With lenientDecode
+               <$> (logDebug (display $ "reading `" <> T.pack path <> "`")
+                    >> B.readFile path)
 
 runFileIO' :: ( MonadIO m, MonadReader env m, HasLogFunc env )
           => FileIO env a -> m a
@@ -201,7 +193,7 @@ instance (HasLogFunc env) => MonadFileIO (FileIO env) where
     writeFile path text = ensurePath (takeDirectory path)
                         >> writeIfChanged path text
 
-    deleteFile path     = logDebug (display $ "deleting `" <> (T.pack path) <> "`")
+    deleteFile path     = logDebug (display $ "deleting `" <> T.pack path <> "`")
                         >> removeFile path
                         >> rmPathIfEmpty (takeDirectory path)
 

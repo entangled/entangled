@@ -1,31 +1,17 @@
 -- ~\~ language=Haskell filename=src/Config.hs
 -- ~\~ begin <<lit/04-configuration.md|src/Config.hs>>[0]
+{-# LANGUAGE NoImplicitPrelude #-}
 module Config where
 
-import RIO (Lens')
+import RIO
 -- ~\~ begin <<lit/04-configuration.md|config-import>>[0]
-import Dhall (Generic, FromDhall, ToDhall, input, auto, Decoder, union, record, field, list, strictText, setFromDistinctList)
-import Data.Text (Text)
+import Dhall (FromDhall, ToDhall, input, auto, Decoder, record, field, setFromDistinctList)
 import qualified Data.Text as T
-import Data.Set (Set)
 -- ~\~ end
 
 import Errors
-
-import qualified Data.Text.IO as T.IO
-import TextUtil
--- ~\~ begin <<lit/01-entangled.md|import-set>>[0]
-import qualified Data.Set as S
--- ~\~ end
--- import qualified Toml
--- import Toml (TomlCodec, (.=))
-
-import Data.Function (on)
 import Data.List (find, scanl1)
-import Control.Applicative ((<|>))
 import Control.Monad.Extra (concatMapM)
-import Control.Monad.IO.Class
-import Control.Monad.Catch
 import System.FilePath.Glob (glob)
 import System.Directory
 import System.FilePath
@@ -53,7 +39,7 @@ configLanguage = record
     )
 
 instance Eq ConfigLanguage where
-    a == b = (languageName a) == (languageName b)
+    a == b = languageName a == languageName b
 
 instance Ord ConfigLanguage where
     compare a b = compare (languageName a) (languageName b)
@@ -83,7 +69,7 @@ findFileAscending filename = do
 
 readLocalConfig :: IO Config
 readLocalConfig = do
-    cfg_path <- maybe (throwM $ SystemError "no config found.") id
+    cfg_path <- fromMaybe (throwM $ SystemError "no config found.")
              <$> findFileAscending "entangled.dhall"
     input configDecoder $ "(" <> T.pack cfg_path <> ").entangled"
 -- ~\~ end

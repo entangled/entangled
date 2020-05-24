@@ -1,12 +1,12 @@
 -- ~\~ language=Haskell filename=src/ListStream.hs
 -- ~\~ begin <<lit/a3-megaparsec.md|src/ListStream.hs>>[0]
+{-# LANGUAGE NoImplicitPrelude #-}
 module ListStream where
 
-import Data.Text (Text)
-import Text.Megaparsec (Parsec, MonadParsec, token, parse)
-import Text.Megaparsec (Stream (..), PosState (..), SourcePos (..), mkPos, unPos)
-import Data.Proxy (Proxy (..))
-import Data.Void (Void)
+import RIO
+import RIO.List (splitAt, headMaybe)
+import Text.Megaparsec ( Parsec, MonadParsec, token, parse
+                       , Stream (..), PosState (..), SourcePos (..), mkPos, unPos )
 
 -- ~\~ begin <<lit/a3-megaparsec.md|instance-list-stream>>[0]
 newtype ListStream a = ListStream { unListStream :: [a] }
@@ -42,7 +42,7 @@ instance (Eq a, Ord a, Show a) => Stream (ListStream a) where
     reachOffset offset state@PosState{..} = (sourcePos, repr, state')
         where sourcePos = offsetSourcePos (offset - pstateOffset) pstateSourcePos
               input     = ListStream $ drop (offset - pstateOffset) (unListStream pstateInput)
-              repr      = if null input then "<end of stream>" else show (head $ unListStream input)
+              repr      = maybe "<end of stream>" show $ headMaybe $ unListStream input
               state'    = state
                         { pstateInput = input
                         , pstateOffset = offset
@@ -51,6 +51,7 @@ instance (Eq a, Ord a, Show a) => Stream (ListStream a) where
 -- ~\~ end
 
 -- ~\~ begin <<lit/a3-megaparsec.md|list-stream-helpers>>[0]
+offsetSourcePos :: Int -> SourcePos -> SourcePos
 offsetSourcePos offset sourcePos@SourcePos{..}
     = sourcePos { sourceLine = mkPos (unPos sourceLine + offset) }
 -- ~\~ end

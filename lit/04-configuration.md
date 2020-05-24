@@ -84,10 +84,8 @@ let languages =
 ## Reading config
 
 ``` {.haskell #config-import}
-import Dhall (Generic, FromDhall, ToDhall, input, auto, Decoder, union, record, field, list, strictText, setFromDistinctList)
-import Data.Text (Text)
+import Dhall (FromDhall, ToDhall, input, auto, Decoder, record, field, setFromDistinctList)
 import qualified Data.Text as T
-import Data.Set (Set)
 ```
 
 We need to match the Dhall schema with types in Haskell
@@ -115,7 +113,7 @@ configLanguage = record
     )
 
 instance Eq ConfigLanguage where
-    a == b = (languageName a) == (languageName b)
+    a == b = languageName a == languageName b
 
 instance Ord ConfigLanguage where
     compare a b = compare (languageName a) (languageName b)
@@ -138,25 +136,15 @@ class HasConfig env where
 ```
 
 ``` {.haskell file=src/Config.hs}
+{-# LANGUAGE NoImplicitPrelude #-}
 module Config where
 
-import RIO (Lens')
+import RIO
 <<config-import>>
 
 import Errors
-
-import qualified Data.Text.IO as T.IO
-import TextUtil
-<<import-set>>
--- import qualified Toml
--- import Toml (TomlCodec, (.=))
-
-import Data.Function (on)
 import Data.List (find, scanl1)
-import Control.Applicative ((<|>))
 import Control.Monad.Extra (concatMapM)
-import Control.Monad.IO.Class
-import Control.Monad.Catch
 import System.FilePath.Glob (glob)
 import System.Directory 
 import System.FilePath
@@ -193,7 +181,7 @@ findFileAscending filename = do
 
 readLocalConfig :: IO Config
 readLocalConfig = do
-    cfg_path <- maybe (throwM $ SystemError "no config found.") id
+    cfg_path <- fromMaybe (throwM $ SystemError "no config found.")
              <$> findFileAscending "entangled.dhall"
     input configDecoder $ "(" <> T.pack cfg_path <> ").entangled"
 ```

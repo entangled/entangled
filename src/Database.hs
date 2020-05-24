@@ -1,39 +1,25 @@
 -- ~\~ language=Haskell filename=src/Database.hs
 -- ~\~ begin <<lit/03-database.md|src/Database.hs>>[0]
-{-# LANGUAGE DeriveGeneric, OverloadedLabels, NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedLabels, NoImplicitPrelude #-}
 module Database where
 
 import RIO
 import RIO.List (initMaybe, sortOn)
+import qualified RIO.Text as T
+import qualified RIO.Map as M
 
 -- ~\~ begin <<lit/03-database.md|database-imports>>[0]
 import Paths_entangled
 
 import Database.SQLite.Simple
-import Database.SQLite.Simple.FromRow
+import Database.SQLite.Simple.FromRow ()
 
-import Control.Monad.Reader
-import Control.Monad.IO.Class
-import Control.Monad.Catch
--- import Control.Monad.Logger
-
--- ~\~ begin <<lit/01-entangled.md|import-text>>[0]
-import RIO (Text)
-import qualified RIO.Text as T
--- ~\~ end
 import qualified Data.Text.IO as T.IO
 -- ~\~ end
 -- ~\~ begin <<lit/03-database.md|database-imports>>[1]
--- ~\~ begin <<lit/01-entangled.md|import-map>>[0]
-import qualified Data.Map.Strict as M
--- ~\~ end
-import Data.Maybe (catMaybes)
-import Data.Int (Int64)
-
 import Document
 import Config
 import Select (select)
-import TextUtil (unlines')
 -- ~\~ end
 -- ~\~ begin <<lit/03-database.md|database-types>>[0]
 class HasConnection env where
@@ -86,7 +72,7 @@ withTransactionM t = do
 schema :: IO [Query]
 schema = do
     schema_path <- getDataFileName "data/schema.sql"
-    qs <- initMaybe <$> T.split (== ';') <$> T.IO.readFile schema_path
+    qs <- initMaybe . T.split (== ';') <$> T.IO.readFile schema_path
     return $ maybe [] (map Query) qs
 
 createTables :: (MonadIO m, MonadReader env m, HasConnection env) => m ()
@@ -128,14 +114,14 @@ insertCodes docId codes = mapM_ (insertCode docId) (M.toList codes)
 queryCodeId' :: Int64 -> ReferenceId -> SQL (Maybe Int64)
 queryCodeId' docId (ReferenceId _ (ReferenceName name) count) = do
     conn <- getConnection
-    expectUnique' fromOnly =<< (liftIO $ query conn codeQuery (docId, name, count))
+    expectUnique' fromOnly =<< liftIO (query conn codeQuery (docId, name, count))
     where codeQuery = "select `id` from `codes` where \
                       \ `document` is ? and `name` is ? and `ordinal` is ?"
 
 queryCodeId :: ReferenceId -> SQL (Maybe Int64)
 queryCodeId (ReferenceId doc (ReferenceName name) count) = do
     conn    <- getConnection
-    expectUnique' fromOnly =<< (liftIO $ query conn codeQuery (doc, name, count))
+    expectUnique' fromOnly =<< liftIO (query conn codeQuery (doc, name, count))
     where codeQuery = "select `codes`.`id` \
                       \ from `codes` inner join `documents` \
                       \     on `documents`.`id` is `codes`.`document` \
@@ -146,7 +132,7 @@ queryCodeId (ReferenceId doc (ReferenceName name) count) = do
 queryCodeSource :: ReferenceId -> SQL (Maybe Text)
 queryCodeSource (ReferenceId doc (ReferenceName name) count) = do
     conn    <- getConnection
-    expectUnique' fromOnly =<< (liftIO $ query conn codeQuery (doc, name, count))
+    expectUnique' fromOnly =<< liftIO (query conn codeQuery (doc, name, count))
     where codeQuery = "select `codes`.`source` \
                       \ from `codes` inner join `documents` \
                       \     on `documents`.`id` is `codes`.`document` \
@@ -181,7 +167,7 @@ insertTargets docId files = do
 getDocumentId :: FilePath -> SQL (Maybe Int64)
 getDocumentId rel_path = do
         conn <- getConnection
-        expectUnique' fromOnly =<< (liftIO $ query conn documentQuery (Only rel_path))
+        expectUnique' fromOnly =<< liftIO (query conn documentQuery (Only rel_path))
     where documentQuery = "select `id` from `documents` where `filename` is ?"
 
 orphanTargets :: Int64 -> SQL ()
@@ -220,11 +206,7 @@ insertDocument rel_path Document{..} = do
 -- ~\~ end
 -- ~\~ begin <<lit/03-database.md|database-update>>[1]
 fromMaybeM :: Monad m => m a -> m (Maybe a) -> m a
-fromMaybeM whenNothing x = do
-    unboxed <- x
-    case unboxed of
-        Nothing -> whenNothing
-        Just x' -> return x'
+fromMaybeM whenNothing x = maybe whenNothing return =<< x
 
 updateCode :: ReferencePair -> SQL ()
 updateCode (ref, CodeBlock {codeSource}) = do
@@ -260,7 +242,7 @@ listSourceFiles = do
 queryTargetRef :: FilePath -> SQL (Maybe (ReferenceName, Text))
 queryTargetRef rel_path = do
     conn <- getConnection
-    val  <- expectUnique =<< (liftIO $ query conn targetQuery (Only rel_path))
+    val  <- expectUnique =<< liftIO (query conn targetQuery (Only rel_path))
     return $ case val of
         Nothing           -> Nothing
         Just (name, lang) -> Just (ReferenceName name, lang)
@@ -281,13 +263,15 @@ stitchDocument rel_path = do
 -- ~\~ end
 -- ~\~ begin <<lit/03-database.md|database-queries>>[4]
 queryReferenceMap :: Config -> SQL ReferenceMap
-queryReferenceMap config = do
+queryReferenceMap cfg = do
         conn <- getConnection
-        rows <- liftIO (query_ conn "select `documents`.`filename`, `name`, `ordinal`, `source`, `language` from `codes` inner join `documents` on `codes`.`document` is `documents`.`id`" :: IO [(FilePath, Text, Int, Text, Text)])
-        M.fromList <$> mapM (refpair config) rows
-    where refpair config (rel_path, name, ordinal, source, lang) = do
+        rows <- liftIO (query_ conn "select `documents`.`filename`, `name`, `ordinal`, `source`, `language`\
+                                    \from `codes` inner join `documents` on `codes`.`document` is `documents`.`id`"
+                        :: IO [(FilePath, Text, Int, Text, Text)])
+        M.fromList <$> mapM refpair rows
+    where refpair (rel_path, name, ordinal, source, lang) = do
             let lang' = maybe (UnknownClass lang) (const $ KnownLanguage lang)
-                              (languageFromName config lang)
+                              (languageFromName cfg lang)
             return ( ReferenceId rel_path (ReferenceName name) ordinal
                    , CodeBlock lang' [] source )
 -- ~\~ end

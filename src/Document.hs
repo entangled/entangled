@@ -7,18 +7,8 @@ module Document
 
 import RIO
 import RIO.List (sort)
-
--- ~\~ begin <<lit/01-entangled.md|import-text>>[0]
-import RIO (Text)
-import qualified RIO.Text as T
--- ~\~ end
--- ~\~ begin <<lit/01-entangled.md|import-map>>[0]
-import qualified Data.Map.Strict as M
--- ~\~ end
--- ~\~ begin <<lit/01-entangled.md|import-set>>[0]
-import qualified Data.Set as S
--- ~\~ end
-
+import qualified RIO.Set as S
+import qualified RIO.Map as M
 import Errors
 
 -- ~\~ begin <<lit/02-document-model.md|document-structure>>[0]
@@ -60,7 +50,7 @@ referencesByName refs name
     = (sort . filter ((== name) . referenceName) . M.keys) refs
 
 codeBlocksByName :: ReferenceMap -> ReferenceName -> [CodeBlock]
-codeBlocksByName refs name = map (refs M.!) $ referencesByName refs name
+codeBlocksByName refs name = mapMaybe (refs M.!?) $ referencesByName refs name
 -- ~\~ end
 -- ~\~ begin <<lit/02-document-model.md|document-structure>>[3]
 data CodeProperty

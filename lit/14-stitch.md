@@ -1,9 +1,12 @@
 # Untangling
 
 ```{.haskell file=src/Stitch.hs}
+{-# LANGUAGE NoImplicitPrelude #-}
 module Stitch where
 
-import RIO (view)
+import RIO hiding (some)
+import qualified RIO.Text as T
+
 <<stitch-imports>>
 <<source-parser>>
 <<stitch>>
@@ -19,10 +22,10 @@ sourceDocument :: ( MonadParsec e (ListStream Text) m
                   , MonadReader Config m )
                => m [ReferencePair]
 sourceDocument = do
-    config <- ask
+    cfg <- ask
     (prop, _) <- tokenP topHeader
     lang <- maybe (fail "No valid language found in header.") return
-                  $ getAttribute prop "language" >>= languageFromName config
+                  $ getAttribute prop "language" >>= languageFromName cfg
     (_, refs) <- mconcat <$> some (sourceBlock lang)
     return refs
 ```
@@ -34,15 +37,14 @@ sourceBlock :: ( MonadParsec e (ListStream Text) m, MonadFail m )
             => ConfigLanguage -> m ([Text], [ReferencePair])
 sourceBlock lang = do
     ((ref, beginIndent), _) <- tokenP (commented lang beginBlock)
-    (lines, refpairs) <- mconcat <$> manyTill 
+    (ilines, refpairs) <- mconcat <$> manyTill 
                 (sourceBlock lang <|> sourceLine)
                 (tokenP (commented lang endBlock))
-    let unindentedLines = map (unindent beginIndent) lines
+    let unindentedLines = map (unindent beginIndent) ilines
     when (any isNothing unindentedLines) $ fail "Indentation error"
     let content = unlines' $ catMaybes unindentedLines
-    return ( if referenceCount ref == 0
-                 then [(indent beginIndent $ showNowebReference $ referenceName ref)]
-                 else []
+    return ( [ indent beginIndent $ showNowebReference $ referenceName ref
+             | referenceCount ref == 0 ]
            , (ref, CodeBlock (KnownLanguage $ languageName lang) [] content):refpairs )
 
 sourceLine :: ( MonadParsec e (ListStream Text) m )
@@ -63,7 +65,7 @@ untangle :: ( MonadReader env m, HasConfig env, MonadThrow m )
          => FilePath -> Text -> m [ReferencePair]
 untangle file text = do
     doc <- runReaderT (sourceDocument :: SourceParser [ReferencePair]) <$> view config
-    either (\err -> throwM $ StitchError $ T.pack $ errorBundlePretty err)
+    either (throwM . StitchError . T.pack . errorBundlePretty)
            return $ parse doc file $ ListStream (T.lines text)
 ```
 
@@ -77,14 +79,5 @@ import Comment (topHeader, beginBlock, endBlock, commented)
 import TextUtil (indent, unindent, unlines')
 
 import Text.Megaparsec
-    ( MonadParsec, Parsec, parse, anySingle, manyTill, (<|>)
-    , many, some, errorBundlePretty )
-import Data.Void (Void)
-import Control.Monad.Fail (MonadFail)
-import Control.Monad.Catch (MonadThrow, throwM)
-<<import-text>>
-import qualified Data.Map.Strict as M
-import Control.Monad.Reader (MonadReader, ask, asks, ReaderT, runReaderT)
-import Control.Monad (when)
-import Data.Maybe (isNothing, catMaybes)
+    ( MonadParsec, Parsec, parse, anySingle, manyTill, some, errorBundlePretty )
 ```

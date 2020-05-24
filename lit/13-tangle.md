@@ -1,23 +1,19 @@
 # Tangling
 
 ``` {.haskell file=src/Tangle.hs}
+{-# LANGUAGE NoImplicitPrelude #-}
 module Tangle where
 
-import RIO (view, tshow, Map)
-<<import-text>>
-<<import-map>>
+import RIO hiding (try, some, many)
+import qualified RIO.Text as T
+import qualified RIO.Map as M
 <<import-lazy-map>>
 
 <<import-megaparsec>>
 
-import Control.Monad.Reader (MonadReader, reader, ReaderT, ask, runReaderT)
 import Control.Monad.State (MonadState, gets, modify, StateT, evalStateT)
-import Control.Monad.Catch (MonadThrow, throwM)
-import Control.Monad ((>=>))
 
-import Data.Maybe (catMaybes)
-
-import ListStream (ListStream (..))
+import ListStream
 import Document
 import Config (config, HasConfig, Config, lookupLanguage, ConfigLanguage(..) )
 
@@ -49,17 +45,18 @@ import Attributes (attributes)
 ```
 
 ``` {.haskell file=src/Attributes.hs}
+{-# LANGUAGE NoImplicitPrelude #-}
 module Attributes where
 
+import RIO
 <<attributes-imports>>
 <<parse-attributes>>
 ```
 
 ``` {.haskell #attributes-imports}
-import Data.Text (Text)
 import Document (CodeProperty(..))
 import Text.Megaparsec
-    ( MonadParsec, takeWhile1P, takeWhileP, chunk, endBy, (<|>) )
+    ( MonadParsec, takeWhile1P, takeWhileP, chunk, endBy )
 import Text.Megaparsec.Char
     ( space )
 ```
@@ -83,12 +80,12 @@ Anything goes, as long as it doesn't conflict with a space separated curly brace
 cssIdentifier :: (MonadParsec e Text m)
               => m Text
 cssIdentifier = takeWhile1P (Just "identifier")
-                            (\c -> notElem c (" {}=<>|" :: String))
+                            (`notElem` (" {}=<>|" :: String))
 
 cssValue :: (MonadParsec e Text m)
          => m Text
 cssValue = takeWhileP (Just "value")
-                      (\c -> notElem c (" {}=<>|" :: String))
+                      (`notElem` (" {}=<>|" :: String))
 ```
 
 #### class
@@ -97,9 +94,7 @@ A class starts with a period (`.`), and cannot contain spaces or curly braces.
 ``` {.haskell #parse-attributes}
 codeClass :: (MonadParsec e Text m)
           => m CodeProperty
-codeClass = do
-    chunk "."
-    CodeClass <$> cssIdentifier
+codeClass = chunk "." >> CodeClass <$> cssIdentifier
 ```
 
 #### id
@@ -108,9 +103,7 @@ An id starts with a hash (`#`), and cannot contain spaces or curly braces.
 ``` {.haskell #parse-attributes}
 codeId :: (MonadParsec e Text m)
        => m CodeProperty
-codeId = do
-    chunk "#"
-    CodeId <$> cssIdentifier
+codeId = chunk "#" >> CodeId <$> cssIdentifier
 ```
 
 #### attribute
@@ -121,9 +114,8 @@ codeAttribute :: (MonadParsec e Text m)
               => m CodeProperty
 codeAttribute = do
     key <- cssIdentifier
-    chunk "="
-    value <- cssValue
-    return $ CodeAttribute key value
+    _ <- chunk "="
+    CodeAttribute key <$> cssValue
 ```
 
 ## Quasi-parsing Markdown
@@ -195,7 +187,7 @@ getLanguage [] = return NoLanguage
 getLanguage (CodeClass cls : _)
     = maybe (UnknownClass cls) 
             KnownLanguage
-            <$> reader (\cfg -> languageName <$> lookupLanguage cfg cls)
+            <$> asks (\cfg -> languageName <$> lookupLanguage cfg cls)
 getLanguage (_ : xs) = getLanguage xs
 ```
 
@@ -226,9 +218,9 @@ getFilePath (CodeAttribute k v:xs)
 getFilePath (_:xs) = getFilePath xs
 
 getFileMap :: [ReferencePair] -> FileMap
-getFileMap = M.fromList . catMaybes . map filePair
+getFileMap = M.fromList . mapMaybe filePair
     where filePair (ref, CodeBlock{..}) = do
-              path <- getFilePath $ codeProperties
+              path <- getFilePath codeProperties
               case codeLanguage of
                   KnownLanguage l -> return (path, (referenceName ref, l))
                   _               -> Nothing
@@ -246,7 +238,7 @@ data ReferenceCount = ReferenceCount
 countReference :: ( MonadState ReferenceCount m )
                => ReferenceName -> m Int
 countReference r = do
-    x <- gets ((M.findWithDefault 0 r) . refCounts)
+    x <- gets (M.findWithDefault 0 r . refCounts)
     modify $ \s -> s { refCounts = M.insert r (x + 1) (refCounts s) }
     return x
 
@@ -267,7 +259,7 @@ Add Wirth Syntax Notation with all the parsers.
 Using these two parsers, we can create a larger parser that works on a line-by-line basis. We define several helpers to create a parser for `ListStream Text` using single line parsers for `Text`.
 
 ``` {.haskell #tangle-imports}
-import ListStream (parseLine, parseLineNot, tokenLine)
+-- import ListStream (parseLine, parseLineNot, tokenLine)
 ```
 
 To parse markdown, we first try to parse a code block (as given above), stored in `CodeBlock`. If that fails lines are interpreted as other markdown, and stored in `PlainText`.
@@ -362,17 +354,17 @@ The function `parseCode` takes the `Text` from a code block and generates a list
 ``` {.haskell #generate-code}
 nowebReference :: CodeParser CodeLine
 nowebReference = do
-    indent <- takeWhileP Nothing (`elem` (" \t" :: [Char]))
+    indent' <- takeWhileP Nothing (`elem` (" \t" :: String))
     _ <- chunk "<<"
-    id <- takeWhile1P Nothing (`notElem` (" \t<>" :: [Char]))
+    id' <- takeWhile1P Nothing (`notElem` (" \t<>" :: String))
     _ <- chunk ">>"
     space >> eof
-    return $ NowebReference (ReferenceName id) indent
+    return $ NowebReference (ReferenceName id') indent'
 
 parseCode :: ReferenceName -> Text -> [CodeLine]
-parseCode name = map parseLine . T.lines
-    where parseLine l = either (const $ PlainCode l) id
-                      $ parse nowebReference
+parseCode name = map parseLine' . T.lines
+    where parseLine' l = either (const $ PlainCode l) id
+                       $ parse nowebReference
                               (T.unpack $ unReferenceName name)
                               l
 ```
@@ -384,7 +376,7 @@ I now use a lazy map to provide the recursion, which becomes cumbersome if we al
 
 ``` {.haskell #generate-code}
 type ExpandedCode = LM.Map ReferenceName (Either EntangledError Text)
-type Annotator = ReferenceMap -> ReferenceId -> (Either EntangledError Text)
+type Annotator = ReferenceMap -> ReferenceId -> Either EntangledError Text
 ```
 
 The map of expanded code blocks is generated using an induction pattern here illustrated on lists. Suppose we already have the resulting `output` and a function `g :: [Output] -> Input -> Output` that generates any element in `output` given an input and the rest of all `output`, then `f` generates `output` as follows.
@@ -402,17 +394,17 @@ Lazy evaluation does the rest.
 expandedCode :: Annotator -> ReferenceMap -> ExpandedCode
 expandedCode annotate refs = result
     where result = LM.fromSet expand (referenceNames refs)
-          expand name = unlines' <$> (sequence
-                        $ map (annotate refs >=> expandCodeSource result name)
-                        $ referencesByName refs name)
+          expand name = unlines' <$> mapM
+                        (annotate refs >=> expandCodeSource result name)
+                        (referencesByName refs name)
 
 expandCodeSource :: ExpandedCode -> ReferenceName -> Text
                  -> Either EntangledError Text
 expandCodeSource result name t
     = unlines' <$> mapM codeLineToText (parseCode name t)
     where codeLineToText (PlainCode x) = Right x
-          codeLineToText (NowebReference name i)
-              = indent i <$> result LM.! name
+          codeLineToText (NowebReference name' i)
+              = indent i <$> result LM.! name'
 ```
 
 We have two types of annotators:
@@ -421,7 +413,9 @@ We have two types of annotators:
 
 ``` {.haskell #generate-code}
 annotateNaked :: ReferenceMap -> ReferenceId -> Either EntangledError Text
-annotateNaked refs ref = Right $ codeSource $ refs M.! ref
+annotateNaked refs ref = maybe (Left $ TangleError $ "reference not found: " <> tshow ref)
+                               (Right . codeSource)
+                               (refs M.!? ref)
 
 annotateComment' :: Config -> Annotator
 annotateComment' cfg rmap rid = runReaderT (annotateComment rmap rid) cfg
@@ -438,7 +432,11 @@ import Comment (annotateComment)
 ## Entangled comments
 
 ``` {.haskell file=src/Comment.hs}
+{-# LANGUAGE NoImplicitPrelude #-}
 module Comment where
+
+import RIO
+import qualified RIO.Text as T
 
 <<comment-imports>>
 
@@ -447,10 +445,8 @@ module Comment where
 ```
 
 ``` {.haskell #comment-imports}
-import Control.Monad.Reader
 import Control.Monad.Except
 
-<<import-text>>
 ```
 
 Tangled files start with a single line header comment, followed by nested blocks of (possibly indented) code delimeted by lines:
@@ -471,9 +467,6 @@ delim = " ~\\~ "
 Given any content, the `comment` function generates a commented line following the above prescription.
 
 ``` {.haskell #comment-imports}
-import Document
-    ( ProgrammingLanguage(..)
-    , EntangledError(..) )
 import Config
     ( Config(..), ConfigLanguage(..), ConfigComment(..), languageFromName )
 ```
@@ -484,7 +477,7 @@ comment :: (MonadReader Config m, MonadError EntangledError m)
         -> Text
         -> m Text
 comment (UnknownClass cls) _ = throwError $ UnknownLanguageClass cls
-comment NoLanguage         _ = throwError $ MissingLanguageClass
+comment NoLanguage         _ = throwError MissingLanguageClass
 comment (KnownLanguage langName) text = do
     cfg <- ask
     maybe (throwError $ SystemError $ "language named " <> langName <> " is not in config.")
@@ -501,7 +494,7 @@ commentEnd (Line _) = Nothing
 
 formatComment :: ConfigLanguage -> Text -> Text
 formatComment lang text = pre <> text <> post
-    where pre  = (commentStart $ languageComment lang) <> delim
+    where pre  = commentStart (languageComment lang) <> delim
           post = maybe "" (" " <>) $ commentEnd $ languageComment lang
 ```
 
@@ -520,11 +513,11 @@ annotateComment :: (MonadReader Config m, MonadError EntangledError m)
 annotateComment refs ref = do
     let code = refs M.! ref
     pre <- comment (codeLanguage code)
-           $ "begin <<" <> (T.pack $ referenceFile ref) <> "|"
-           <> (unReferenceName $ referenceName ref) <> ">>["
-           <> T.pack (show $ referenceCount ref) <> "]"
+           $ "begin <<" <> T.pack (referenceFile ref) <> "|"
+           <> unReferenceName (referenceName ref) <> ">>["
+           <> tshow (referenceCount ref) <> "]"
     post <- comment (codeLanguage code) "end"
-    return $ unlines' [pre, (codeSource code), post]
+    return $ unlines' [pre, codeSource code, post]
 
 headerComment :: ConfigLanguage -> FilePath -> Text
 headerComment lang path = formatComment lang
@@ -534,13 +527,11 @@ headerComment lang path = formatComment lang
 ### Parsing comments
 
 ``` {.haskell #comment-imports}
-import Text.Megaparsec
-    ( MonadParsec, chunk, skipManyTill, anySingle, (<?>), takeWhileP, eof )
-import Text.Megaparsec.Char (space)
-import Text.Megaparsec.Char.Lexer
-    ( decimal )
+import Text.Megaparsec            ( MonadParsec, chunk, skipManyTill
+                                  , anySingle, (<?>), takeWhileP, eof )
+import Text.Megaparsec.Char       ( space )
+import Text.Megaparsec.Char.Lexer ( decimal )
 
-import Document (CodeProperty)
 import Attributes (attributes, cssIdentifier, cssValue)
 ```
 
@@ -549,10 +540,9 @@ The same comment lines have to be parsed back when we untangle. The first line i
 ``` {.haskell #parse-comment}
 topHeader :: ( MonadParsec e Text m )
           => m [CodeProperty]
-topHeader = do
-    skipManyTill (anySingle <?> "open comment")
-                 (chunk delim)
-    attributes
+topHeader = skipManyTill (anySingle <?> "open comment")
+                         (chunk delim)
+          >> attributes
 ```
 
 Other parsers will always be combined with `commented`, giving the value of the original parser and a `Text` that gives the indentation level of the parsed comment.
@@ -561,10 +551,10 @@ Other parsers will always be combined with `commented`, giving the value of the 
 commented :: (MonadParsec e Text m)
           => ConfigLanguage -> m a -> m (a, Text)
 commented lang p = do 
-    indent <- takeWhileP (Just "initial indent") (`elem` (" \t" :: [Char]))
-    pre <- chunk $ (commentStart $ languageComment lang) <> delim
+    indent <- takeWhileP (Just "initial indent") (`elem` (" \t" :: String))
+    _ <- chunk $ commentStart (languageComment lang) <> delim
     x <- p
-    post <- chunk $ (maybe "" id $ commentEnd $ languageComment lang)
+    _ <- chunk (fromMaybe "" $ commentEnd $ languageComment lang)
     space
     eof
     return (x, indent)
@@ -574,18 +564,18 @@ commented lang p = do
 beginBlock :: (MonadParsec e Text m)
            => m ReferenceId
 beginBlock = do
-    chunk "begin <<"
+    _ <- chunk "begin <<"
     doc  <- cssValue
-    chunk "|"
+    _ <- chunk "|"
     name <- cssIdentifier
-    chunk ">>["
+    _ <- chunk ">>["
     count <- decimal
-    chunk "]"
+    _ <- chunk "]"
     return $ ReferenceId (T.unpack doc) (ReferenceName name) count
 
 endBlock :: (MonadParsec e Text m)
          => m ()
-endBlock = chunk "end" >> return ()
+endBlock = void $ chunk "end"
 ```
 
 ## Testing

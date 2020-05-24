@@ -1,13 +1,12 @@
 -- ~\~ language=Haskell filename=src/TextUtil.hs
 -- ~\~ begin <<lit/01-entangled.md|src/TextUtil.hs>>[0]
+{-# LANGUAGE NoImplicitPrelude #-}
 module TextUtil where
 
-import Data.Char (isSpace)
-import Data.Maybe (isNothing, catMaybes)
--- ~\~ begin <<lit/01-entangled.md|import-text>>[0]
-import RIO (Text)
+import RIO
 import qualified RIO.Text as T
--- ~\~ end
+
+import Data.Char (isSpace)
 
 -- ~\~ begin <<lit/01-entangled.md|indent>>[0]
 indent :: Text -> Text -> Text
@@ -20,7 +19,7 @@ indent pre text
 -- ~\~ begin <<lit/01-entangled.md|unindent>>[0]
 unindent :: Text -> Text -> Maybe Text
 unindent prefix s
-    = unlines' <$> sequence (map unindentLine $ lines' s)
+    = unlines' <$> mapM unindentLine (lines' s)
     where unindentLine t
             | T.all isSpace t = Just ""
             | otherwise       = T.stripPrefix prefix t

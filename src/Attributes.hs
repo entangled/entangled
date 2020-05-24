@@ -1,12 +1,13 @@
 -- ~\~ language=Haskell filename=src/Attributes.hs
 -- ~\~ begin <<lit/13-tangle.md|src/Attributes.hs>>[0]
+{-# LANGUAGE NoImplicitPrelude #-}
 module Attributes where
 
+import RIO
 -- ~\~ begin <<lit/13-tangle.md|attributes-imports>>[0]
-import Data.Text (Text)
 import Document (CodeProperty(..))
 import Text.Megaparsec
-    ( MonadParsec, takeWhile1P, takeWhileP, chunk, endBy, (<|>) )
+    ( MonadParsec, takeWhile1P, takeWhileP, chunk, endBy )
 import Text.Megaparsec.Char
     ( space )
 -- ~\~ end
@@ -22,34 +23,29 @@ attributes = (  codeClass
 cssIdentifier :: (MonadParsec e Text m)
               => m Text
 cssIdentifier = takeWhile1P (Just "identifier")
-                            (\c -> notElem c (" {}=<>|" :: String))
+                            (`notElem` (" {}=<>|" :: String))
 
 cssValue :: (MonadParsec e Text m)
          => m Text
 cssValue = takeWhileP (Just "value")
-                      (\c -> notElem c (" {}=<>|" :: String))
+                      (`notElem` (" {}=<>|" :: String))
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|parse-attributes>>[2]
 codeClass :: (MonadParsec e Text m)
           => m CodeProperty
-codeClass = do
-    chunk "."
-    CodeClass <$> cssIdentifier
+codeClass = chunk "." >> CodeClass <$> cssIdentifier
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|parse-attributes>>[3]
 codeId :: (MonadParsec e Text m)
        => m CodeProperty
-codeId = do
-    chunk "#"
-    CodeId <$> cssIdentifier
+codeId = chunk "#" >> CodeId <$> cssIdentifier
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|parse-attributes>>[4]
 codeAttribute :: (MonadParsec e Text m)
               => m CodeProperty
 codeAttribute = do
     key <- cssIdentifier
-    chunk "="
-    value <- cssValue
-    return $ CodeAttribute key value
+    _ <- chunk "="
+    CodeAttribute key <$> cssValue
 -- ~\~ end
 -- ~\~ end

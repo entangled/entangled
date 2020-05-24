@@ -1,8 +1,11 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 module Select (select, selectM) where
+
+import RIO
 
 select :: a -> [(Bool, a)] -> a
 select defaultChoice []                     = defaultChoice
-select defaultChoice ((True,  x) : options) = x
+select _             ((True,  x) : _      ) = x
 select defaultChoice ((False, _) : options) = select defaultChoice options
 
 selectM :: (Monad m) => m a -> [(m Bool, m a)] -> m a

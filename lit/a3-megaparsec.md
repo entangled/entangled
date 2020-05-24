@@ -3,13 +3,13 @@
 Megaparsec is considered to be preferable over older Parsec. It is a bit more work to parse different things than strings though. We will be parsing lists of items.
 
 ``` {.haskell file=src/ListStream.hs}
+{-# LANGUAGE NoImplicitPrelude #-}
 module ListStream where
 
-import Data.Text (Text)
-import Text.Megaparsec (Parsec, MonadParsec, token, parse)
-import Text.Megaparsec (Stream (..), PosState (..), SourcePos (..), mkPos, unPos)
-import Data.Proxy (Proxy (..))
-import Data.Void (Void)
+import RIO
+import RIO.List (splitAt, headMaybe)
+import Text.Megaparsec ( Parsec, MonadParsec, token, parse
+                       , Stream (..), PosState (..), SourcePos (..), mkPos, unPos )
 
 <<instance-list-stream>>
 
@@ -69,6 +69,7 @@ showTokens Proxy = show
 Here's where things get different. Offsets are lines in a source file. Therefore, `sourceColumn` is always 1. The precise working of `reachOffset` is a bit guesswork.
 
 ``` {.haskell #list-stream-helpers}
+offsetSourcePos :: Int -> SourcePos -> SourcePos
 offsetSourcePos offset sourcePos@SourcePos{..}
     = sourcePos { sourceLine = mkPos (unPos sourceLine + offset) }
 ```
@@ -77,7 +78,7 @@ offsetSourcePos offset sourcePos@SourcePos{..}
 reachOffset offset state@PosState{..} = (sourcePos, repr, state')
     where sourcePos = offsetSourcePos (offset - pstateOffset) pstateSourcePos
           input     = ListStream $ drop (offset - pstateOffset) (unListStream pstateInput)
-          repr      = if null input then "<end of stream>" else show (head $ unListStream input)
+          repr      = maybe "<end of stream>" show $ headMaybe $ unListStream input
           state'    = state
                     { pstateInput = input
                     , pstateOffset = offset

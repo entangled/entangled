@@ -1,17 +1,14 @@
 -- ~\~ language=Haskell filename=src/Transaction.hs
 -- ~\~ begin <<lit/a4-fileio.md|src/Transaction.hs>>[0]
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoImplicitPrelude,UndecidableInstances #-}
 module Transaction where
 
+import RIO
 -- ~\~ begin <<lit/a4-fileio.md|transaction-imports>>[0]
-import RIO (LogLevel)
-import qualified Data.Text.Prettyprint.Doc as P
+-- import qualified Data.Text.Prettyprint.Doc as P
 import Console (Doc, group)
 import qualified Console
-import Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Text.IO as T.IO
-import System.IO (stdout, hFlush)
-import Control.Monad (when)
 -- ~\~ end
 
 data Transaction m = Transaction
@@ -47,7 +44,7 @@ runTransaction h (Transaction (Just x) d c) = do
         reply <- liftIO $ do
             T.IO.putStr "confirm? (y/n) "
             hFlush stdout
-            getLine
+            T.IO.getLine
         liftIO $ T.IO.putStrLn ""
         when (reply == "y") x
     else x

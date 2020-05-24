@@ -1,3 +1,5 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+
 module Console
     ( Doc
     , FileAction(..)
@@ -12,13 +14,12 @@ module Console
     , timeStamp
     ) where
 
-import Control.Monad.Reader
+import RIO
 import Data.Text.IO as T
 import qualified Data.Text.Prettyprint.Doc as P
 import qualified Data.Text.Prettyprint.Doc.Render.Terminal as ANSI
 import qualified System.Info
 import Data.Time
-import RIO (LogLevel(..))
 
 -- ==== Pretty Printing document tree ==== --
 
