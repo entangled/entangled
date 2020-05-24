@@ -65,15 +65,6 @@ untangle file text = do
     doc <- runReaderT (sourceDocument :: SourceParser [ReferencePair]) <$> view config
     either (\err -> throwM $ StitchError $ T.pack $ errorBundlePretty err)
            return $ parse doc file $ ListStream (T.lines text)
-
-stitch :: ( MonadReader Config m )
-         => FilePath -> Text
-         -> m (Either EntangledError [ReferencePair])
-stitch filename text = do
-    p <- asks $ runReaderT (sourceDocument :: SourceParser [ReferencePair])
-    let refs = parse p filename $ ListStream (T.lines text)
-    return $ either (\e -> Left $ StitchError $ T.pack $ errorBundlePretty e)
-                    Right refs
 ```
 
 ## Imports

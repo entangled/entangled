@@ -49,9 +49,6 @@ plan action = Transaction (Just action) mempty False
 doc :: Doc -> Transaction m
 doc x = Transaction Nothing x False
 
-msg :: P.Pretty a => LogLevel -> a -> Transaction m
-msg level content = Transaction Nothing (Console.msg level content) False
-
 confirm :: Transaction m
 confirm = Transaction Nothing mempty True
 ```
@@ -112,7 +109,6 @@ import Control.Monad.Catch (MonadThrow, throwM)
 
 import Errors (EntangledError(SystemError))
 import Select (selectM)
-import TextUtil (tshow)
 ```
 
 ### Make/Remove dir
@@ -200,11 +196,6 @@ runFileIO' :: ( MonadIO m, MonadReader env m, HasLogFunc env )
 runFileIO' (FileIO f) = do
     env <- ask
     runRIO env f
-
-runFileIO :: ( MonadIO m ) => FileIO LogFunc a -> m a
-runFileIO (FileIO f) = do
-    logOptions <- logOptionsHandle stderr True
-    liftIO $ withLogFunc logOptions (\logFunc -> runRIO logFunc f)
 
 instance (HasLogFunc env) => MonadFileIO (FileIO env) where
     writeFile path text = ensurePath (takeDirectory path)

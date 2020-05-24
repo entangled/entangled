@@ -77,21 +77,8 @@ db (SQL x) = do
     conn    <- view connection
     runRIO (SQLEnv logFunc conn) x
 
-runSQL :: (MonadIO m) => Connection -> SQL a -> m a
-runSQL conn (SQL x) = do
-    logOptions <- logOptionsHandle stderr True
-    liftIO $ withLogFunc logOptions (\logFunc ->
-        runRIO (SQLEnv logFunc conn) x)
-
 runSQL' :: (MonadIO m) => SQLEnv -> SQL a -> m a
 runSQL' env (SQL x) = runRIO env x
-
-withSQL :: (MonadIO m) => FilePath -> SQL a -> m a
-withSQL p (SQL x) = do
-    logOptions <- logOptionsHandle stderr True
-    liftIO $ withLogFunc logOptions (\logFunc ->
-        liftIO $ withConnection p (\conn ->
-            liftIO $ runRIO (SQLEnv logFunc conn) x))
 
 expectUnique :: (MonadThrow m, Show a) => [a] -> m (Maybe a)
 expectUnique []  = return Nothing

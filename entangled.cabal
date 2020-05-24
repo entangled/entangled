@@ -3,33 +3,27 @@ cabal-version: 2.2
 name:           entangled
 version:        1.0.0.0
 synopsis:       bi-directional tangle daemon for literate programming
-description:    Please see the README on GitHub at <https://github.com/jhidding/entangled#readme>
+description:    Please see the README on GitHub at <https://github.com/entangled/entangled/#readme>
 category:       Development
-homepage:       https://jhidding.github.io/enTangleD
-bug-reports:    https://github.com/jhidding/enTangleD/issues
+homepage:       https://entangled.github.io/
+bug-reports:    https://github.com/entangled/entangled/issues
 author:         Johan Hidding
 maintainer:     j.hidding@esciencecenter.nl
-copyright:      2018-2019 Johan Hidding, Netherlands eScience Center
+copyright:      2018-2020 Johan Hidding, Netherlands eScience Center
 license:        Apache-2.0
 license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
     README.md
     ChangeLog.md
-    scripts/tangle
-    scripts/weave
-    scripts/annotate-code-blocks.lua
-    scripts/list.lua
-    scripts/tangle.lua
-    scripts/header.html
-    scripts/style.css
-    scripts/eisvogel.tex
 data-files:
     data/schema.sql
+    data/config-schema.dhall
+    data/example-config.dhall
 
 source-repository head
   type: git
-  location: https://github.com/jhidding/enTangleD
+  location: https://github.com/entangled/entangled
 
 common deps
   build-depends:

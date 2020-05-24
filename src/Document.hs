@@ -90,17 +90,4 @@ data ProgrammingLanguage
     | NoLanguage
     deriving (Show, Eq)
 -- ~\~ end
--- ~\~ begin <<lit/02-document-model.md|document-structure>>[6]
-getCodeClasses :: CodeBlock -> [Text]
-getCodeClasses CodeBlock{..} = classes codeProperties
-    where classes [] = []
-          classes (CodeClass c : cs) = c : classes cs
-          classes (_ : cs) = classes cs
-
-getCodeAttributes :: CodeBlock -> [(Text, Text)]
-getCodeAttributes CodeBlock{..} = attrs codeProperties
-    where attrs [] = []
-          attrs (CodeAttribute k v : cs) = (k, v) : attrs cs
-          attrs (_ : cs) = attrs cs
--- ~\~ end
 -- ~\~ end

@@ -34,9 +34,6 @@ plan action = Transaction (Just action) mempty False
 doc :: Doc -> Transaction m
 doc x = Transaction Nothing x False
 
-msg :: P.Pretty a => LogLevel -> a -> Transaction m
-msg level content = Transaction Nothing (Console.msg level content) False
-
 confirm :: Transaction m
 confirm = Transaction Nothing mempty True
 -- ~\~ end

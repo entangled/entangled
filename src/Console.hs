@@ -1,6 +1,5 @@
 module Console
-    ( msg
-    , Doc
+    ( Doc
     , FileAction(..)
     , putTerminal
     , msgDelete
@@ -14,17 +13,8 @@ module Console
     ) where
 
 import Control.Monad.Reader
--- import Control.Monad.State.Class
--- import Control.Monad.IO.Class
-
--- import Data.Maybe (fromMaybe)
--- import Data.Text (Text)
--- import qualified Data.Text as T
 import Data.Text.IO as T
--- import Data.Map (Map)
--- import qualified Data.Map as M
 import qualified Data.Text.Prettyprint.Doc as P
--- import qualified System.Console.Terminal.Size as Terminal
 import qualified Data.Text.Prettyprint.Doc.Render.Terminal as ANSI
 import qualified System.Info
 import Data.Time
@@ -49,9 +39,6 @@ banner :: Doc
 banner =  P.annotate Emphasise "Entangled"
        <> ", version 1.0.0: https://entangled.github.io/"
        <> P.line <> P.line
-
-msg :: P.Pretty a => LogLevel -> a -> Doc
-msg level = P.annotate (Log level) . P.pretty
 
 timeStamp :: MonadIO m => m Doc
 timeStamp = do

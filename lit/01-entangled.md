@@ -86,13 +86,6 @@ and
 mUnlines (catMaybes [mUnlines a, mUnlines b]) == mUnlines (a <> b)
 ```
 
-Also composing `T.pack` and `show` as a usefule shorthand:
-
-``` {.haskell #tshow}
-tshow :: (Show a) => a -> Text
-tshow = T.pack . show
-```
-
 ### `TextUtils` module 
 
 ``` {.haskell file=src/TextUtil.hs}
@@ -106,7 +99,6 @@ import Data.Maybe (isNothing, catMaybes)
 <<unindent>>
 <<unlines>>
 <<maybe-unlines>>
-<<tshow>>
 ```
 
 ``` {.haskell #indent}
@@ -197,13 +189,10 @@ import Data.Void
 ## Errors
 
 ``` {.haskell file=src/Errors.hs}
+{-# LANGUAGE NoImplicitPrelude #-}
 module Errors where
 
-import Control.Exception
-import Data.Typeable
-import TextUtil
-
-<<import-text>>
+import RIO
 
 data EntangledError
     = TangleError Text

@@ -13,7 +13,6 @@ import Control.Monad.Catch (MonadThrow, throwM)
 
 import Errors (EntangledError(SystemError))
 import Select (selectM)
-import TextUtil (tshow)
 -- ~\~ end
 -- ~\~ begin <<lit/a4-fileio.md|file-io-imports>>[1]
 import RIO.Directory ( createDirectoryIfMissing, doesDirectoryExist
@@ -95,11 +94,6 @@ runFileIO' :: ( MonadIO m, MonadReader env m, HasLogFunc env )
 runFileIO' (FileIO f) = do
     env <- ask
     runRIO env f
-
-runFileIO :: ( MonadIO m ) => FileIO LogFunc a -> m a
-runFileIO (FileIO f) = do
-    logOptions <- logOptionsHandle stderr True
-    liftIO $ withLogFunc logOptions (\logFunc -> runRIO logFunc f)
 
 instance (HasLogFunc env) => MonadFileIO (FileIO env) where
     writeFile path text = ensurePath (takeDirectory path)

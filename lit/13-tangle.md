@@ -310,19 +310,6 @@ parseMarkdown' f t = do
     case result' of
         Left err              -> throwM $ TangleError $ tshow err
         Right (content, refs) -> return $ Document (M.fromList refs) content (getFileMap refs)
-
-parseMarkdown :: ( MonadReader Config m )
-              => FilePath -> Text -> m (Either EntangledError Document)
-parseMarkdown f t = do
-    cfg <- ask
-    let result' = parse (evalStateT (runReaderT markdown cfg) (ReferenceCount f mempty))
-                        f (ListStream $ T.lines t)
-    return $ case result' of
-        Left err              -> Left (TangleError $ T.pack $ show err)
-        Right (content, refs) -> Right $
-            Document (M.fromList refs)
-                     content
-                     (getFileMap refs)
 ```
 
 ## Generating output files

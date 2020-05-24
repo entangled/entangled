@@ -56,7 +56,7 @@ listUnusedFragments = do
                                   \where `document` is not null" :: IO [Only Text])
     let reach = foldMap (S.fromList . G.reachable graph) roots
         unused = S.fromList (G.vertices graph) S.\\ reach
-        nodeToKey (_, (ReferenceName b), _) = b
+        nodeToKey (_, ReferenceName b, _) = b
         getSource name = liftIO $ query conn "select `codes`.`name`,`documents`.`filename` from `codes` \
                                              \inner join `documents` on `codes`.`document` is `documents`.`id`\
                                              \where `codes`.`name` is ? and `codes`.`ordinal` is 0" (Only name)

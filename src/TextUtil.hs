@@ -44,8 +44,4 @@ mUnlines :: [Text] -> Maybe Text
 mUnlines [] = Nothing
 mUnlines ts = Just $ unlines' ts
 -- ~\~ end
--- ~\~ begin <<lit/01-entangled.md|tshow>>[0]
-tshow :: (Show a) => a -> Text
-tshow = T.pack . show
--- ~\~ end
 -- ~\~ end

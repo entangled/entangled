@@ -104,10 +104,6 @@ tokenLine f = token f mempty
 tokenP :: ( MonadParsec e (ListStream Text) m )
        => LineParser a -> m (a, Text)
 tokenP = tokenLine . parseLine
-
-tokenNotP :: ( MonadParsec e (ListStream Text) m )
-       => LineParser a -> m Text
-tokenNotP = tokenLine . parseLineNot
 ```
 
 

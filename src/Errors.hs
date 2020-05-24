@@ -1,15 +1,9 @@
 -- ~\~ language=Haskell filename=src/Errors.hs
 -- ~\~ begin <<lit/01-entangled.md|src/Errors.hs>>[0]
+{-# LANGUAGE NoImplicitPrelude #-}
 module Errors where
 
-import Control.Exception
-import Data.Typeable
-import TextUtil
-
--- ~\~ begin <<lit/01-entangled.md|import-text>>[0]
-import RIO (Text)
-import qualified RIO.Text as T
--- ~\~ end
+import RIO
 
 data EntangledError
     = TangleError Text
