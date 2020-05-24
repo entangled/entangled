@@ -89,7 +89,7 @@ let languages =
 ## Reading config
 
 ``` {.haskell #config-import}
-import Dhall (FromDhall, ToDhall, input, auto, Decoder, record, field, setFromDistinctList, constructor, void, union)
+import Dhall (FromDhall, ToDhall, input, auto, Decoder, record, field, setFromDistinctList, constructor, unit, union)
 import qualified Data.Text as T
 ```
 
@@ -131,10 +131,10 @@ data AnnotateMethod = AnnotateNaked
 
 annotateDecoder :: Decoder AnnotateMethod
 annotateDecoder = union
-        (  ( AnnotateNaked    <$ constructor "Naked" void )
-        <> ( AnnotateStandard <$ constructor "Standard" void )
-        <> ( AnnotateProject  <$ constructor "Project" void )
-        <> ( AnnotatePragma   <$ constructor "Pragma" void ) )
+        (  ( AnnotateNaked    <$ constructor "Naked" unit )
+        <> ( AnnotateStandard <$ constructor "Standard" unit )
+        <> ( AnnotateProject  <$ constructor "Project" unit )
+        <> ( AnnotatePragma   <$ constructor "Pragma" unit ) )
 
 data Config = Config
     { configLanguages :: Set ConfigLanguage

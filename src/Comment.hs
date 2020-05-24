@@ -22,7 +22,7 @@ import TextUtil (unlines')
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|comment-imports>>[3]
 import Text.Megaparsec            ( MonadParsec, chunk, skipManyTill
-                                  , anySingle, (<?>), takeWhileP, eof )
+                                  , anySingle, (<?>), takeWhileP, eof, takeRest )
 import Text.Megaparsec.Char       ( space )
 import Text.Megaparsec.Char.Lexer ( decimal )
 
@@ -63,7 +63,7 @@ formatComment lang text = pre <> text <> post
 standardPreComment :: (MonadReader Config m, MonadError EntangledError m)
                 => ReferenceId -> CodeBlock -> m Text
 standardPreComment (ReferenceId file (ReferenceName name) count) code = comment (codeLanguage code)
-    $ "begin <<" <> T.pack file <> "|" <> name <> "[" <> tshow count <> "]"
+    $ "begin <<" <> T.pack file <> "|" <> name <> ">>[" <> tshow count <> "]"
 
 getReference :: (MonadError EntangledError m) => ReferenceMap -> ReferenceId -> m CodeBlock
 getReference refs ref = maybe (throwError $ ReferenceError $ "not found: " <> tshow ref)
@@ -73,7 +73,8 @@ annotateProject :: (MonadReader Config m, MonadError EntangledError m)
                 => ReferenceMap -> ReferenceId -> m Text
 annotateProject refs ref@(ReferenceId file _ _) = do
     code <- getReference refs ref
-    pre  <- (<> " project://" <> T.pack file <> "#" <> tshow (codeLineNumber code))
+    let line = fromMaybe 0 (codeLineNumber code)
+    pre  <- (<> " project://" <> T.pack file <> "#" <> tshow line)
          <$> standardPreComment ref code
     post <- comment (codeLanguage code) "end"
     return $ unlines' [pre, codeSource code, post]
@@ -120,6 +121,7 @@ beginBlock = do
     _ <- chunk ">>["
     count <- decimal
     _ <- chunk "]"
+    _ <- takeRest
     return $ ReferenceId (T.unpack doc) (ReferenceName name) count
 
 endBlock :: (MonadParsec e Text m)
