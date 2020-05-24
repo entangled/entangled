@@ -182,7 +182,7 @@ import Text.Megaparsec
     ( MonadParsec, Parsec, parse
     , chunk, many, some, eof
     , manyTill, anySingle, try, lookAhead, takeWhile1P, takeWhileP
-    , (<?>) )
+    , (<?>), getParserState, pstateSourcePos, statePosState, sourceLine, unPos )
 import Text.Megaparsec.Char
     ( space )
 ```

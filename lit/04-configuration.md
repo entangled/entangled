@@ -13,11 +13,13 @@ let Config =
     { Type =
         { languages : List Language
         , watchList : List Text
-        , database  : Optional Text }
+        , database  : Optional Text
+        , flags     : List Text }
     , default =
         { languages = languages
         , watchList = [] : List Text
-        , database  = None Text }
+        , database  = None Text
+        , flags     = [] : List Text }
     }
 
 in { Comment   = Comment
@@ -122,6 +124,7 @@ data Config = Config
     { configLanguages :: Set ConfigLanguage
     , configWatchList :: [Text]
     , configDatabase  :: Maybe Text
+    , configFlags     :: [Text]
     } deriving (Show)
 
 configDecoder :: Decoder Config
@@ -129,6 +132,7 @@ configDecoder = record
     ( Config <$> field "languages" (setFromDistinctList configLanguage)
              <*> field "watchList" auto
              <*> field "database" auto
+             <*> field "flags" auto
     )
 
 class HasConfig env where

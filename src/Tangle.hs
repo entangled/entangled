@@ -15,7 +15,7 @@ import Text.Megaparsec
     ( MonadParsec, Parsec, parse
     , chunk, many, some, eof
     , manyTill, anySingle, try, lookAhead, takeWhile1P, takeWhileP
-    , (<?>) )
+    , (<?>), getParserState, pstateSourcePos, statePosState, sourceLine, unPos )
 import Text.Megaparsec.Char
     ( space )
 -- ~\~ end
@@ -124,11 +124,12 @@ codeBlock = do
                                 (try $ lookAhead $ tokenLine (parseLine codeFooter))
     (_, end)       <- tokenLine (parseLine codeFooter)
     language       <- getLanguage props
+    linenum        <- Just . unPos . sourceLine . pstateSourcePos . statePosState <$> getParserState
     ref'           <- getReference props
     return $ case ref' of
         Nothing  -> ( [ PlainText $ unlines' [begin, code, end] ], [] )
         Just ref -> ( [ PlainText begin, Reference ref, PlainText end ]
-                    , [ ( ref, CodeBlock language props code ) ] )
+                    , [ ( ref, CodeBlock language props code linenum ) ] )
 
 normalText :: ( MonadParsec e (ListStream Text) m )
            => m ([Content], [ReferencePair])

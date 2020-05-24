@@ -48,6 +48,7 @@ data Config = Config
     { configLanguages :: Set ConfigLanguage
     , configWatchList :: [Text]
     , configDatabase  :: Maybe Text
+    , configFlags     :: [Text]
     } deriving (Show)
 
 configDecoder :: Decoder Config
@@ -55,6 +56,7 @@ configDecoder = record
     ( Config <$> field "languages" (setFromDistinctList configLanguage)
              <*> field "watchList" auto
              <*> field "database" auto
+             <*> field "flags" auto
     )
 
 class HasConfig env where

@@ -52,9 +52,9 @@ newtype ReferenceName = ReferenceName
     } deriving (Show, Eq, Ord)
 
 data ReferenceId = ReferenceId
-    { referenceFile :: FilePath
-    , referenceName :: ReferenceName
-    , referenceCount :: Int
+    { referenceFile       :: FilePath
+    , referenceName       :: ReferenceName
+    , referenceCount      :: Int
     } deriving (Show, Eq, Ord)
 
 showNowebReference :: ReferenceName -> Text
@@ -131,6 +131,7 @@ data CodeBlock = CodeBlock
     { codeLanguage   :: ProgrammingLanguage
     , codeProperties :: [CodeProperty]
     , codeSource     :: Text
+    , codeLineNumber :: Maybe Int
     } deriving (Show, Eq)
 ```
 

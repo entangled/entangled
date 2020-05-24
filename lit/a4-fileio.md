@@ -168,11 +168,6 @@ dump' text = logDebug "dumping to stdio"
 
 ## FileIO instance
 
-``` {.haskell #file-io-imports}
-import RIO.FilePath         ( takeDirectory )
-import RIO.Text             ( decodeUtf8With, lenientDecode )
-```
-
 ``` {.haskell #file-io-instance}
 newtype FileIO env a = FileIO { unFileIO :: RIO env a }
     deriving (Applicative, Functor, Semigroup, Monoid, Monad, MonadIO, MonadThrow, MonadReader env)

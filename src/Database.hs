@@ -81,12 +81,12 @@ createTables = do
     liftIO $ schema >>= mapM_ (execute_ conn)
 -- ~\~ end
 -- ~\~ begin <<lit/03-database.md|database-insertion>>[0]
-insertCode' :: (Text, Int, Text, Maybe Text, Int64) -> [CodeProperty] -> SQL ()
+insertCode' :: (Text, Int, Text, Maybe Text, Int64, Maybe Int) -> [CodeProperty] -> SQL ()
 insertCode' tup attrs =  do
     conn <- getConnection
     liftIO $ do
-        execute conn "insert into `codes`(`name`,`ordinal`,`source`,`language`,`document`) \
-                     \ values (?,?,?,?,?)" tup
+        execute conn "insert into `codes`(`name`,`ordinal`,`source`,`language`,`document`,`linenumber`) \
+                     \ values (?,?,?,?,?,?)" tup
         codeId <- lastInsertRowId conn
         executeMany conn "insert into `classes` values (?,?)"
                     [(className, codeId) | className <- getClasses attrs]
@@ -96,7 +96,7 @@ insertCode' tup attrs =  do
 
 insertCode :: Int64 -> ReferencePair -> SQL ()
 insertCode docId ( ReferenceId file (ReferenceName name) count
-                 , CodeBlock lang attrs source ) = do
+                 , CodeBlock lang attrs source linenum ) = do
     langName <- case lang of
         UnknownClass c  -> logWarn (display $ "unknown language `" <> c <> "` in "
                                  <> T.pack file <> ":<<" <> name <> ">>")
@@ -105,7 +105,7 @@ insertCode docId ( ReferenceId file (ReferenceName name) count
                                  <> T.pack file <> ":<<" <> name <> ">>")
                         >> return Nothing
         KnownLanguage l -> return (Just l)
-    insertCode' (name, count, source, langName, docId) attrs
+    insertCode' (name, count, source, langName, docId, linenum) attrs
 
 insertCodes :: Int64 -> ReferenceMap -> SQL ()
 insertCodes docId codes = mapM_ (insertCode docId) (M.toList codes)
@@ -265,15 +265,15 @@ stitchDocument rel_path = do
 queryReferenceMap :: Config -> SQL ReferenceMap
 queryReferenceMap cfg = do
         conn <- getConnection
-        rows <- liftIO (query_ conn "select `documents`.`filename`, `name`, `ordinal`, `source`, `language`\
+        rows <- liftIO (query_ conn "select `documents`.`filename`, `name`, `ordinal`, `source`, `linenumber`, `language`\
                                     \from `codes` inner join `documents` on `codes`.`document` is `documents`.`id`"
-                        :: IO [(FilePath, Text, Int, Text, Text)])
+                        :: IO [(FilePath, Text, Int, Text, Maybe Int, Text)])
         M.fromList <$> mapM refpair rows
-    where refpair (rel_path, name, ordinal, source, lang) = do
+    where refpair (rel_path, name, ordinal, source, linenum, lang) = do
             let lang' = maybe (UnknownClass lang) (const $ KnownLanguage lang)
                               (languageFromName cfg lang)
             return ( ReferenceId rel_path (ReferenceName name) ordinal
-                   , CodeBlock lang' [] source )
+                   , CodeBlock lang' [] source linenum )
 -- ~\~ end
 
 deduplicateRefs :: [ReferencePair] -> SQL [ReferencePair]

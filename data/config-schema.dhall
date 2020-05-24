@@ -57,11 +57,13 @@ let Config =
     { Type =
         { languages : List Language
         , watchList : List Text
-        , database  : Optional Text }
+        , database  : Optional Text
+        , flags     : List Text }
     , default =
         { languages = languages
         , watchList = [] : List Text
-        , database  = None Text }
+        , database  = None Text
+        , flags     = [] : List Text }
     }
 
 in { Comment   = Comment

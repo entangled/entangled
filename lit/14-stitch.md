@@ -45,7 +45,7 @@ sourceBlock lang = do
     let content = unlines' $ catMaybes unindentedLines
     return ( [ indent beginIndent $ showNowebReference $ referenceName ref
              | referenceCount ref == 0 ]
-           , (ref, CodeBlock (KnownLanguage $ languageName lang) [] content):refpairs )
+           , (ref, CodeBlock (KnownLanguage $ languageName lang) [] content Nothing):refpairs )
 
 sourceLine :: ( MonadParsec e (ListStream Text) m )
            => m ([Text], [ReferencePair])

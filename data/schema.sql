@@ -17,12 +17,13 @@ create table if not exists "documents"
 -- ~\~ end
 -- ~\~ begin <<lit/03-database.md|schema>>[1]
 create table if not exists "codes"
-    ( "id"        integer primary key autoincrement
-    , "name"      text not null
-    , "ordinal"   integer not null
-    , "source"    text not null
-    , "language"  text not null
-    , "document"  integer not null
+    ( "id"         integer primary key autoincrement
+    , "name"       text not null
+    , "ordinal"    integer not null
+    , "source"     text not null
+    , "language"   text not null
+    , "document"   integer not null
+    , "linenumber" integer
     , foreign key ("document") references "documents"("id")
     );
 -- ~\~ end
