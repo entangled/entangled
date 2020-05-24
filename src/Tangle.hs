@@ -24,7 +24,7 @@ import Control.Monad.State (MonadState, gets, modify, StateT, evalStateT)
 
 import ListStream
 import Document
-import Config (config, HasConfig, Config, lookupLanguage, ConfigLanguage(..) )
+import Config (config, HasConfig, Config(..), lookupLanguage, ConfigLanguage(..), AnnotateMethod(..) )
 
 -- ~\~ begin <<lit/13-tangle.md|tangle-imports>>[0]
 import Attributes (attributes)
@@ -36,7 +36,7 @@ import Attributes (attributes)
 import TextUtil (indent, unlines')
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|tangle-imports>>[3]
-import Comment (annotateComment)
+import Comment (annotateComment, annotateProject)
 -- ~\~ end
 
 -- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[0]
@@ -201,7 +201,11 @@ annotateNaked refs ref = maybe (Left $ TangleError $ "reference not found: " <> 
                                (Right . codeSource)
                                (refs M.!? ref)
 
-annotateComment' :: Config -> Annotator
-annotateComment' cfg rmap rid = runReaderT (annotateComment rmap rid) cfg
+selectAnnotator :: Config -> Either EntangledError Annotator
+selectAnnotator cfg = case configAnnotate cfg of
+    AnnotateNaked    -> Right annotateNaked
+    AnnotateStandard -> Right $ \rmap rid -> runReaderT (annotateComment rmap rid) cfg
+    AnnotateProject  -> Right $ \rmap rid -> runReaderT (annotateProject rmap rid) cfg
+    _                -> Left $ NotYetImplemented $ tshow (configAnnotate cfg)
 -- ~\~ end
 -- ~\~ end

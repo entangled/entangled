@@ -28,7 +28,7 @@
    TODO: Update this line, since v1.0.0 is not out yet.
   -}
 let entangled = https://raw.githubusercontent.com/entangled/entangled/develop/data/config-schema.dhall
-                sha256:f4c0b062f6fdb0585467c0aa0892cb50802e75979b6abc027709445785981868
+                sha256:5ed17bac2f28bceb5aa47f5c044447b869740b4f7684e01796781f40da1f3504
 
 {- Languages
    ---------

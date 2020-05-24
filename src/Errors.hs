@@ -8,11 +8,14 @@ import RIO
 data EntangledError
     = TangleError Text
     | StitchError Text
+    | ReferenceError Text
     | CyclicReference Text
     | UnknownLanguageClass Text
     | DatabaseError Text
     | SystemError Text
     | MissingLanguageClass
+    | NotYetImplemented Text
+    | ConfigError Text
     | UnknownError
     deriving (Show, Ord, Eq, Typeable)
 

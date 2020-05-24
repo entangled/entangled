@@ -65,9 +65,9 @@ import Database (db, connection, HasConnection, listSourceFiles, listTargetFiles
 
 import Transaction (doc)
 -- import FileIO
-import Tangle (annotateComment')
+import Tangle (Annotator, selectAnnotator)
 import Entangled
-import Config (Config, HasConfig, config, getInputFiles, configWatchList)
+import Config (Config, HasConfig, config, getInputFiles, configWatchList, AnnotateMethod(..), configAnnotate)
 import Errors (EntangledError(..))
 
 import Console (Doc, putTerminal)
@@ -206,14 +206,13 @@ After the first event we need to wait a bit, there may be more comming.
 mainLoop (WriteSource abs_path) = do
     rel_path <- makeRelativeToCurrentDirectory abs_path
     logDebug $ display $ "tangle triggered on `" <> T.pack rel_path <> "`"
-    cfg <- view config
 
     setDaemonState Tangling
     closeWatch
 
     runEntangled (Just $ "tangling on `" <> P.pretty rel_path <> "`") $ do
         insertSources [rel_path]
-        tangle TangleAll (annotateComment' cfg)
+        tangle TangleAll =<< getAnnotator
         clearOrphans
 
     setWatch
@@ -259,16 +258,26 @@ initSession = do
              <> P.line
 
         insertSources rel_paths
-        tangle TangleAll (annotateComment' cfg)
+        tangle TangleAll =<< getAnnotator
 
     setWatch
+
+getAnnotator :: (HasConfig env, MonadReader env m, MonadIO m, MonadThrow m)
+             => m Annotator
+getAnnotator = do
+    cfg <- view config
+    case configAnnotate cfg of
+        n | n `elem` [AnnotateNaked, AnnotatePragma] 
+                -> throwM $ ConfigError $ "cannot run daemon with `Naked` or `Pragma` annotation"
+          | otherwise -> return ()
+    either throwM return $ selectAnnotator cfg
 
 runSession :: (HasConfig env, HasLogFunc env, HasConnection env, MonadReader env m, MonadIO m)
            => [FilePath] -> m ()
 runSession inputFiles = do
     hSetBuffering stdout LineBuffering
-
     cfg' <- view config
+
     let cfg = cfg' { configWatchList = configWatchList cfg' <> map T.pack inputFiles }
     conn <- view connection
     logFunc <- view logFuncL

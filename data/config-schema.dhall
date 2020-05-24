@@ -53,22 +53,25 @@ let languages =
     ]
 -- ~\~ end
 
+let Annotate = < Naked | Standard | Project | Pragma >
+
 let Config =
     { Type =
         { languages : List Language
         , watchList : List Text
         , database  : Optional Text
-        , flags     : List Text }
+        , annotate  : Annotate }
     , default =
         { languages = languages
         , watchList = [] : List Text
         , database  = None Text
-        , flags     = [] : List Text }
+        , annotate  = Annotate.Standard }
     }
 
 in { Comment   = Comment
    , Language  = Language
    , Config    = Config
+   , Annotate  = Annotate
    , comments  = comments
    , languages = languages
    }

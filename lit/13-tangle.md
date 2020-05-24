@@ -15,7 +15,7 @@ import Control.Monad.State (MonadState, gets, modify, StateT, evalStateT)
 
 import ListStream
 import Document
-import Config (config, HasConfig, Config, lookupLanguage, ConfigLanguage(..) )
+import Config (config, HasConfig, Config(..), lookupLanguage, ConfigLanguage(..), AnnotateMethod(..) )
 
 <<tangle-imports>>
 
@@ -419,8 +419,12 @@ annotateNaked refs ref = maybe (Left $ TangleError $ "reference not found: " <> 
                                (Right . codeSource)
                                (refs M.!? ref)
 
-annotateComment' :: Config -> Annotator
-annotateComment' cfg rmap rid = runReaderT (annotateComment rmap rid) cfg
+selectAnnotator :: Config -> Either EntangledError Annotator
+selectAnnotator cfg = case configAnnotate cfg of
+    AnnotateNaked    -> Right annotateNaked
+    AnnotateStandard -> Right $ \rmap rid -> runReaderT (annotateComment rmap rid) cfg
+    AnnotateProject  -> Right $ \rmap rid -> runReaderT (annotateProject rmap rid) cfg
+    _                -> Left $ NotYetImplemented $ tshow (configAnnotate cfg)
 ```
 
 * Commenting annotator: adds annotations in comments, from which we can locate the original code block.
@@ -428,7 +432,7 @@ annotateComment' cfg rmap rid = runReaderT (annotateComment rmap rid) cfg
 We put comments in a separate module, where we also address parsing back the generated comments.
 
 ``` {.haskell #tangle-imports}
-import Comment (annotateComment)
+import Comment (annotateComment, annotateProject)
 ```
 
 ## Entangled comments
@@ -503,21 +507,36 @@ formatComment lang text = pre <> text <> post
 Using this we can write the `annotateComment` function. Given a `ReferenceId` this retrieves the code text and annotates it with a begin and end comment line.
 
 ``` {.haskell #comment-imports}
-import qualified Data.Map.Strict as M
+import qualified RIO.Map as M
 
 import Document
 import TextUtil (unlines')
 ```
 
 ``` {.haskell #generate-comment}
+standardPreComment :: (MonadReader Config m, MonadError EntangledError m)
+                => ReferenceId -> CodeBlock -> m Text
+standardPreComment (ReferenceId file (ReferenceName name) count) code = comment (codeLanguage code)
+    $ "begin <<" <> T.pack file <> "|" <> name <> "[" <> tshow count <> "]"
+
+getReference :: (MonadError EntangledError m) => ReferenceMap -> ReferenceId -> m CodeBlock
+getReference refs ref = maybe (throwError $ ReferenceError $ "not found: " <> tshow ref)
+                              return (refs M.!? ref)
+
+annotateProject :: (MonadReader Config m, MonadError EntangledError m)
+                => ReferenceMap -> ReferenceId -> m Text
+annotateProject refs ref@(ReferenceId file _ _) = do
+    code <- getReference refs ref
+    pre  <- (<> " project://" <> T.pack file <> "#" <> tshow (codeLineNumber code))
+         <$> standardPreComment ref code
+    post <- comment (codeLanguage code) "end"
+    return $ unlines' [pre, codeSource code, post]
+
 annotateComment :: (MonadReader Config m, MonadError EntangledError m)
                 => ReferenceMap -> ReferenceId -> m Text
 annotateComment refs ref = do
-    let code = refs M.! ref
-    pre <- comment (codeLanguage code)
-           $ "begin <<" <> T.pack (referenceFile ref) <> "|"
-           <> unReferenceName (referenceName ref) <> ">>["
-           <> tshow (referenceCount ref) <> "]"
+    code <- getReference refs ref
+    pre <- standardPreComment ref code
     post <- comment (codeLanguage code) "end"
     return $ unlines' [pre, codeSource code, post]
 

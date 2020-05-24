@@ -15,7 +15,7 @@ import Config
     ( Config(..), ConfigLanguage(..), ConfigComment(..), languageFromName )
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|comment-imports>>[2]
-import qualified Data.Map.Strict as M
+import qualified RIO.Map as M
 
 import Document
 import TextUtil (unlines')
@@ -60,14 +60,29 @@ formatComment lang text = pre <> text <> post
           post = maybe "" (" " <>) $ commentEnd $ languageComment lang
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|generate-comment>>[2]
+standardPreComment :: (MonadReader Config m, MonadError EntangledError m)
+                => ReferenceId -> CodeBlock -> m Text
+standardPreComment (ReferenceId file (ReferenceName name) count) code = comment (codeLanguage code)
+    $ "begin <<" <> T.pack file <> "|" <> name <> "[" <> tshow count <> "]"
+
+getReference :: (MonadError EntangledError m) => ReferenceMap -> ReferenceId -> m CodeBlock
+getReference refs ref = maybe (throwError $ ReferenceError $ "not found: " <> tshow ref)
+                              return (refs M.!? ref)
+
+annotateProject :: (MonadReader Config m, MonadError EntangledError m)
+                => ReferenceMap -> ReferenceId -> m Text
+annotateProject refs ref@(ReferenceId file _ _) = do
+    code <- getReference refs ref
+    pre  <- (<> " project://" <> T.pack file <> "#" <> tshow (codeLineNumber code))
+         <$> standardPreComment ref code
+    post <- comment (codeLanguage code) "end"
+    return $ unlines' [pre, codeSource code, post]
+
 annotateComment :: (MonadReader Config m, MonadError EntangledError m)
                 => ReferenceMap -> ReferenceId -> m Text
 annotateComment refs ref = do
-    let code = refs M.! ref
-    pre <- comment (codeLanguage code)
-           $ "begin <<" <> T.pack (referenceFile ref) <> "|"
-           <> unReferenceName (referenceName ref) <> ">>["
-           <> tshow (referenceCount ref) <> "]"
+    code <- getReference refs ref
+    pre <- standardPreComment ref code
     post <- comment (codeLanguage code) "end"
     return $ unlines' [pre, codeSource code, post]
 

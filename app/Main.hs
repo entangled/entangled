@@ -4,6 +4,7 @@
 module Main where
 
 import RIO
+import Prelude (putStrLn)
 
 -- ~\~ begin <<lit/12-main.md|main-imports>>[0]
 import GHC.IO.Encoding
@@ -22,8 +23,7 @@ import Database (HasConnection, connection, createTables, db)
 import Database.SQLite.Simple
 -- ~\~ end
 
-import Tangle (annotateNaked, annotateComment')
-import FileIO (dump)
+import Tangle (selectAnnotator)
 import Entangled
 import Linters
 
@@ -189,7 +189,7 @@ instance HasLogFunc Env where
 
 run :: Args -> IO ()
 run Args{..}
-    | versionFlag       = runWithEnv False (dump "Entangled 1.0.0\n")
+    | versionFlag       = putStrLn "Entangled 1.0.0\n"
     | otherwise         = runWithEnv verboseFlag (runSubCommand subCommand)
 
 runWithEnv :: Bool -> Entangled Env a -> IO a
@@ -221,8 +221,7 @@ runSubCommand sc = do
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[3]
         CommandTangle TangleArgs {..} -> do
             cfg <- view config
-            let annotate = if tangleDecorate then annotateComment' cfg else annotateNaked
-            tangle tangleQuery annotate
+            either throwM (tangle tangleQuery) (selectAnnotator cfg)
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[4]
         CommandStitch StitchArgs {..} -> stitch (StitchFile stitchTarget)

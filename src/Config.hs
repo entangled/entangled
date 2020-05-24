@@ -3,9 +3,9 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 module Config where
 
-import RIO
+import RIO hiding (void)
 -- ~\~ begin <<lit/04-configuration.md|config-import>>[0]
-import Dhall (FromDhall, ToDhall, input, auto, Decoder, record, field, setFromDistinctList)
+import Dhall (FromDhall, ToDhall, input, auto, Decoder, record, field, setFromDistinctList, constructor, void, union)
 import qualified Data.Text as T
 -- ~\~ end
 
@@ -44,11 +44,24 @@ instance Eq ConfigLanguage where
 instance Ord ConfigLanguage where
     compare a b = compare (languageName a) (languageName b)
 
+data AnnotateMethod = AnnotateNaked
+                    | AnnotateStandard
+                    | AnnotateProject
+                    | AnnotatePragma
+                    deriving (Show, Eq)
+
+annotateDecoder :: Decoder AnnotateMethod
+annotateDecoder = union
+        (  ( AnnotateNaked    <$ constructor "Naked" void )
+        <> ( AnnotateStandard <$ constructor "Standard" void )
+        <> ( AnnotateProject  <$ constructor "Project" void )
+        <> ( AnnotatePragma   <$ constructor "Pragma" void ) )
+
 data Config = Config
     { configLanguages :: Set ConfigLanguage
     , configWatchList :: [Text]
     , configDatabase  :: Maybe Text
-    , configFlags     :: [Text]
+    , configAnnotate  :: AnnotateMethod
     } deriving (Show)
 
 configDecoder :: Decoder Config
@@ -56,7 +69,7 @@ configDecoder = record
     ( Config <$> field "languages" (setFromDistinctList configLanguage)
              <*> field "watchList" auto
              <*> field "database" auto
-             <*> field "flags" auto
+             <*> field "annotate" annotateDecoder
     )
 
 class HasConfig env where
