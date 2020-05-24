@@ -179,10 +179,10 @@ All parsing will be done through megaparsec.
 
 ``` {.haskell #import-megaparsec}
 import Text.Megaparsec
-    ( MonadParsec, Parsec, parse
+    ( MonadParsec, Parsec, parse, getOffset
     , chunk, many, some, eof
     , manyTill, anySingle, try, lookAhead, takeWhile1P, takeWhileP
-    , (<?>), getParserState, pstateSourcePos, statePosState, sourceLine, unPos )
+    , (<?>) )
 import Text.Megaparsec.Char
     ( space )
 ```

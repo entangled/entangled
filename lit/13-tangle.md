@@ -265,20 +265,21 @@ Using these two parsers, we can create a larger parser that works on a line-by-l
 To parse markdown, we first try to parse a code block (as given above), stored in `CodeBlock`. If that fails lines are interpreted as other markdown, and stored in `PlainText`.
 
 ``` {.haskell #parse-markdown}
-type DocumentParser = ReaderT Config (StateT ReferenceCount (Parsec Void (ListStream Text)))
+type DocumentParser = ReaderT Config (StateT ReferenceCount (Parsec Text (ListStream Text)))
 
 codeBlock :: ( MonadParsec e (ListStream Text) m
              , MonadReader Config m 
              , MonadState ReferenceCount m )
           => m ([Content], [ReferencePair])
 codeBlock = do
+    -- linenum        <- Just . unPos . sourceLine . pstateSourcePos . statePosState <$> getParserState
+    linenum        <- Just . (+ 2) <$> getOffset
     (props, begin) <- tokenLine (parseLine codeHeader)
     code           <- unlines' 
                    <$> manyTill (anySingle <?> "code line")
                                 (try $ lookAhead $ tokenLine (parseLine codeFooter))
     (_, end)       <- tokenLine (parseLine codeFooter)
     language       <- getLanguage props
-    linenum        <- Just . unPos . sourceLine . pstateSourcePos . statePosState <$> getParserState
     ref'           <- getReference props
     return $ case ref' of
         Nothing  -> ( [ PlainText $ unlines' [begin, code, end] ], [] )

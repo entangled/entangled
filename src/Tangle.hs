@@ -12,10 +12,10 @@ import qualified Data.Map.Lazy as LM
 
 -- ~\~ begin <<lit/01-entangled.md|import-megaparsec>>[0]
 import Text.Megaparsec
-    ( MonadParsec, Parsec, parse
+    ( MonadParsec, Parsec, parse, getOffset
     , chunk, many, some, eof
     , manyTill, anySingle, try, lookAhead, takeWhile1P, takeWhileP
-    , (<?>), getParserState, pstateSourcePos, statePosState, sourceLine, unPos )
+    , (<?>) )
 import Text.Megaparsec.Char
     ( space )
 -- ~\~ end
@@ -111,20 +111,21 @@ newReference n = do
     return $ ReferenceId doc n x
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[5]
-type DocumentParser = ReaderT Config (StateT ReferenceCount (Parsec Void (ListStream Text)))
+type DocumentParser = ReaderT Config (StateT ReferenceCount (Parsec Text (ListStream Text)))
 
 codeBlock :: ( MonadParsec e (ListStream Text) m
              , MonadReader Config m
              , MonadState ReferenceCount m )
           => m ([Content], [ReferencePair])
 codeBlock = do
+    -- linenum        <- Just . unPos . sourceLine . pstateSourcePos . statePosState <$> getParserState
+    linenum        <- Just . (+ 2) <$> getOffset
     (props, begin) <- tokenLine (parseLine codeHeader)
     code           <- unlines'
                    <$> manyTill (anySingle <?> "code line")
                                 (try $ lookAhead $ tokenLine (parseLine codeFooter))
     (_, end)       <- tokenLine (parseLine codeFooter)
     language       <- getLanguage props
-    linenum        <- Just . unPos . sourceLine . pstateSourcePos . statePosState <$> getParserState
     ref'           <- getReference props
     return $ case ref' of
         Nothing  -> ( [ PlainText $ unlines' [begin, code, end] ], [] )

@@ -1,16 +1,16 @@
 {- Entangled configuration file
-    ============================
-  
-    This configuration uses the Dhall language, see https://dhall-lang.org/.
-  
-    This file represents a record, as can be seen from the `let ... in { ... }`
-    structure. Configuration for the Entangled daemon and command-line utility
-    is stored in the `entangled` member of the record. Other fields are open
-    for use by `pandoc` filters or other tools.
-  
-    If you want to check the configuration for correctness, run
-  
-        dhall <<< ./entangled.dhall
+   ============================
+ 
+   This configuration uses the Dhall language, see https://dhall-lang.org/.
+ 
+   This file represents a record, as can be seen from the `let ... in { ... }`
+   structure. Configuration for the Entangled daemon and command-line utility
+   is stored in the `entangled` member of the record. Other fields are open
+   for use by `pandoc` filters or other tools.
+ 
+   If you want to check the configuration for correctness, run
+ 
+       dhall <<< ./entangled.dhall
   -}
 
 {- Schema
