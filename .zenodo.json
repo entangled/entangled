@@ -1,0 +1,17 @@
+{
+    "creators": [
+        {
+            "affiliation": "Netherlands eScience Center",
+            "name": "Hidding, Johan",
+            "orcid": "0000-0002-7550-1796"
+        }
+    ],
+    "description": "Literate programming is a programming paradigm introduced by Donald Knuth in which a program is given as an explanation of the program logic in a natural language, such as English, interspersed with snippets of macros and traditional source code, from which a compilable source code can be generated. Entangled makes writing literate programs easier by keeping code blocks in Markdown up-to-date with generated source files. By monitoring the tangled source files, any change in the master document or source files is reflected in the other.",
+    "keywords": [
+        "Literate Programming"
+    ],
+    "license": {
+        "id": "Apache-2.0"
+    },
+    "title": "Entangled"
+}
