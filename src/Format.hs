@@ -18,10 +18,14 @@ specVariableP = do
     return $ Variable name
 
 specBraceLeftP :: Parser SpecItem
-specBraceLeftP = Plain <$> chunk "{{"
+specBraceLeftP = do
+    _ <- chunk "{{"
+    return $ Plain "{"
 
 specBraceRightP :: Parser SpecItem
-specBraceRightP = Plain <$> chunk "}}"
+specBraceRightP = do
+    _ <- chunk "}}"
+    return $ Plain "}"
 
 specPlainTextP :: Parser SpecItem
 specPlainTextP = Plain <$> takeWhile1P Nothing (`notElem` ['{', '}'])
