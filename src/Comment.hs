@@ -92,10 +92,10 @@ annotateNaked :: (MonadReader Config m, MonadError EntangledError m)
 annotateNaked refs ref = do
     Config{..} <- ask
     code <- getReference refs ref
-    line <- lineDirective ref code
-    return $ if configUseLineDirectives
-             then unlines' [line, codeSource code]
-             else codeSource code
+    if configUseLineDirectives then do
+        line <- lineDirective ref code
+        return $ unlines' [line, codeSource code]
+    else return $ codeSource code
 
 annotateComment :: (MonadReader Config m, MonadError EntangledError m)
                 => ReferenceMap -> ReferenceId -> m Text
