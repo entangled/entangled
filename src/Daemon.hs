@@ -1,7 +1,7 @@
 -- ~\~ language=Haskell filename=src/Daemon.hs
 -- ~\~ begin <<lit/10-daemon.md|src/Daemon.hs>>[0]
 -- ~\~ begin <<lit/10-daemon.md|daemon>>[0]
-{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE NoImplicitPrelude,ScopedTypeVariables #-}
 module Daemon where
 
 import RIO
@@ -21,7 +21,7 @@ import Transaction (doc)
 import Tangle (Annotator, selectAnnotator)
 import Entangled
 import Config (Config(..), HasConfig, config, getInputFiles, configWatchList, AnnotateMethod(..))
-import Errors (EntangledError(..))
+import Errors (EntangledError(..), formatError)
 
 import Console (Doc, putTerminal)
 import qualified Console
@@ -132,6 +132,11 @@ closeWatch = do
     logDebug "suspended watches"
 -- ~\~ end
 -- ~\~ begin <<lit/10-daemon.md|daemon-main-loop>>[0]
+tryEntangled :: (MonadReader env m, MonadUnliftIO m, MonadIO m, HasLogFunc env)
+             => Maybe Doc -> Entangled env a -> m ()
+tryEntangled msg action = catch (void $ runEntangled msg action)
+                                (\(err :: EntangledError) -> logError $ display $ formatError err)
+
 mainLoop :: Event -> Daemon ()
 -- ~\~ begin <<lit/10-daemon.md|main-loop-cases>>[0]
 mainLoop (WriteSource abs_path) = do
@@ -141,7 +146,7 @@ mainLoop (WriteSource abs_path) = do
     setDaemonState Tangling
     closeWatch
 
-    runEntangled (Just $ "tangling on `" <> P.pretty rel_path <> "`") $ do
+    tryEntangled (Just $ "tangling on `" <> P.pretty rel_path <> "`") $ do
         insertSources [rel_path]
         tangle TangleAll =<< getAnnotator
         clearOrphans
@@ -155,11 +160,11 @@ mainLoop (WriteTarget abs_path) = do
     setDaemonState Stitching
     closeWatch
 
-    runEntangled (Just $ "stitching on `" <> P.pretty rel_path <> "`") $ do
+    tryEntangled (Just $ "stitching on `" <> P.pretty rel_path <> "`") $ do
         insertTargets [rel_path]
         stitch StitchAll
 
-    runEntangled (Just $ "tangling after stitch `" <> P.pretty rel_path <> "`") $
+    tryEntangled (Just $ "tangling after stitch `" <> P.pretty rel_path <> "`") $
         tangle TangleAll =<< getAnnotator
 
     setWatch

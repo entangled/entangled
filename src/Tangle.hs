@@ -194,7 +194,8 @@ expandCodeSource result name t
     = unlines' <$> mapM codeLineToText (parseCode name t)
     where codeLineToText (PlainCode x) = Right x
           codeLineToText (NowebReference name' i)
-              = indent i <$> result LM.! name'
+              = indent i <$> fromMaybe (Left $ TangleError $ "reference not found: " <> tshow name')
+                                       (result LM.!? name')
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|generate-code>>[4]
 selectAnnotator :: Config -> Annotator

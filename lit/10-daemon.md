@@ -14,7 +14,7 @@ The Entangled daemon does the following:
 ## Strategy
 
 ``` {.haskell #daemon}
-{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE NoImplicitPrelude,ScopedTypeVariables #-}
 module Daemon where
 
 import RIO
@@ -68,7 +68,7 @@ import Transaction (doc)
 import Tangle (Annotator, selectAnnotator)
 import Entangled
 import Config (Config(..), HasConfig, config, getInputFiles, configWatchList, AnnotateMethod(..))
-import Errors (EntangledError(..))
+import Errors (EntangledError(..), formatError)
 
 import Console (Doc, putTerminal)
 import qualified Console
@@ -196,6 +196,11 @@ import RIO.FilePath (equalFilePath, takeDirectory)
 The `mainLoop` is fed events and handles them.
 
 ``` {.haskell #daemon-main-loop}
+tryEntangled :: (MonadReader env m, MonadUnliftIO m, MonadIO m, HasLogFunc env)
+             => Maybe Doc -> Entangled env a -> m ()
+tryEntangled msg action = catch (void $ runEntangled msg action)
+                                (\(err :: EntangledError) -> logError $ display $ formatError err)
+
 mainLoop :: Event -> Daemon ()
 <<main-loop-cases>>
 ```
@@ -210,7 +215,7 @@ mainLoop (WriteSource abs_path) = do
     setDaemonState Tangling
     closeWatch
 
-    runEntangled (Just $ "tangling on `" <> P.pretty rel_path <> "`") $ do
+    tryEntangled (Just $ "tangling on `" <> P.pretty rel_path <> "`") $ do
         insertSources [rel_path]
         tangle TangleAll =<< getAnnotator
         clearOrphans
@@ -224,11 +229,11 @@ mainLoop (WriteTarget abs_path) = do
     setDaemonState Stitching
     closeWatch
 
-    runEntangled (Just $ "stitching on `" <> P.pretty rel_path <> "`") $ do
+    tryEntangled (Just $ "stitching on `" <> P.pretty rel_path <> "`") $ do
         insertTargets [rel_path]
         stitch StitchAll
 
-    runEntangled (Just $ "tangling after stitch `" <> P.pretty rel_path <> "`") $
+    tryEntangled (Just $ "tangling after stitch `" <> P.pretty rel_path <> "`") $
         tangle TangleAll =<< getAnnotator
 
     setWatch
