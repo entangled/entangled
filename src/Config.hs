@@ -12,6 +12,7 @@ import qualified Data.Text as T
 -- ~\~ end
 
 import Errors
+import qualified Format
 import Data.List (find, scanl1)
 import Control.Monad.Extra (concatMapM)
 import System.FilePath.Glob (glob)
@@ -46,10 +47,13 @@ instance Eq ConfigLanguage where
 instance Ord ConfigLanguage where
     compare a b = compare (languageName a) (languageName b)
 
-lineDirectivesDecoder :: Decoder (Map Text Text)
+decodeFormatSpec :: Decoder Format.Spec
+decodeFormatSpec = fromMaybe [Format.Plain "illegal format spec"] . Format.spec <$> auto
+
+lineDirectivesDecoder :: Decoder (Map Text Format.Spec)
 lineDirectivesDecoder = M.fromList <$> list entry
     where entry = record ( pair <$> field "name" auto
-                                <*> field "format" auto )
+                                <*> field "format" decodeFormatSpec )
           pair a b = (a, b)
 
 data AnnotateMethod = AnnotateNaked
@@ -69,7 +73,7 @@ data Config = Config
     , configWatchList :: [Text]
     , configDatabase  :: Maybe Text
     , configAnnotate  :: AnnotateMethod
-    , configLineDirectives :: Map Text Text
+    , configLineDirectives :: Map Text Format.Spec
     , configUseLineDirectives :: Bool
     } deriving (Show)
 

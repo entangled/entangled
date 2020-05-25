@@ -36,7 +36,7 @@ import Attributes (attributes)
 import TextUtil (indent, unlines')
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|tangle-imports>>[3]
-import Comment (annotateComment, annotateProject)
+import Comment (annotateComment, annotateProject, annotateNaked)
 -- ~\~ end
 
 -- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[0]
@@ -197,14 +197,9 @@ expandCodeSource result name t
               = indent i <$> result LM.! name'
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|generate-code>>[4]
-annotateNaked :: ReferenceMap -> ReferenceId -> Either EntangledError Text
-annotateNaked refs ref = maybe (Left $ TangleError $ "reference not found: " <> tshow ref)
-                               (Right . codeSource)
-                               (refs M.!? ref)
-
 selectAnnotator :: Config -> Annotator
 selectAnnotator cfg@Config{..} = case configAnnotate of
-    AnnotateNaked         -> annotateNaked
+    AnnotateNaked         -> \rmap rid -> runReaderT (annotateNaked rmap rid) cfg
     AnnotateStandard      -> \rmap rid -> runReaderT (annotateComment rmap rid) cfg
     AnnotateProject       -> \rmap rid -> runReaderT (annotateProject rmap rid) cfg
 -- ~\~ end

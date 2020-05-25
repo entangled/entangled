@@ -415,14 +415,9 @@ We have two types of annotators:
 * Naked annotator: creates the output code without annotation. From such an expansion it is not possible to untangle.
 
 ``` {.haskell #generate-code}
-annotateNaked :: ReferenceMap -> ReferenceId -> Either EntangledError Text
-annotateNaked refs ref = maybe (Left $ TangleError $ "reference not found: " <> tshow ref)
-                               (Right . codeSource)
-                               (refs M.!? ref)
-
 selectAnnotator :: Config -> Annotator
 selectAnnotator cfg@Config{..} = case configAnnotate of
-    AnnotateNaked         -> annotateNaked
+    AnnotateNaked         -> \rmap rid -> runReaderT (annotateNaked rmap rid) cfg
     AnnotateStandard      -> \rmap rid -> runReaderT (annotateComment rmap rid) cfg
     AnnotateProject       -> \rmap rid -> runReaderT (annotateProject rmap rid) cfg
 ```
@@ -432,7 +427,7 @@ selectAnnotator cfg@Config{..} = case configAnnotate of
 We put comments in a separate module, where we also address parsing back the generated comments.
 
 ``` {.haskell #tangle-imports}
-import Comment (annotateComment, annotateProject)
+import Comment (annotateComment, annotateProject, annotateNaked)
 ```
 
 ## Entangled comments
@@ -478,6 +473,12 @@ import Config
 ```
 
 ``` {.haskell #generate-comment}
+getLangName :: (MonadError EntangledError m)
+            => ProgrammingLanguage -> m Text
+getLangName (UnknownClass cls)       = throwError $ UnknownLanguageClass cls
+getLangName NoLanguage               = throwError MissingLanguageClass
+getLangName (KnownLanguage langName) = return langName
+
 comment :: (MonadReader Config m, MonadError EntangledError m)
         => ProgrammingLanguage
         -> Text
@@ -511,6 +512,7 @@ import qualified RIO.Map as M
 
 import Document
 import TextUtil (unlines')
+import qualified Format
 ```
 
 ``` {.haskell #generate-comment}
@@ -523,27 +525,47 @@ getReference :: (MonadError EntangledError m) => ReferenceMap -> ReferenceId -> 
 getReference refs ref = maybe (throwError $ ReferenceError $ "not found: " <> tshow ref)
                               return (refs M.!? ref)
 
-annotateProject :: (MonadReader Config m, MonadError EntangledError m)
-                => ReferenceMap -> ReferenceId -> m Text
-annotateProject refs ref@(ReferenceId file _ _) = do
+lineDirective :: (MonadReader Config m, MonadError EntangledError m)
+              => ReferenceId -> CodeBlock -> m Text
+lineDirective ref code = do
+    Config{..} <- ask
+    lang <- getLangName $ codeLanguage code
+    spec <- maybe (throwError $ ConfigError $ "line directives not configured for " <> lang)
+                  return (configLineDirectives M.!? lang)
+    maybe (throwError $ ConfigError $ "error formatting on " <> tshow spec)
+          return (Format.formatMaybe spec $ M.fromList [ ("linenumber" :: Text, tshow (fromMaybe 0 $ codeLineNumber code))
+                                                       , ("filename"          , T.pack (referenceFile ref))])
+
+annotateNaked :: (MonadReader Config m, MonadError EntangledError m)
+              => ReferenceMap -> ReferenceId -> m Text
+annotateNaked refs ref = do
+    Config{..} <- ask
     code <- getReference refs ref
-    let line = fromMaybe 0 (codeLineNumber code)
-    pre  <- (<> " project://" <> T.pack file <> "#" <> tshow line)
-         <$> standardPreComment ref code
-    post <- comment (codeLanguage code) "end"
-    return $ unlines' [pre, codeSource code, post]
+    line <- lineDirective ref code
+    return $ if configUseLineDirectives 
+             then unlines' [line, codeSource code]
+             else codeSource code
 
 annotateComment :: (MonadReader Config m, MonadError EntangledError m)
                 => ReferenceMap -> ReferenceId -> m Text
 annotateComment refs ref = do
     Config{..} <- ask
     code <- getReference refs ref
+    naked <- annotateNaked refs ref
     pre <- standardPreComment ref code
-    lineDirective <- comment (codeLanguage code) "line directives are not yet implemented"
     post <- comment (codeLanguage code) "end"
-    return $ if configUseLineDirectives 
-             then unlines' [pre, lineDirective, codeSource code, post]
-             else unlines' [pre, codeSource code, post]
+    return $ unlines' [pre, naked, post]
+
+annotateProject :: (MonadReader Config m, MonadError EntangledError m)
+                => ReferenceMap -> ReferenceId -> m Text
+annotateProject refs ref@(ReferenceId file _ _) = do
+    code <- getReference refs ref
+    naked <- annotateNaked refs ref
+    let line = fromMaybe 0 (codeLineNumber code)
+    pre  <- (<> " project://" <> T.pack file <> "#" <> tshow line)
+         <$> standardPreComment ref code
+    post <- comment (codeLanguage code) "end"
+    return $ unlines' [pre, naked, post]
 
 headerComment :: ConfigLanguage -> FilePath -> Text
 headerComment lang path = formatComment lang
