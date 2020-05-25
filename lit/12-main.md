@@ -201,7 +201,7 @@ parseTangleArgs = TangleArgs
 ``` {.haskell #sub-runners}
 CommandTangle TangleArgs {..} -> do
     cfg <- view config
-    either throwM (tangle tangleQuery) (selectAnnotator cfg)
+    tangle tangleQuery (selectAnnotator cfg)
 ```
 
 ### Stitching a markdown source

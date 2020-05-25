@@ -118,6 +118,7 @@ codeBlock :: ( MonadParsec e (ListStream Text) m
              , MonadState ReferenceCount m )
           => m ([Content], [ReferencePair])
 codeBlock = do
+    Config{..} <- ask
     -- linenum        <- Just . unPos . sourceLine . pstateSourcePos . statePosState <$> getParserState
     linenum        <- Just . (+ 2) <$> getOffset
     (props, begin) <- tokenLine (parseLine codeHeader)
@@ -201,11 +202,10 @@ annotateNaked refs ref = maybe (Left $ TangleError $ "reference not found: " <> 
                                (Right . codeSource)
                                (refs M.!? ref)
 
-selectAnnotator :: Config -> Either EntangledError Annotator
-selectAnnotator cfg = case configAnnotate cfg of
-    AnnotateNaked    -> Right annotateNaked
-    AnnotateStandard -> Right $ \rmap rid -> runReaderT (annotateComment rmap rid) cfg
-    AnnotateProject  -> Right $ \rmap rid -> runReaderT (annotateProject rmap rid) cfg
-    _                -> Left $ NotYetImplemented $ tshow (configAnnotate cfg)
+selectAnnotator :: Config -> Annotator
+selectAnnotator cfg@Config{..} = case configAnnotate of
+    AnnotateNaked         -> annotateNaked
+    AnnotateStandard      -> \rmap rid -> runReaderT (annotateComment rmap rid) cfg
+    AnnotateProject       -> \rmap rid -> runReaderT (annotateProject rmap rid) cfg
 -- ~\~ end
 -- ~\~ end

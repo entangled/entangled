@@ -2,6 +2,7 @@
 -- ~\~ begin <<lit/04-configuration.md|data/config-schema.dhall>>[0]
 let Comment : Type = < Line : Text | Block : { start : Text, end : Text } >
 let Language : Type = { name : Text, identifiers : List Text, comment : Comment }
+let LineDirective : Type = { name : Text, format: Text }
 
 -- ~\~ begin <<lit/04-configuration.md|config-comment-styles>>[0]
 let comments =
@@ -51,28 +52,42 @@ let languages =
                                                               comment = comments.cppStyle }
     , { name = "YAML",       identifiers = ["yaml"],          comment = comments.hash }
     ]
+
+let lineDirectives =
+    [ { name = "C",          format = "#LINE {linenumber} \"{filename}\"" }
+    , { name = "C++",        format = "#LINE {linenumber} \"{filename}\"" }
+    , { name = "Haskell",    format = "{{-# LINE {linenumber} \"{filename}\" #-}}" }
+    ]
 -- ~\~ end
 
-let Annotate = < Naked | Standard | Project | Pragma >
+let Annotate = < Naked | Standard | Project >
 
 let Config =
     { Type =
-        { languages : List Language
+        { version   : Text
+        , languages : List Language
         , watchList : List Text
         , database  : Optional Text
-        , annotate  : Annotate }
+        , annotate  : Annotate
+        , lineDirectives : List LineDirective
+        , useLineDirectives : Bool }
     , default =
-        { languages = languages
+        { version   = "1.0.0"
+        , languages = languages
         , watchList = [] : List Text
         , database  = None Text
-        , annotate  = Annotate.Standard }
+        , annotate  = Annotate.Standard
+        , lineDirectives = lineDirectives
+        , useLineDirectives = False }
     }
 
 in { Comment   = Comment
    , Language  = Language
+   , LineDirective = LineDirective
    , Config    = Config
    , Annotate  = Annotate
    , comments  = comments
    , languages = languages
+   , lineDirectives = lineDirectives
    }
 -- ~\~ end

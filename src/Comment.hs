@@ -82,10 +82,14 @@ annotateProject refs ref@(ReferenceId file _ _) = do
 annotateComment :: (MonadReader Config m, MonadError EntangledError m)
                 => ReferenceMap -> ReferenceId -> m Text
 annotateComment refs ref = do
+    Config{..} <- ask
     code <- getReference refs ref
     pre <- standardPreComment ref code
+    lineDirective <- comment (codeLanguage code) "line directives are not yet implemented"
     post <- comment (codeLanguage code) "end"
-    return $ unlines' [pre, codeSource code, post]
+    return $ if configUseLineDirectives
+             then unlines' [pre, lineDirective, codeSource code, post]
+             else unlines' [pre, codeSource code, post]
 
 headerComment :: ConfigLanguage -> FilePath -> Text
 headerComment lang path = formatComment lang

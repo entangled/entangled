@@ -9,7 +9,7 @@ import qualified RIO.Text as T
 -- ~\~ begin <<lit/14-stitch.md|stitch-imports>>[0]
 import ListStream (ListStream(..), tokenP)
 import Document
-import Config (config, HasConfig, Config, languageFromName, ConfigLanguage(..))
+import Config (config, HasConfig, Config(..), languageFromName, ConfigLanguage(..))
 import Comment (topHeader, beginBlock, endBlock, commented)
 import TextUtil (indent, unindent, unlines')
 
@@ -30,10 +30,12 @@ sourceDocument = do
     return refs
 -- ~\~ end
 -- ~\~ begin <<lit/14-stitch.md|source-parser>>[1]
-sourceBlock :: ( MonadParsec e (ListStream Text) m, MonadFail m )
+sourceBlock :: ( MonadReader Config m, MonadParsec e (ListStream Text) m, MonadFail m )
             => ConfigLanguage -> m ([Text], [ReferencePair])
 sourceBlock lang = do
+    Config{..} <- ask
     ((ref, beginIndent), _) <- tokenP (commented lang beginBlock)
+    when configUseLineDirectives (void anySingle)
     (ilines, refpairs) <- mconcat <$> manyTill
                 (sourceBlock lang <|> sourceLine)
                 (tokenP (commented lang endBlock))

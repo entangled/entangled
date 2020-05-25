@@ -20,7 +20,7 @@ import Transaction (doc)
 -- import FileIO
 import Tangle (Annotator, selectAnnotator)
 import Entangled
-import Config (Config, HasConfig, config, getInputFiles, configWatchList, AnnotateMethod(..), configAnnotate)
+import Config (Config(..), HasConfig, config, getInputFiles, configWatchList, AnnotateMethod(..))
 import Errors (EntangledError(..))
 
 import Console (Doc, putTerminal)
@@ -195,11 +195,9 @@ getAnnotator :: (HasConfig env, MonadReader env m, MonadIO m, MonadThrow m)
              => m Annotator
 getAnnotator = do
     cfg <- view config
-    case configAnnotate cfg of
-        n | n `elem` [AnnotateNaked, AnnotatePragma]
-                -> throwM $ ConfigError $ "cannot run daemon with `Naked` or `Pragma` annotation"
-          | otherwise -> return ()
-    either throwM return $ selectAnnotator cfg
+    when (configAnnotate cfg == AnnotateNaked) $
+        throwM $ ConfigError "cannot run daemon with `Naked` annotation"
+    return $ selectAnnotator cfg
 
 runSession :: (HasConfig env, HasLogFunc env, HasConnection env, MonadReader env m, MonadIO m)
            => [FilePath] -> m ()

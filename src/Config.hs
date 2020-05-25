@@ -4,8 +4,10 @@
 module Config where
 
 import RIO hiding (void)
+import qualified RIO.Map as M
 -- ~\~ begin <<lit/04-configuration.md|config-import>>[0]
-import Dhall (FromDhall, ToDhall, input, auto, Decoder, record, field, setFromDistinctList, constructor, unit, union)
+import Dhall (FromDhall, ToDhall, input, auto, Decoder, record, list
+             , field, setFromDistinctList, constructor, unit, union)
 import qualified Data.Text as T
 -- ~\~ end
 
@@ -44,32 +46,42 @@ instance Eq ConfigLanguage where
 instance Ord ConfigLanguage where
     compare a b = compare (languageName a) (languageName b)
 
+lineDirectivesDecoder :: Decoder (Map Text Text)
+lineDirectivesDecoder = M.fromList <$> list entry
+    where entry = record ( pair <$> field "name" auto
+                                <*> field "format" auto )
+          pair a b = (a, b)
+
 data AnnotateMethod = AnnotateNaked
                     | AnnotateStandard
                     | AnnotateProject
-                    | AnnotatePragma
                     deriving (Show, Eq)
 
 annotateDecoder :: Decoder AnnotateMethod
 annotateDecoder = union
-        (  ( AnnotateNaked    <$ constructor "Naked" unit )
-        <> ( AnnotateStandard <$ constructor "Standard" unit )
-        <> ( AnnotateProject  <$ constructor "Project" unit )
-        <> ( AnnotatePragma   <$ constructor "Pragma" unit ) )
+        (  ( AnnotateNaked          <$ constructor "Naked" unit )
+        <> ( AnnotateStandard       <$ constructor "Standard" unit )
+        <> ( AnnotateProject        <$ constructor "Project" unit ) )
 
 data Config = Config
-    { configLanguages :: Set ConfigLanguage
+    { configVersion   :: Text
+    , configLanguages :: Set ConfigLanguage
     , configWatchList :: [Text]
     , configDatabase  :: Maybe Text
     , configAnnotate  :: AnnotateMethod
+    , configLineDirectives :: Map Text Text
+    , configUseLineDirectives :: Bool
     } deriving (Show)
 
 configDecoder :: Decoder Config
 configDecoder = record
-    ( Config <$> field "languages" (setFromDistinctList configLanguage)
+    ( Config <$> field "version" auto
+             <*> field "languages" (setFromDistinctList configLanguage)
              <*> field "watchList" auto
              <*> field "database" auto
              <*> field "annotate" annotateDecoder
+             <*> field "lineDirectives" lineDirectivesDecoder
+             <*> field "useLineDirectives" auto
     )
 
 class HasConfig env where

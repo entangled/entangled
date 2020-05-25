@@ -221,7 +221,7 @@ runSubCommand sc = do
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[3]
         CommandTangle TangleArgs {..} -> do
             cfg <- view config
-            either throwM (tangle tangleQuery) (selectAnnotator cfg)
+            tangle tangleQuery (selectAnnotator cfg)
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[4]
         CommandStitch StitchArgs {..} -> stitch (StitchFile stitchTarget)

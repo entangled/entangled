@@ -5,31 +5,40 @@ The configuration is written in Dhall and has the following schema:
 ``` {.dhall file=data/config-schema.dhall}
 let Comment : Type = < Line : Text | Block : { start : Text, end : Text } >
 let Language : Type = { name : Text, identifiers : List Text, comment : Comment }
+let LineDirective : Type = { name : Text, format: Text }
 
 <<config-comment-styles>>
 <<config-languages>>
 
-let Annotate = < Naked | Standard | Project | Pragma >
+let Annotate = < Naked | Standard | Project >
 
 let Config =
     { Type =
-        { languages : List Language
+        { version   : Text
+        , languages : List Language
         , watchList : List Text
         , database  : Optional Text
-        , annotate  : Annotate }
+        , annotate  : Annotate
+        , lineDirectives : List LineDirective
+        , useLineDirectives : Bool }
     , default =
-        { languages = languages
+        { version   = "1.0.0"
+        , languages = languages
         , watchList = [] : List Text
         , database  = None Text
-        , annotate  = Annotate.Standard }
+        , annotate  = Annotate.Standard
+        , lineDirectives = lineDirectives
+        , useLineDirectives = False }
     }
 
 in { Comment   = Comment
    , Language  = Language
+   , LineDirective = LineDirective
    , Config    = Config
    , Annotate  = Annotate
    , comments  = comments
    , languages = languages
+   , lineDirectives = lineDirectives
    }
 ```
 
@@ -84,12 +93,19 @@ let languages =
                                                               comment = comments.cppStyle }
     , { name = "YAML",       identifiers = ["yaml"],          comment = comments.hash }
     ]
+
+let lineDirectives =
+    [ { name = "C",          format = "#LINE {linenumber} \"{filename}\"" }
+    , { name = "C++",        format = "#LINE {linenumber} \"{filename}\"" }
+    , { name = "Haskell",    format = "{{-# LINE {linenumber} \"{filename}\" #-}}" }
+    ]
 ```
 
 ## Reading config
 
 ``` {.haskell #config-import}
-import Dhall (FromDhall, ToDhall, input, auto, Decoder, record, field, setFromDistinctList, constructor, unit, union)
+import Dhall (FromDhall, ToDhall, input, auto, Decoder, record, list
+             , field, setFromDistinctList, constructor, unit, union)
 import qualified Data.Text as T
 ```
 
@@ -123,32 +139,42 @@ instance Eq ConfigLanguage where
 instance Ord ConfigLanguage where
     compare a b = compare (languageName a) (languageName b)
 
+lineDirectivesDecoder :: Decoder (Map Text Text)
+lineDirectivesDecoder = M.fromList <$> list entry
+    where entry = record ( pair <$> field "name" auto 
+                                <*> field "format" auto )
+          pair a b = (a, b)
+
 data AnnotateMethod = AnnotateNaked
                     | AnnotateStandard
                     | AnnotateProject
-                    | AnnotatePragma
                     deriving (Show, Eq)
 
 annotateDecoder :: Decoder AnnotateMethod
 annotateDecoder = union
-        (  ( AnnotateNaked    <$ constructor "Naked" unit )
-        <> ( AnnotateStandard <$ constructor "Standard" unit )
-        <> ( AnnotateProject  <$ constructor "Project" unit )
-        <> ( AnnotatePragma   <$ constructor "Pragma" unit ) )
+        (  ( AnnotateNaked          <$ constructor "Naked" unit )
+        <> ( AnnotateStandard       <$ constructor "Standard" unit )
+        <> ( AnnotateProject        <$ constructor "Project" unit ) )
 
 data Config = Config
-    { configLanguages :: Set ConfigLanguage
+    { configVersion   :: Text
+    , configLanguages :: Set ConfigLanguage
     , configWatchList :: [Text]
     , configDatabase  :: Maybe Text
     , configAnnotate  :: AnnotateMethod
+    , configLineDirectives :: Map Text Text
+    , configUseLineDirectives :: Bool
     } deriving (Show)
 
 configDecoder :: Decoder Config
 configDecoder = record
-    ( Config <$> field "languages" (setFromDistinctList configLanguage)
+    ( Config <$> field "version" auto
+             <*> field "languages" (setFromDistinctList configLanguage)
              <*> field "watchList" auto
              <*> field "database" auto
              <*> field "annotate" annotateDecoder
+             <*> field "lineDirectives" lineDirectivesDecoder
+             <*> field "useLineDirectives" auto
     )
 
 class HasConfig env where
@@ -160,6 +186,7 @@ class HasConfig env where
 module Config where
 
 import RIO hiding (void)
+import qualified RIO.Map as M
 <<config-import>>
 
 import Errors

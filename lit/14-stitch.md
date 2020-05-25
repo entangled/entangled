@@ -33,10 +33,12 @@ sourceDocument = do
 A `sourceBlock` starts with a *begin* marker, then has many lines of plain source or nested `sourceBlock`s. Both `sourceBlock` and `sourceLine` return pairs of texts and references. The content of these pairs are concatenated. If a `sourceBlock` is the first in a series (index 0), the noweb reference is generated with the correct indentation.
 
 ``` {.haskell #source-parser}
-sourceBlock :: ( MonadParsec e (ListStream Text) m, MonadFail m )
+sourceBlock :: ( MonadReader Config m, MonadParsec e (ListStream Text) m, MonadFail m )
             => ConfigLanguage -> m ([Text], [ReferencePair])
 sourceBlock lang = do
+    Config{..} <- ask
     ((ref, beginIndent), _) <- tokenP (commented lang beginBlock)
+    when configUseLineDirectives (void anySingle)
     (ilines, refpairs) <- mconcat <$> manyTill 
                 (sourceBlock lang <|> sourceLine)
                 (tokenP (commented lang endBlock))
@@ -74,7 +76,7 @@ untangle file text = do
 ``` {.haskell #stitch-imports}
 import ListStream (ListStream(..), tokenP)
 import Document
-import Config (config, HasConfig, Config, languageFromName, ConfigLanguage(..))
+import Config (config, HasConfig, Config(..), languageFromName, ConfigLanguage(..))
 import Comment (topHeader, beginBlock, endBlock, commented)
 import TextUtil (indent, unindent, unlines')
 

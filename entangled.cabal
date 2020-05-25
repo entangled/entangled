@@ -70,6 +70,7 @@ library
       Entangled
       Errors
       FileIO
+      Format
       Linters
       ListStream
       Select
