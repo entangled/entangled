@@ -228,6 +228,9 @@ mainLoop (WriteTarget abs_path) = do
         insertTargets [rel_path]
         stitch StitchAll
 
+    runEntangled (Just $ "tangling after stitch `" <> P.pretty rel_path <> "`") $
+        tangle TangleAll =<< getAnnotator
+
     setWatch
     setDaemonState Idle
 
