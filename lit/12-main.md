@@ -30,6 +30,7 @@ data Args = Args
 data SubCommand
     = NoCommand
     <<sub-commands>>
+    deriving (Show, Eq)
 ```
 
 The same goes for the sub-command parsers, which are collected in `<<sub-parsers>>`.
@@ -68,10 +69,14 @@ instance HasConfig Env where
 instance HasLogFunc Env where
     logFuncL = lens logFunc' (\x y -> x { logFunc' = y })
 
+printExampleConfig' :: IO ()
+printExampleConfig' = T.IO.putStr =<< T.IO.readFile =<< getDataFileName "data/example-config.dhall"
+
 run :: Args -> IO ()
 run Args{..}
-    | versionFlag       = putStrLn "Entangled 1.0.0\n"
-    | otherwise         = runWithEnv verboseFlag (runSubCommand subCommand)
+    | versionFlag                 = putStrLn "Entangled 1.0.0\n"
+    | subCommand == CommandConfig = printExampleConfig'
+    | otherwise                   = runWithEnv verboseFlag (runSubCommand subCommand)
 
 runWithEnv :: Bool -> Entangled Env a -> IO a
 runWithEnv verbose x = do
@@ -111,7 +116,7 @@ import Daemon (runSession)
 ``` {.haskell #main-options}
 newtype DaemonArgs = DaemonArgs
     { inputFiles  :: [String]
-    } deriving (Show)
+    } deriving (Show, Eq)
 
 parseDaemonArgs :: Parser SubCommand
 parseDaemonArgs = CommandDaemon . DaemonArgs
@@ -149,11 +154,11 @@ CommandConfig -> printExampleConfig
 ```
 
 ``` {.haskell #main-options}
-data FileType = SourceFile | TargetFile
+data FileType = SourceFile | TargetFile deriving (Show, Eq)
 
 data InsertArgs = InsertArgs
     { insertType :: FileType
-    , insertFiles :: [FilePath] }
+    , insertFiles :: [FilePath] } deriving (Show, Eq)
 
 parseFileType :: Parser FileType
 parseFileType = flag' SourceFile (long "source" <> short 's' <> help "insert markdown source file")
@@ -185,7 +190,7 @@ CommandInsert (InsertArgs TargetFile fs) -> insertTargets fs
 data TangleArgs = TangleArgs
     { tangleQuery :: TangleQuery
     , tangleDecorate :: Bool
-    } deriving (Show)
+    } deriving (Show, Eq)
 
 parseTangleArgs :: Parser TangleArgs
 parseTangleArgs = TangleArgs
@@ -217,7 +222,7 @@ CommandTangle TangleArgs {..} -> do
 ``` {.haskell #main-options}
 newtype StitchArgs = StitchArgs
     { stitchTarget :: FilePath
-    } deriving (Show)
+    } deriving (Show, Eq)
 
 parseStitchArgs :: Parser StitchArgs
 parseStitchArgs = StitchArgs
@@ -248,7 +253,7 @@ CommandList -> listTargets
 ``` {.haskell #main-options}
 newtype LintArgs = LintArgs
     { lintFlags :: [Text]
-    } deriving (Show)
+    } deriving (Show, Eq)
 
 parseLintArgs :: Parser LintArgs
 parseLintArgs = LintArgs
@@ -291,6 +296,8 @@ module Main where
 
 import RIO
 import Prelude (putStrLn)
+import qualified Data.Text.IO as T.IO
+import Paths_entangled
 
 <<main-imports>>
 
@@ -388,7 +395,7 @@ instance (HasLogFunc env) => MonadFileIO (Entangled env) where
     deleteFile path     = tell $ doc (msgDelete path)
                               <> plan (deleteFile path)
 
-data TangleQuery = TangleFile FilePath | TangleRef Text | TangleAll deriving (Show)
+data TangleQuery = TangleFile FilePath | TangleRef Text | TangleAll deriving (Show, Eq)
 
 tangleRef :: ExpandedCode -> ReferenceName -> Entangled env Text
 tangleRef codes name =

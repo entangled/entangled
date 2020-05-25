@@ -5,6 +5,8 @@ module Main where
 
 import RIO
 import Prelude (putStrLn)
+import qualified Data.Text.IO as T.IO
+import Paths_entangled
 
 -- ~\~ begin <<lit/12-main.md|main-imports>>[0]
 import GHC.IO.Encoding
@@ -59,6 +61,7 @@ data SubCommand
     -- ~\~ begin <<lit/12-main.md|sub-commands>>[7]
     | CommandClearOrphans
     -- ~\~ end
+    deriving (Show, Eq)
 -- ~\~ end
 -- ~\~ begin <<lit/12-main.md|main-options>>[1]
 parseNoCommand :: Parser SubCommand
@@ -99,7 +102,7 @@ parseArgs = Args
 -- ~\~ begin <<lit/12-main.md|main-options>>[2]
 newtype DaemonArgs = DaemonArgs
     { inputFiles  :: [String]
-    } deriving (Show)
+    } deriving (Show, Eq)
 
 parseDaemonArgs :: Parser SubCommand
 parseDaemonArgs = CommandDaemon . DaemonArgs
@@ -107,11 +110,11 @@ parseDaemonArgs = CommandDaemon . DaemonArgs
     <**> helper
 -- ~\~ end
 -- ~\~ begin <<lit/12-main.md|main-options>>[3]
-data FileType = SourceFile | TargetFile
+data FileType = SourceFile | TargetFile deriving (Show, Eq)
 
 data InsertArgs = InsertArgs
     { insertType :: FileType
-    , insertFiles :: [FilePath] }
+    , insertFiles :: [FilePath] } deriving (Show, Eq)
 
 parseFileType :: Parser FileType
 parseFileType = flag' SourceFile (long "source" <> short 's' <> help "insert markdown source file")
@@ -127,7 +130,7 @@ parseInsertArgs = CommandInsert <$> (InsertArgs
 data TangleArgs = TangleArgs
     { tangleQuery :: TangleQuery
     , tangleDecorate :: Bool
-    } deriving (Show)
+    } deriving (Show, Eq)
 
 parseTangleArgs :: Parser TangleArgs
 parseTangleArgs = TangleArgs
@@ -142,7 +145,7 @@ parseTangleArgs = TangleArgs
 -- ~\~ begin <<lit/12-main.md|main-options>>[5]
 newtype StitchArgs = StitchArgs
     { stitchTarget :: FilePath
-    } deriving (Show)
+    } deriving (Show, Eq)
 
 parseStitchArgs :: Parser StitchArgs
 parseStitchArgs = StitchArgs
@@ -152,7 +155,7 @@ parseStitchArgs = StitchArgs
 -- ~\~ begin <<lit/12-main.md|main-options>>[6]
 newtype LintArgs = LintArgs
     { lintFlags :: [Text]
-    } deriving (Show)
+    } deriving (Show, Eq)
 
 parseLintArgs :: Parser LintArgs
 parseLintArgs = LintArgs
@@ -187,10 +190,14 @@ instance HasConfig Env where
 instance HasLogFunc Env where
     logFuncL = lens logFunc' (\x y -> x { logFunc' = y })
 
+printExampleConfig' :: IO ()
+printExampleConfig' = T.IO.putStr =<< T.IO.readFile =<< getDataFileName "data/example-config.dhall"
+
 run :: Args -> IO ()
 run Args{..}
-    | versionFlag       = putStrLn "Entangled 1.0.0\n"
-    | otherwise         = runWithEnv verboseFlag (runSubCommand subCommand)
+    | versionFlag                 = putStrLn "Entangled 1.0.0\n"
+    | subCommand == CommandConfig = printExampleConfig'
+    | otherwise                   = runWithEnv verboseFlag (runSubCommand subCommand)
 
 runWithEnv :: Bool -> Entangled Env a -> IO a
 runWithEnv verbose x = do

@@ -58,7 +58,7 @@ instance (HasLogFunc env) => MonadFileIO (Entangled env) where
     deleteFile path     = tell $ doc (msgDelete path)
                               <> plan (deleteFile path)
 
-data TangleQuery = TangleFile FilePath | TangleRef Text | TangleAll deriving (Show)
+data TangleQuery = TangleFile FilePath | TangleRef Text | TangleAll deriving (Show, Eq)
 
 tangleRef :: ExpandedCode -> ReferenceName -> Entangled env Text
 tangleRef codes name =
