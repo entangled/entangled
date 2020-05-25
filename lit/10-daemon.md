@@ -231,7 +231,7 @@ mainLoop (WriteTarget abs_path) = do
     setWatch
     setDaemonState Idle
 
-mainLoop _ = return () 
+mainLoop _ = return ()
 ```
 
 ## Initialisation

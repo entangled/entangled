@@ -39,7 +39,7 @@ sourceBlock lang = do
     Config{..} <- ask
     ((ref, beginIndent), _) <- tokenP (commented lang beginBlock)
     when configUseLineDirectives (void anySingle)
-    (ilines, refpairs) <- mconcat <$> manyTill 
+    (ilines, refpairs) <- mconcat <$> manyTill
                 (sourceBlock lang <|> sourceLine)
                 (tokenP (commented lang endBlock))
     let unindentedLines = map (unindent beginIndent) ilines

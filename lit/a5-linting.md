@@ -52,7 +52,7 @@ listUnusedFragments :: (HasConnection env, HasLogFunc env, HasConfig env)
 listUnusedFragments = do
     (graph, vertexToNode, keyToVertex) <- referenceGraph
     conn <- getConnection
-    roots <- mapMaybe (keyToVertex . ReferenceName . fromOnly) 
+    roots <- mapMaybe (keyToVertex . ReferenceName . fromOnly)
           <$> liftIO (query_ conn "select `codename` from `targets` \
                                   \where `document` is not null" :: IO [Only Text])
     let reach = foldMap (S.fromList . G.reachable graph) roots

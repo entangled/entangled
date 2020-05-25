@@ -144,7 +144,7 @@ decodeFormatSpec = fromMaybe [Format.Plain "illegal format spec"] . Format.spec 
 
 lineDirectivesDecoder :: Decoder (Map Text Format.Spec)
 lineDirectivesDecoder = M.fromList <$> list entry
-    where entry = record ( pair <$> field "name" auto 
+    where entry = record ( pair <$> field "name" auto
                                 <*> field "format" decodeFormatSpec )
           pair a b = (a, b)
 
@@ -197,7 +197,7 @@ import qualified Format
 import Data.List (find, scanl1)
 import Control.Monad.Extra (concatMapM)
 import System.FilePath.Glob (glob)
-import System.Directory 
+import System.Directory
 import System.FilePath
 
 <<config-dhall-schema>>
@@ -242,7 +242,7 @@ readLocalConfig = do
 ``` {.haskell #config-reader}
 lookupLanguage :: Config -> Text -> Maybe ConfigLanguage
 lookupLanguage cfg x
-    = find (elem x . languageIdentifiers) 
+    = find (elem x . languageIdentifiers)
     $ configLanguages cfg
 
 languageFromName :: Config -> Text -> Maybe ConfigLanguage

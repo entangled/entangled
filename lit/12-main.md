@@ -425,7 +425,7 @@ tangle query annotate = do
     case query of
         TangleRef ref   -> dump =<< tangleRef codes (ReferenceName ref)
         TangleFile path -> dump =<< tangleFile codes path
-        TangleAll       -> mapM_ (\f -> writeFile f =<< tangleFile codes f) =<< db listTargetFiles 
+        TangleAll       -> mapM_ (\f -> writeFile f =<< tangleFile codes f) =<< db listTargetFiles
 
 data StitchQuery = StitchFile FilePath | StitchAll
 
@@ -444,7 +444,7 @@ listTargets = dump =<< (T.unlines . map T.pack <$> db listTargetFiles)
 
 insertSources :: (HasConnection env, HasLogFunc env, HasConfig env)
               => [FilePath] -> Entangled env ()
-insertSources files = do 
+insertSources files = do
     logDebug $ display $ "inserting files: " <> tshow files
     mapM_ readDoc files
     where readDoc f = do

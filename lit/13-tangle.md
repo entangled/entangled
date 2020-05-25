@@ -169,7 +169,7 @@ codeHeader = do
     chunk "```" >> space >> chunk "{" >> space
     props <- attributes
     chunk "}" >> space >> eof
-    return props 
+    return props
 
 codeFooter :: (MonadParsec e Text m)
            => m ()
@@ -185,7 +185,7 @@ getLanguage :: ( MonadReader Config m )
             => [CodeProperty] -> m ProgrammingLanguage
 getLanguage [] = return NoLanguage
 getLanguage (CodeClass cls : _)
-    = maybe (UnknownClass cls) 
+    = maybe (UnknownClass cls)
             KnownLanguage
             <$> asks (\cfg -> languageName <$> lookupLanguage cfg cls)
 getLanguage (_ : xs) = getLanguage xs
@@ -268,7 +268,7 @@ To parse markdown, we first try to parse a code block (as given above), stored i
 type DocumentParser = ReaderT Config (StateT ReferenceCount (Parsec Text (ListStream Text)))
 
 codeBlock :: ( MonadParsec e (ListStream Text) m
-             , MonadReader Config m 
+             , MonadReader Config m
              , MonadState ReferenceCount m )
           => m ([Content], [ReferencePair])
 codeBlock = do
@@ -276,7 +276,7 @@ codeBlock = do
     -- linenum        <- Just . unPos . sourceLine . pstateSourcePos . statePosState <$> getParserState
     linenum        <- Just . (+ 2) <$> getOffset
     (props, begin) <- tokenLine (parseLine codeHeader)
-    code           <- unlines' 
+    code           <- unlines'
                    <$> manyTill (anySingle <?> "code line")
                                 (try $ lookAhead $ tokenLine (parseLine codeFooter))
     (_, end)       <- tokenLine (parseLine codeFooter)
@@ -541,10 +541,10 @@ annotateNaked :: (MonadReader Config m, MonadError EntangledError m)
 annotateNaked refs ref = do
     Config{..} <- ask
     code <- getReference refs ref
-    line <- lineDirective ref code
-    return $ if configUseLineDirectives 
-             then unlines' [line, codeSource code]
-             else codeSource code
+    if configUseLineDirectives then do
+        line <- lineDirective ref code
+        return $ unlines' [line, codeSource code]
+    else return $ codeSource code
 
 annotateComment :: (MonadReader Config m, MonadError EntangledError m)
                 => ReferenceMap -> ReferenceId -> m Text
@@ -598,7 +598,7 @@ Other parsers will always be combined with `commented`, giving the value of the 
 ``` {.haskell #parse-comment}
 commented :: (MonadParsec e Text m)
           => ConfigLanguage -> m a -> m (a, Text)
-commented lang p = do 
+commented lang p = do
     indent <- takeWhileP (Just "initial indent") (`elem` (" \t" :: String))
     _ <- chunk $ commentStart (languageComment lang) <> delim
     x <- p
