@@ -275,7 +275,7 @@ queryReferenceMap cfg = do
             return ( ReferenceId rel_path (ReferenceName name) ordinal
                    , CodeBlock lang' [] source linenum )
 -- ~\~ end
-
+-- ~\~ begin <<lit/03-database.md|database-deduplicate>>[0]
 deduplicateRefs :: [ReferencePair] -> SQL [ReferencePair]
 deduplicateRefs refs = dedup $ sortOn fst refs
     where dedup [] = return []
@@ -290,4 +290,5 @@ deduplicateRefs refs = dedup $ sortOn fst refs
                         Just c  -> select (throwM $ StitchError $ "ambiguous update to " <> tshow ref1)
                                     [(s1 == c && s2 /= c, dedup ((ref2, code2) : xs))
                                     ,(s1 /= c && s2 == c, dedup ((ref1, code1) : xs))]
+-- ~\~ end
 -- ~\~ end

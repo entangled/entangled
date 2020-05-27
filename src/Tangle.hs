@@ -10,7 +10,6 @@ import qualified RIO.Map as M
 import qualified Data.Map.Lazy as LM
 -- ~\~ end
 
--- ~\~ begin <<lit/01-entangled.md|import-megaparsec>>[0]
 import Text.Megaparsec
     ( MonadParsec, Parsec, parse, getOffset
     , chunk, many, some, eof
@@ -18,7 +17,6 @@ import Text.Megaparsec
     , (<?>) )
 import Text.Megaparsec.Char
     ( space )
--- ~\~ end
 
 import Control.Monad.State (MonadState, gets, modify, StateT, evalStateT)
 

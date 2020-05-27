@@ -23,11 +23,13 @@
                        sha256:3fd83a15e2ed592e5e15b123cfdb955fb46cc8473f03963bbed88322c13db5bf
   
    The hash is not needed, but it ensures that you get the version you're
-   expecting to, or raise an error.
+   expecting to, or raise an error. You can generate the correct hash by running
+
+       dhall hash <location to schema>
   
    TODO: Update this line, since v1.0.0 is not out yet.
   -}
-let entangled = https://raw.githubusercontent.com/entangled/entangled/develop/data/config-schema.dhall
+let entangled = https://raw.githubusercontent.com/entangled/entangled/master/data/config-schema.dhall
                 sha256:a924fcffa514e3909459e48c45924886062ff4a77be582af0517f9c4bae7ae73
 
 {- Languages
@@ -72,7 +74,7 @@ let languages = entangled.languages #
    stored.  An entry of `None Text`, which is the default, keeps the database
    in memory, but this way you cannot insert new files on a running daemon.
   -}
-let database = Some ".entangled/db"
+let database = Some ".entangled/db.sqlite"
 
 {- Watch list
    ----------
@@ -87,5 +89,15 @@ let watchList = [ "lit/*.md" ]
 
 in { entangled = entangled.Config :: { database = database
                                      , watchList = watchList
-                                     , languages = languages } }
+                                     , languages = languages }
+
+{- Extra options
+   -------------
+
+   If you are using Entangled filters (https://github.com/entangled/filters),
+   you may want to include some extra configuration here. These settings are
+   ignored by the entangled executable.
+  -}
+   , jupyter = { name = "Python", kernel = "python3" }
+   }
 

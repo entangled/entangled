@@ -9,7 +9,13 @@ import qualified RIO.Text as T
 import qualified RIO.Map as M
 <<import-lazy-map>>
 
-<<import-megaparsec>>
+import Text.Megaparsec
+    ( MonadParsec, Parsec, parse, getOffset
+    , chunk, many, some, eof
+    , manyTill, anySingle, try, lookAhead, takeWhile1P, takeWhileP
+    , (<?>) )
+import Text.Megaparsec.Char
+    ( space )
 
 import Control.Monad.State (MonadState, gets, modify, StateT, evalStateT)
 

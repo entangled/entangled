@@ -41,7 +41,7 @@ data SubCommand
     | CommandDaemon DaemonArgs
     -- ~\~ end
     -- ~\~ begin <<lit/12-main.md|sub-commands>>[1]
-    | CommandConfig
+    | CommandConfig ConfigArgs
     -- ~\~ end
     -- ~\~ begin <<lit/12-main.md|sub-commands>>[2]
     | CommandInsert InsertArgs
@@ -76,7 +76,7 @@ parseArgs = Args
           <>  command "daemon" (info parseDaemonArgs ( progDesc "Run the entangled daemon." ))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[1]
-          <> command "config" (info (pure CommandConfig <**> helper)
+          <> command "config" (info parseConfigArgs
                                     (progDesc "Print an example configuration."))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[2]
@@ -110,6 +110,22 @@ parseDaemonArgs = CommandDaemon . DaemonArgs
     <**> helper
 -- ~\~ end
 -- ~\~ begin <<lit/12-main.md|main-options>>[3]
+newtype ConfigArgs = ConfigArgs
+    { minimalConfig :: Bool
+    } deriving (Show, Eq)
+
+parseConfigArgs :: Parser SubCommand
+parseConfigArgs = CommandConfig . ConfigArgs
+    <$> switch (long "minimal" <> short 'm' <> help "Print minimal config.")
+    <**> helper
+
+printExampleConfig' :: Bool -> IO ()
+printExampleConfig' minimal = do
+    let path = if minimal then "data/minimal-config.dhall"
+               else "data/example-config.dhall"
+    T.IO.putStr =<< T.IO.readFile =<< getDataFileName path
+-- ~\~ end
+-- ~\~ begin <<lit/12-main.md|main-options>>[4]
 data FileType = SourceFile | TargetFile deriving (Show, Eq)
 
 data InsertArgs = InsertArgs
@@ -126,7 +142,7 @@ parseInsertArgs = CommandInsert <$> (InsertArgs
     <*> many (argument str (metavar "FILES..."))
     <**> helper)
 -- ~\~ end
--- ~\~ begin <<lit/12-main.md|main-options>>[4]
+-- ~\~ begin <<lit/12-main.md|main-options>>[5]
 data TangleArgs = TangleArgs
     { tangleQuery :: TangleQuery
     , tangleDecorate :: Bool
@@ -142,7 +158,7 @@ parseTangleArgs = TangleArgs
     <*> switch (long "decorate" <> short 'd' <> help "Decorate with stitching comments.")
     <**> helper
 -- ~\~ end
--- ~\~ begin <<lit/12-main.md|main-options>>[5]
+-- ~\~ begin <<lit/12-main.md|main-options>>[6]
 newtype StitchArgs = StitchArgs
     { stitchTarget :: FilePath
     } deriving (Show, Eq)
@@ -152,7 +168,7 @@ parseStitchArgs = StitchArgs
     <$> argument str ( metavar "TARGET" )
     <**> helper
 -- ~\~ end
--- ~\~ begin <<lit/12-main.md|main-options>>[6]
+-- ~\~ begin <<lit/12-main.md|main-options>>[7]
 newtype LintArgs = LintArgs
     { lintFlags :: [Text]
     } deriving (Show, Eq)
@@ -190,14 +206,10 @@ instance HasConfig Env where
 instance HasLogFunc Env where
     logFuncL = lens logFunc' (\x y -> x { logFunc' = y })
 
-printExampleConfig' :: IO ()
-printExampleConfig' = T.IO.putStr =<< T.IO.readFile =<< getDataFileName "data/example-config.dhall"
-
 run :: Args -> IO ()
-run Args{..}
-    | versionFlag                 = putStrLn "Entangled 1.0.0\n"
-    | subCommand == CommandConfig = printExampleConfig'
-    | otherwise                   = runWithEnv verboseFlag (runSubCommand subCommand)
+run (Args True _ _)                           = putStrLn "Entangled 1.0.0\n"
+run (Args _ _ (CommandConfig ConfigArgs{..})) = printExampleConfig' minimalConfig
+run Args{..}                                  = runWithEnv verboseFlag (runSubCommand subCommand)
 
 runWithEnv :: Bool -> Entangled Env a -> IO a
 runWithEnv verbose x = do
@@ -219,7 +231,7 @@ runSubCommand sc = do
         CommandDaemon DaemonArgs {..} -> runSession inputFiles
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[1]
-        CommandConfig -> printExampleConfig
+        CommandConfig _ -> printExampleConfig
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[2]
         CommandInsert (InsertArgs SourceFile fs) -> insertSources fs

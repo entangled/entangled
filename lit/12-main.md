@@ -69,14 +69,10 @@ instance HasConfig Env where
 instance HasLogFunc Env where
     logFuncL = lens logFunc' (\x y -> x { logFunc' = y })
 
-printExampleConfig' :: IO ()
-printExampleConfig' = T.IO.putStr =<< T.IO.readFile =<< getDataFileName "data/example-config.dhall"
-
 run :: Args -> IO ()
-run Args{..}
-    | versionFlag                 = putStrLn "Entangled 1.0.0\n"
-    | subCommand == CommandConfig = printExampleConfig'
-    | otherwise                   = runWithEnv verboseFlag (runSubCommand subCommand)
+run (Args True _ _)                           = putStrLn "Entangled 1.0.0\n" 
+run (Args _ _ (CommandConfig ConfigArgs{..})) = printExampleConfig' minimalConfig
+run Args{..}                                  = runWithEnv verboseFlag (runSubCommand subCommand)
 
 runWithEnv :: Bool -> Entangled Env a -> IO a
 runWithEnv verbose x = do
@@ -130,17 +126,34 @@ CommandDaemon DaemonArgs {..} -> runSession inputFiles
 
 ### Printing the config
 
+``` {.haskell #main-options}
+newtype ConfigArgs = ConfigArgs
+    { minimalConfig :: Bool
+    } deriving (Show, Eq)
+
+parseConfigArgs :: Parser SubCommand
+parseConfigArgs = CommandConfig . ConfigArgs
+    <$> switch (long "minimal" <> short 'm' <> help "Print minimal config.")
+    <**> helper
+
+printExampleConfig' :: Bool -> IO ()
+printExampleConfig' minimal = do
+    let path = if minimal then "data/minimal-config.dhall"
+               else "data/example-config.dhall"
+    T.IO.putStr =<< T.IO.readFile =<< getDataFileName path
+```
+
 ``` {.haskell #sub-commands}
-| CommandConfig
+| CommandConfig ConfigArgs
 ```
 
 ``` {.haskell #sub-parsers}
-<> command "config" (info (pure CommandConfig <**> helper) 
+<> command "config" (info parseConfigArgs 
                           (progDesc "Print an example configuration."))
 ```
 
 ``` {.haskell #sub-runners}
-CommandConfig -> printExampleConfig
+CommandConfig _ -> printExampleConfig
 ```
 
 ### Inserting files to the database

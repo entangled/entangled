@@ -33,7 +33,7 @@ data Content
 
 type ReferencePair = (ReferenceId, CodeBlock)
 type ReferenceMap = Map ReferenceId CodeBlock
-type FileMap = Map FilePath (ReferenceName, Text)  -- map to ref and language
+type FileMap = Map FilePath (ReferenceName, Text)
 
 data Document = Document
     { references      :: ReferenceMap

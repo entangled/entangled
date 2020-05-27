@@ -16,21 +16,7 @@ import qualified RIO.Map as M
 <<database-insertion>>
 <<database-update>>
 <<database-queries>>
-
-deduplicateRefs :: [ReferencePair] -> SQL [ReferencePair]
-deduplicateRefs refs = dedup $ sortOn fst refs
-    where dedup [] = return []
-          dedup [x1] = return [x1]
-          dedup ((ref1, code1@CodeBlock{codeSource=s1}) : (ref2, code2@CodeBlock{codeSource=s2}) : xs)
-                | ref1 /= ref2 = ((ref1, code1) :) <$> dedup ((ref2, code2) : xs)
-                | s1 == s2     = dedup ((ref1, code1) : xs)
-                | otherwise    = do
-                    old_code <- queryCodeSource ref1
-                    case old_code of
-                        Nothing -> throwM $ StitchError $ "ambiguous update: " <> tshow ref1 <> " not in database."
-                        Just c  -> select (throwM $ StitchError $ "ambiguous update to " <> tshow ref1)
-                                    [(s1 == c && s2 /= c, dedup ((ref2, code2) : xs))
-                                    ,(s1 /= c && s2 == c, dedup ((ref1, code1) : xs))]
+<<database-deduplicate>>
 ```
 
 ## Types
@@ -454,6 +440,28 @@ queryReferenceMap cfg = do
                               (languageFromName cfg lang)
             return ( ReferenceId rel_path (ReferenceName name) ordinal
                    , CodeBlock lang' [] source linenum )
+```
+
+## Deduplication
+When a target file that gets writen to has multiple copies of the same reference, it may not be obvious which of them got changed. The best we can do, is check that only one of the new versions is different from the one in the markdown source.
+
+The function `deduplicateRefs` takes a list of reference pairs (read from a target file), and uses the information in the database to make sure that the resulting list of reference pairs is unique by `ReferenceId`. If no decision is reached, a `StitchError` is raised.
+
+``` {.haskell #database-deduplicate}
+deduplicateRefs :: [ReferencePair] -> SQL [ReferencePair]
+deduplicateRefs refs = dedup $ sortOn fst refs
+    where dedup [] = return []
+          dedup [x1] = return [x1]
+          dedup ((ref1, code1@CodeBlock{codeSource=s1}) : (ref2, code2@CodeBlock{codeSource=s2}) : xs)
+                | ref1 /= ref2 = ((ref1, code1) :) <$> dedup ((ref2, code2) : xs)
+                | s1 == s2     = dedup ((ref1, code1) : xs)
+                | otherwise    = do
+                    old_code <- queryCodeSource ref1
+                    case old_code of
+                        Nothing -> throwM $ StitchError $ "ambiguous update: " <> tshow ref1 <> " not in database."
+                        Just c  -> select (throwM $ StitchError $ "ambiguous update to " <> tshow ref1)
+                                    [(s1 == c && s2 /= c, dedup ((ref2, code2) : xs))
+                                    ,(s1 /= c && s2 == c, dedup ((ref1, code1) : xs))]
 ```
 
 ### Document

@@ -34,10 +34,10 @@ Each code block that is of relevance to Entangled has a reference attached.
  ```
 ~~~
 
-and possibly, a filename.
+or a filename.
 
 ~~~
- ``` {.language #<reference> file=<path>}
+ ``` {.language file=<path>}
  ```
 ~~~
 
@@ -74,7 +74,7 @@ data Content
 
 type ReferencePair = (ReferenceId, CodeBlock)
 type ReferenceMap = Map ReferenceId CodeBlock
-type FileMap = Map FilePath (ReferenceName, Text)  -- map to ref and language
+type FileMap = Map FilePath (ReferenceName, Text)
 
 data Document = Document
     { references      :: ReferenceMap
