@@ -36,10 +36,8 @@ import Data.List (nub)
 -- import Control.Monad (mapM)
 -- ~\~ end
 -- ~\~ begin <<lit/10-daemon.md|daemon-imports>>[3]
--- import System.IO (stdout, hFlush, hSetBuffering, BufferMode(..))
 import RIO.Directory (makeRelativeToCurrentDirectory, canonicalizePath)
 import RIO.FilePath (equalFilePath, takeDirectory)
--- import Control.Exception (IOException)
 -- ~\~ end
 
 -- ~\~ begin <<lit/10-daemon.md|daemon-events>>[0]
@@ -214,6 +212,7 @@ runSession inputFiles = do
     cfg' <- view config
 
     let cfg = cfg' { configWatchList = configWatchList cfg' <> map T.pack inputFiles }
+    logDebug $ display $ tshow cfg
     conn <- view connection
     logFunc <- view logFuncL
     fsnotify <- liftIO FSNotify.startManager

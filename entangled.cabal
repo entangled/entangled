@@ -20,6 +20,7 @@ data-files:
     data/schema.sql
     data/config-schema.dhall
     data/example-config.dhall
+    data/minimal-config.dhall
 
 source-repository head
   type: git

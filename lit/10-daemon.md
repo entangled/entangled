@@ -180,17 +180,11 @@ closeWatch = do
     logDebug "suspended watches"
 ```
 
-## Loading
-
-## Writing
-
 ## Main loop
 
 ``` {.haskell #daemon-imports}
--- import System.IO (stdout, hFlush, hSetBuffering, BufferMode(..))
 import RIO.Directory (makeRelativeToCurrentDirectory, canonicalizePath)
 import RIO.FilePath (equalFilePath, takeDirectory)
--- import Control.Exception (IOException)
 ```
 
 The `mainLoop` is fed events and handles them.
@@ -285,6 +279,7 @@ runSession inputFiles = do
     cfg' <- view config
 
     let cfg = cfg' { configWatchList = configWatchList cfg' <> map T.pack inputFiles }
+    logDebug $ display $ tshow cfg
     conn <- view connection
     logFunc <- view logFuncL
     fsnotify <- liftIO FSNotify.startManager
