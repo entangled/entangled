@@ -4,12 +4,14 @@
 module Attributes where
 
 import RIO
+import qualified RIO.Text as T
+
 -- ~\~ begin <<lit/13-tangle.md|attributes-imports>>[0]
 import Document (CodeProperty(..))
 import Text.Megaparsec
-    ( MonadParsec, takeWhile1P, takeWhileP, chunk, endBy )
+    ( MonadParsec, takeWhileP, chunk, endBy )
 import Text.Megaparsec.Char
-    ( space )
+    ( space, letterChar )
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|parse-attributes>>[0]
 attributes :: (MonadParsec e Text m)
@@ -22,8 +24,11 @@ attributes = (  codeClass
 -- ~\~ begin <<lit/13-tangle.md|parse-attributes>>[1]
 cssIdentifier :: (MonadParsec e Text m)
               => m Text
-cssIdentifier = takeWhile1P (Just "identifier")
-                            (`notElem` (" {}=<>|" :: String))
+cssIdentifier = do
+    firstLetter <- letterChar
+    rest        <- takeWhileP (Just "identifier")
+                        (`notElem` (" {}=<>|" :: String))
+    return $ T.singleton firstLetter <> rest
 
 cssValue :: (MonadParsec e Text m)
          => m Text

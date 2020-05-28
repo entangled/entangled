@@ -23,8 +23,7 @@ import qualified Format
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|comment-imports>>[3]
 import Text.Megaparsec            ( MonadParsec, chunk, skipManyTill
-                                  , anySingle, (<?>), takeWhileP, eof, takeRest )
-import Text.Megaparsec.Char       ( space )
+                                  , anySingle, (<?>), takeWhileP, takeRest )
 import Text.Megaparsec.Char.Lexer ( decimal )
 
 import Attributes (attributes, cssIdentifier, cssValue)
@@ -125,9 +124,12 @@ headerComment lang path = formatComment lang
 -- ~\~ begin <<lit/13-tangle.md|parse-comment>>[0]
 topHeader :: ( MonadParsec e Text m )
           => m [CodeProperty]
-topHeader = skipManyTill (anySingle <?> "open comment")
+topHeader = do
+    _    <- skipManyTill (anySingle <?> "open comment")
                          (chunk delim)
-          >> attributes
+    attr <- attributes
+    _    <- takeRest
+    return attr
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|parse-comment>>[1]
 commented :: (MonadParsec e Text m)
@@ -136,9 +138,10 @@ commented lang p = do
     indent <- takeWhileP (Just "initial indent") (`elem` (" \t" :: String))
     _ <- chunk $ commentStart (languageComment lang) <> delim
     x <- p
-    _ <- chunk (fromMaybe "" $ commentEnd $ languageComment lang)
-    space
-    eof
+    -- _ <- chunk (fromMaybe "" $ commentEnd $ languageComment lang)
+    -- space
+    -- eof
+    _ <- takeRest
     return (x, indent)
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|parse-comment>>[2]

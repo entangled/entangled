@@ -55,6 +55,8 @@ import Attributes (attributes)
 module Attributes where
 
 import RIO
+import qualified RIO.Text as T
+
 <<attributes-imports>>
 <<parse-attributes>>
 ```
@@ -62,9 +64,9 @@ import RIO
 ``` {.haskell #attributes-imports}
 import Document (CodeProperty(..))
 import Text.Megaparsec
-    ( MonadParsec, takeWhile1P, takeWhileP, chunk, endBy )
+    ( MonadParsec, takeWhileP, chunk, endBy )
 import Text.Megaparsec.Char
-    ( space )
+    ( space, letterChar )
 ```
 
 The one function that we will use is the `attributes` parser.
@@ -85,8 +87,11 @@ Anything goes, as long as it doesn't conflict with a space separated curly brace
 ``` {.haskell #parse-attributes}
 cssIdentifier :: (MonadParsec e Text m)
               => m Text
-cssIdentifier = takeWhile1P (Just "identifier")
-                            (`notElem` (" {}=<>|" :: String))
+cssIdentifier = do
+    firstLetter <- letterChar
+    rest        <- takeWhileP (Just "identifier")
+                        (`notElem` (" {}=<>|" :: String))
+    return $ T.singleton firstLetter <> rest
 
 cssValue :: (MonadParsec e Text m)
          => m Text
@@ -583,8 +588,7 @@ headerComment lang path = formatComment lang
 
 ``` {.haskell #comment-imports}
 import Text.Megaparsec            ( MonadParsec, chunk, skipManyTill
-                                  , anySingle, (<?>), takeWhileP, eof, takeRest )
-import Text.Megaparsec.Char       ( space )
+                                  , anySingle, (<?>), takeWhileP, takeRest )
 import Text.Megaparsec.Char.Lexer ( decimal )
 
 import Attributes (attributes, cssIdentifier, cssValue)
@@ -595,9 +599,12 @@ The same comment lines have to be parsed back when we untangle. The first line i
 ``` {.haskell #parse-comment}
 topHeader :: ( MonadParsec e Text m )
           => m [CodeProperty]
-topHeader = skipManyTill (anySingle <?> "open comment")
+topHeader = do
+    _    <- skipManyTill (anySingle <?> "open comment")
                          (chunk delim)
-          >> attributes
+    attr <- attributes
+    _    <- takeRest
+    return attr
 ```
 
 Other parsers will always be combined with `commented`, giving the value of the original parser and a `Text` that gives the indentation level of the parsed comment.
@@ -609,9 +616,10 @@ commented lang p = do
     indent <- takeWhileP (Just "initial indent") (`elem` (" \t" :: String))
     _ <- chunk $ commentStart (languageComment lang) <> delim
     x <- p
-    _ <- chunk (fromMaybe "" $ commentEnd $ languageComment lang)
-    space
-    eof
+    -- _ <- chunk (fromMaybe "" $ commentEnd $ languageComment lang)
+    -- space
+    -- eof
+    _ <- takeRest
     return (x, indent)
 ```
 
