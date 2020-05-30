@@ -95,8 +95,8 @@ let languages =
     ]
 
 let lineDirectives =
-    [ { name = "C",          format = "#LINE {linenumber} \"{filename}\"" }
-    , { name = "C++",        format = "#LINE {linenumber} \"{filename}\"" }
+    [ { name = "C",          format = "#line {linenumber} \"{filename}\"" }
+    , { name = "C++",        format = "#line {linenumber} \"{filename}\"" }
     , { name = "Haskell",    format = "{{-# LINE {linenumber} \"{filename}\" #-}}" }
     ]
 ```

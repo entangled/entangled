@@ -19,18 +19,14 @@
    The schema is loaded here. It is recommended to use a schema from a
    released version of Entangled.
   
-       let entangled = https://raw.githubusercontent.com/entangled/entangled/v1.0.0/data/config-schema.dhall
-                       sha256:3fd83a15e2ed592e5e15b123cfdb955fb46cc8473f03963bbed88322c13db5bf
-  
-   The hash is not needed, but it ensures that you get the version you're
+   The hash is not strictly needed, but it ensures that you get the version
+you're
    expecting to, or raise an error. You can generate the correct hash by running
 
-       dhall hash <location to schema>
-  
-   TODO: Update this line, since v1.0.0 is not out yet.
+       dhall hash <<< <location to schema>
   -}
-let entangled = https://raw.githubusercontent.com/entangled/entangled/master/data/config-schema.dhall
-                sha256:a924fcffa514e3909459e48c45924886062ff4a77be582af0517f9c4bae7ae73
+let entangled = https://raw.githubusercontent.com/entangled/entangled/v1.0.1/data/config-schema.dhall
+                sha256:9fd18824499379eee53b974ca7570b3bc064fda546348d9b31841afab3b053a7
 
 {- Languages
    ---------
