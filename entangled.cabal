@@ -15,7 +15,6 @@ license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
     README.md
-    ChangeLog.md
 data-files:
     data/schema.sql
     data/config-schema.dhall
