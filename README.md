@@ -99,6 +99,18 @@ entangled daemon ./program.md
 
 in the shell. You may run `entangled --help` to get help on options.
 
+## Running `entangled` with Docker
+
+Entangled is available as a [Docker image](https://hub.docker.com/r/nlesc/entangled).
+
+Assuming you have created a Markdown file, say `program.md`, you can start `entangled` by running
+
+```shell
+docker run --rm --user $(id -u):$(id -g) --volume $PWD:/data nlesc/entangled deamon ./program.md
+```
+
+This command starts a Docker container with the current working directory mounted as /data and running with your user/group id so files are written with the correct ownership.
+
 ## Distribution
 
 If you've written a literate code using Entangled and would like to distribute it, one way is to include the tangled source code in the tar ball. You may also wish to use the pandoc filters included in [`entangled/filters`](https://github.com/entangled/filters).
