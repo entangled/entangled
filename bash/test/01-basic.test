@@ -1,0 +1,28 @@
+entangled insert -s test-01.md
+assert-arrayeq "Source contains expected files" \
+        "$(entangled list | sort)" "factorial.scm hello.scm"
+assert-streq "Stitching conserves content" \
+        "$(entangled stitch test-01.md)" "$(cat test-01.md)"
+assert-streq "Tangling gives an correct program #1" \
+        "$(guile -c "$(entangled tangle -f factorial.scm)")" "3628800"
+assert-streq "Tangling gives an correct program #2" \
+        "$(guile -c "$(entangled tangle -f hello.scm)")" "Hello, World!"
+
+entangled tangle -a -d
+assert-exists "'tangle -a' created 'factorial.scm'" "factorial.scm"
+assert-exists "'tangle -a' created 'hello.scm'" "hello.scm"
+assert-streq "'factorial.scm' ends in a newline" "$(tail -c 1 factorial.scm)" ""
+
+patch -s hello.scm test-01-01.diff
+entangled insert -t hello.scm 
+assert-streq "Tangling gives an correct program #3" \
+        "$(guile -c "$(entangled tangle -f hello.scm)")" "Hello, Universe!"
+entangled stitch test-01.md > test-01.md
+
+patch -s test-01.md test-01-02.diff
+entangled insert -s test-01.md 
+assert-streq "Tangling gives an correct program #4" \
+        "$(guile -c "$(entangled tangle -f fib.scm)")" \
+        "(1 1 2 3 5 8 13 21 34 55 89 144)"
+
+# vim:ft=bash

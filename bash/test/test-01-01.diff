@@ -1,0 +1,4 @@
+4c4
+< (display "Hello, World!") (newline)
+---
+> (display "Hello, Universe!") (newline)

@@ -1,0 +1,12 @@
+cat > entangled.dhall <<EOF
+let entangled = ./config-schema.dhall
+in { entangled = entangled.Config :: { database  = Some "entangled.db"
+                                     , annotate  = entangled.Annotate.Naked
+                                     , useLineDirectives = True } }
+EOF
+
+entangled insert -s test-06.md
+entangled tangle -a
+assert-streq "line directives appear" "$(sed -n '5p' < test.cc)" "#LINE 13 \"test-06.md\""
+
+# vim:ft=bash

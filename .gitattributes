@@ -1,0 +1,3 @@
+[attr]striplinenr text eol=lf filter=striplinenr
+*.hs       striplinenr
+

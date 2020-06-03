@@ -1,99 +1,84 @@
+-- ~\~ language=Haskell filename=src/Document.hs
+-- ~\~ begin <<lit/02-document-model.md|src/Document.hs>>[0]
+{-# LANGUAGE NoImplicitPrelude #-}
 module Document
-    ( unlines'
-    , ReferenceId(..)
-    , referenceName
-    , allNameReferences
-    , CodeProperty(..)
-    , CodeBlock(..)
-    , ReferenceMap
-    , countReferences
-    , Content(..)
-    , Document(..)
-    , isFileReference
-    , stitchText
-    , listActiveReferences
-    ) where
+    ( module Document
+    , module Errors ) where
 
-import qualified Data.Text as T
-import qualified Data.Map.Strict as M
-import Data.Maybe
-import Text.Parsec (SourcePos)
+import RIO
+import RIO.List (sort)
+import qualified RIO.Set as S
+import qualified RIO.Map as M
+import Errors
 
-unlines' :: [T.Text] -> T.Text
-unlines' = T.intercalate (T.pack "\n")
+-- ~\~ begin <<lit/02-document-model.md|document-structure>>[0]
+newtype ReferenceName = ReferenceName
+    { unReferenceName :: Text
+    } deriving (Show, Eq, Ord)
 
--- ========================================================================= --
--- Document structure                                                        --
--- ========================================================================= --
+data ReferenceId = ReferenceId
+    { referenceFile       :: FilePath
+    , referenceName       :: ReferenceName
+    , referenceCount      :: Int
+    } deriving (Show, Eq, Ord)
 
-{-| A code block may reference a filename or a noweb reference.
- -}
-data ReferenceId  = FileReferenceId FilePath
-                  | NameReferenceId String Int
-                  deriving (Show, Eq, Ord)
-
-referenceName :: ReferenceId -> String
-referenceName (FileReferenceId x) = x
-referenceName (NameReferenceId x _) = x
-
-data CodeProperty
-    = CodeId String
-    | CodeAttribute String String
-    | CodeClass String
-    deriving (Eq, Show)
-
-data CodeBlock = CodeBlock
-    { codeLanguage   :: String
-    , codeProperties :: [CodeProperty]
-    , codeSource     :: T.Text
-    , sourcePos      :: SourcePos
-    } deriving (Show, Eq)
-
-{-| Each 'ReferenceID' connects to a 'CodeBlock'
--}
-type ReferenceMap = M.Map ReferenceId CodeBlock
-
-emptyReferenceMap :: ReferenceMap
-emptyReferenceMap = M.fromList []
-
-allNameReferences :: String -> ReferenceMap -> [ReferenceId]
-allNameReferences name = filter ((== name) . referenceName) . M.keys
-
-countReferences :: String -> ReferenceMap -> Int
-countReferences name refs = length $ allNameReferences name refs
-
-{-| Any piece of 'Content' is a 'RawText' or 'Reference'.
--}
+showNowebReference :: ReferenceName -> Text
+showNowebReference (ReferenceName x) = "<<" <> x <> ">>"
+-- ~\~ end
+-- ~\~ begin <<lit/02-document-model.md|document-structure>>[1]
 data Content
-    = RawText T.Text
+    = PlainText Text
     | Reference ReferenceId
     deriving (Show, Eq)
 
-{-| A document is a list of 'Text' and a 'ReferenceMap'.
--}
+type ReferencePair = (ReferenceId, CodeBlock)
+type ReferenceMap = Map ReferenceId CodeBlock
+type FileMap = Map FilePath (ReferenceName, Text)
+
 data Document = Document
     { references      :: ReferenceMap
     , documentContent :: [Content]
+    , documentTargets :: FileMap
     } deriving (Show)
+-- ~\~ end
+-- ~\~ begin <<lit/02-document-model.md|document-structure>>[2]
+referenceNames :: ReferenceMap -> Set ReferenceName
+referenceNames = S.fromList . map referenceName . M.keys
 
-contentToText :: ReferenceMap -> Content -> Maybe T.Text
-contentToText ref (RawText x) = Just x
-contentToText ref (Reference r) 
-    | code == T.pack "" = Nothing
-    | otherwise         = Just code
-    where CodeBlock _ _ code _ = ref M.! r
+referencesByName :: ReferenceMap -> ReferenceName -> [ReferenceId]
+referencesByName refs name
+    = (sort . filter ((== name) . referenceName) . M.keys) refs
 
-stitchText :: Document -> T.Text
-stitchText (Document refs c) = T.unlines $ mapMaybe (contentToText refs) c
+codeBlocksByName :: ReferenceMap -> ReferenceName -> [CodeBlock]
+codeBlocksByName refs name = mapMaybe (refs M.!?) $ referencesByName refs name
+-- ~\~ end
+-- ~\~ begin <<lit/02-document-model.md|document-structure>>[3]
+data CodeProperty
+    = CodeId Text
+    | CodeAttribute Text Text
+    | CodeClass Text
+    deriving (Eq, Show)
 
-isFileReference :: ReferenceId -> Bool
-isFileReference (FileReferenceId _) = True
-isFileReference _ = False
-
-listFiles :: Document -> [ReferenceId]
-listFiles (Document refs _) = filter isFileReference $ M.keys refs
-
-listActiveReferences :: Document -> [ReferenceId]
-listActiveReferences doc = mapMaybe getReference (documentContent doc)
-    where getReference (RawText _)   = Nothing
-          getReference (Reference r) = Just r
+getAttribute :: [CodeProperty] -> Text -> Maybe Text
+getAttribute [] _ = Nothing
+getAttribute (CodeAttribute k v:ps) l
+    | k == l    = Just v
+    | otherwise = getAttribute ps l
+getAttribute (_:ps) l = getAttribute ps l
+-- ~\~ end
+-- ~\~ begin <<lit/02-document-model.md|document-structure>>[4]
+data CodeBlock = CodeBlock
+    { codeLanguage   :: ProgrammingLanguage
+    , codeProperties :: [CodeProperty]
+    , codeSource     :: Text
+    , codeLineNumber :: Maybe Int
+    } deriving (Show, Eq)
+-- ~\~ end
+-- ~\~ begin <<lit/02-document-model.md|document-structure>>[5]
+data ProgrammingLanguage
+    = KnownLanguage Text
+    | UnknownClass Text
+    | NoLanguage
+    deriving (Show, Eq)
+-- ~\~ end
+-- ~\~ end

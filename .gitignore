@@ -11,9 +11,11 @@ examples/**/src
 examples/**/build
 examples/**/Makefile
 website
-debian
 dist-ghc
 dist-newstyle
 *-stamp
+
+docker/**/*.tar.gz
+docker/**/*.deb
 .entangled
 
