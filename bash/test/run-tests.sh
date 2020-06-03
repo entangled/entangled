@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 
 DIR="$(readlink -f "$(dirname "${BASH_SOURCE[0]}")")"
 PROJECT_ROOT="$(readlink -f "${DIR}/../..")"

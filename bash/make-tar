@@ -1,0 +1,36 @@
+#!/bin/bash
+
+if [ ! -f "entangled.cabal" ]; then
+        echo "This script should be run from the project root."
+        exit 1
+fi
+
+echo -n "Building entangled: "
+cabal build
+
+mkdir -p dist
+binary="$(cabal exec which entangled)"
+version="$(${binary} --version)"
+archive="dist/entangled-${version}.tar.xz"
+
+if [ -f "${archive}" ]; then
+        echo "cleaning old archive"
+        rm "${archive}"
+fi
+
+TMPDIR=$(mktemp --tmpdir -d entangled-dist-XXXXXXXX)
+echo "Setting up in ${TMPDIR} ..."
+root="${TMPDIR}/entangled-${version}"
+mkdir -p "${root}/bin"
+mkdir -p "${root}/share/doc/entangled"
+mkdir -p "${root}/lib/entangled"
+cp -r data "${binary}"               "${root}/lib/entangled"
+cp    bash/entangled                 "${root}/bin"
+cp    README.md LICENSE CITATION.cff "${root}/share/doc/entangled"
+strip "${root}/lib/entangled/entangled"
+
+echo "Creating archive: ${archive}"
+tar -cJvf "${archive}" -C "${TMPDIR}" "entangled-${version}"
+
+echo "Cleaning ${TMPDIR}"
+rm -rf "${TMPDIR}"

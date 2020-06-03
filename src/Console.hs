@@ -21,6 +21,9 @@ import qualified Data.Text.Prettyprint.Doc.Render.Terminal as ANSI
 import qualified System.Info
 import Data.Time
 
+import Paths_entangled (version)
+import Data.Version (showVersion)
+
 -- ==== Pretty Printing document tree ==== --
 
 data FileAction = Read | Write | Delete | Create deriving (Show)
@@ -38,7 +41,7 @@ type Doc = P.Doc Annotation
 
 banner :: Doc
 banner =  P.annotate Emphasise "Entangled"
-       <> ", version 1.0.0: https://entangled.github.io/"
+       <> ", version " <> P.pretty (showVersion version) <> ": https://entangled.github.io/"
        <> P.line <> P.line
 
 timeStamp :: MonadIO m => m Doc

@@ -7,6 +7,7 @@ import RIO
 import Prelude (putStrLn)
 import qualified Data.Text.IO as T.IO
 import Paths_entangled
+import Data.Version (showVersion)
 
 -- ~\~ begin <<lit/12-main.md|main-imports>>[0]
 import GHC.IO.Encoding
@@ -188,7 +189,7 @@ main = do
     where args = info (parseArgs <**> helper)
             (  fullDesc
             <> progDesc "Automatically tangles and untangles 'FILES...'."
-            <> header   "enTangleD -- daemonised literate programming"
+            <> header   "Entangled -- daemonised literate programming"
             )
 
 -- ~\~ begin <<lit/12-main.md|main-run>>[0]
@@ -207,7 +208,7 @@ instance HasLogFunc Env where
     logFuncL = lens logFunc' (\x y -> x { logFunc' = y })
 
 run :: Args -> IO ()
-run (Args True _ _)                           = putStrLn "Entangled 1.0.0\n"
+run (Args True _ _)                           = putStrLn $ showVersion version
 run (Args _ _ (CommandConfig ConfigArgs{..})) = printExampleConfig' minimalConfig
 run Args{..}                                  = runWithEnv verboseFlag (runSubCommand subCommand)
 

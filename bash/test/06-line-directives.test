@@ -7,6 +7,6 @@ EOF
 
 entangled insert -s test-06.md
 entangled tangle -a
-assert-streq "line directives appear" "$(sed -n '5p' < test.cc)" "#LINE 13 \"test-06.md\""
+assert-streq "line directives appear" "$(sed -n '5p' < test.cc)" "#line 13 \"test-06.md\""
 
 # vim:ft=bash
