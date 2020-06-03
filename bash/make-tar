@@ -11,7 +11,9 @@ cabal build
 mkdir -p dist
 binary="$(cabal exec which entangled)"
 version="$(${binary} --version)"
-archive="dist/entangled-${version}.tar.xz"
+machine="$(uname -m)"
+os="$(uname -o | sed -e 's/\//-/g')"
+archive="dist/entangled-${version}-${machine}-${os}.tar.xz"
 
 if [ -f "${archive}" ]; then
         echo "cleaning old archive"
