@@ -15,6 +15,7 @@ dist
 dist-ghc
 dist-newstyle
 *-stamp
+cabal.project.local
 
 docker/**/*.tar.gz
 docker/**/*.deb

@@ -8,12 +8,12 @@ fi
 echo -n "Building entangled: "
 cabal build
 
-mkdir -p dist
+mkdir -p dist-newstyle
 binary="$(cabal exec which entangled)"
 version="$(${binary} --version)"
 machine="$(uname -m)"
 os="$(uname -o | sed -e 's/\//-/g')"
-archive="dist/entangled-${version}-${machine}-${os}.tar.xz"
+archive="dist-newstyle/entangled-${version}-${machine}-${os}.tar.xz"
 
 if [ -f "${archive}" ]; then
         echo "cleaning old archive"
