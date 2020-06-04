@@ -5,8 +5,7 @@ From: packaging/alpine-ghcup.sif
     cd /mnt
     rm -f cabal.project.local
     cabal configure --disable-executable-dynamic --disable-shared \
-                    --ghc-option=-optl=-static --enable-split-sections \
-                    --disable-large-address-space
+                    --ghc-option=-optl=-static --enable-split-sections
     make dist
 
 %help

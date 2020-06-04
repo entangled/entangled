@@ -1,4 +1,4 @@
-.PHONY: test dist
+.PHONY: test dist static-tar
 
 test:
 	cabal build
@@ -11,7 +11,7 @@ dist:
 packaging/alpine-ghcup.sif: packaging/alpine-ghcup.def
 	singularity build -f $@ $<
 
-static-tar: packaging/alpine-build.sif packaging/alpine-ghcup.sif
-	singularity build -f --sandbox /tmp/alpine-entangled $<
-	singularity run -f --no-home --writable /tmp/alpine-entangled
+static-tar: packaging/alpine-build.def packaging/alpine-ghcup.sif
+	singularity build --update -f --sandbox /tmp/alpine-entangled $<
+	singularity run -f --no-home --bind .:/mnt --writable /tmp/alpine-entangled
 
