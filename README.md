@@ -75,7 +75,7 @@ A named code block should have an identifier given:
 
 If a name appears multiple times in the source, the code blocks are concatenated during tangling. When weaving, the first code block with a certain name will appear as `<<name>>=`, while consecutive code blocks with the same name will appear as `<<name>>+=`.
 
-Please see the [Hello World](hello-world.html) and other examples!
+Please see the [Hello World](https://entangled.github.io/examples/hello-world.html) and [other examples](https://entangled.github.io/examples)!
 
 ## Syntax (source side)
 
@@ -97,7 +97,7 @@ Assuming you have created a Markdown file, say `program.md`, you can start `enta
 entangled daemon ./program.md
 ```
 
-in the shell. You may run `entangled --help` to get help on options.
+in the shell. You may run `entangled --help` to get help on options, or check out [the user manual](https://entangled.github.io/manual.html).
 
 ## Distribution
 
