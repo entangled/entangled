@@ -34,4 +34,12 @@ assert-streq "Tangling gives an correct program #4" \
         "$(guile -c "$(entangled tangle -f fib.scm)")" \
         "(1 1 2 3 5 8 13 21 34 55 89 144)"
 
+patch -s test-01.md test-01-03.diff
+entangled insert -s test-01.md
+assert-streq "Tangling gives an correct program #3" \
+        "$(guile --no-auto-compile hello.scm)" "Hello, Universe!"
+entangled tangle -a
+assert-streq "Tangling gives an correct program #2" \
+        "$(guile --no-auto-compile hello.scm)" "Hello, World!"
+
 # vim:ft=bash
