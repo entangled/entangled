@@ -1,0 +1,21 @@
+Bootstrap: library
+From: alpine:latest
+
+%environment
+    export PATH="${HOME}/.cabal/bin:${HOME}/.ghcup/bin:${PATH}"
+
+%post
+    apk update
+    apk add curl gcc g++ gmp-dev ncurses-dev libffi-dev make xz tar perl \
+            zlib-dev ncurses-static zlib-static coreutils bash patch guile
+
+    mkdir -p ~/.ghcup/bin
+    curl https://downloads.haskell.org/~ghcup/0.1.5/x86_64-linux-ghcup-0.1.5 > ~/.ghcup/bin/ghcup
+    chmod +x ~/.ghcup/bin/ghcup
+    export PATH="${HOME}/.cabal/bin:${HOME}/.ghcup/bin:${PATH}"
+    ghcup install 8.6
+    ghcup set 8.6
+    ghcup install-cabal
+    cabal user-config init -a "split-sections: True"
+    cabal update 
+

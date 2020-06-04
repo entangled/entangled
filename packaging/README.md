@@ -29,3 +29,7 @@ The resulting tarball has the following structure:
                 ├── CITATION.cff
                 ├── LICENSE
                 └── README.md
+
+# Fedora
+
+- [Packaging instructions](https://docs.fedoraproject.org/en-US/quick-docs/creating-rpm-packages/)
