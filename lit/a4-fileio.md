@@ -7,11 +7,31 @@
 module Transaction where
 
 import RIO
+import qualified RIO.Text as T
 <<transaction-imports>>
+
+data Description = Message Doc
+                 | CreateFile FilePath
+                 | WriteFile FilePath
+                 | DeleteFile FilePath
+
+showDescriptionHuman :: [Description] -> Doc
+showDescriptionHuman = mconcat . map (\case
+    Message x    -> x
+    CreateFile f -> msgCreate f
+    WriteFile f  -> msgWrite f
+    DeleteFile f -> msgDelete f)
+
+showDescriptionMachine :: [Description] -> Text
+showDescriptionMachine = T.unlines . mapMaybe (\case
+    Message _    -> Nothing
+    CreateFile f -> Just $ "+ " <> T.pack f
+    WriteFile f  -> Just $ "~ " <> T.pack f
+    DeleteFile f -> Just $ "- " <> T.pack f)
 
 data Transaction m = Transaction
   { action :: Maybe (m ())
-  , description :: Doc
+  , description :: [Description]
   , needConfirm :: Bool }
 
 <<transaction>>
@@ -21,7 +41,7 @@ When an event happened we need to respond, usually by writing out several files.
 
 ``` {.haskell #transaction-imports}
 -- import qualified Data.Text.Prettyprint.Doc as P
-import Console (Doc, group)
+import Console (Doc, group, msgCreate, msgDelete, msgWrite)
 import qualified Console
 import qualified Data.Text.IO as T.IO
 ```
@@ -40,11 +60,11 @@ instance (Monoid (m ())) => Monoid (Transaction m) where
 We can build `Transaction`s by appending elemental parts.
 
 ``` {.haskell #transaction}
-plan :: (Monad m) => m () -> Transaction m
-plan action = Transaction (Just action) mempty False
+plan :: (Monad m) => Description -> m () -> Transaction m
+plan d action = Transaction (Just action) [d] False
 
 doc :: Doc -> Transaction m
-doc x = Transaction Nothing x False
+doc x = Transaction Nothing [Message x] False
 
 confirm :: Transaction m
 confirm = Transaction Nothing mempty True
@@ -53,11 +73,21 @@ confirm = Transaction Nothing mempty True
 In most of the program logic, `Transaction` will be available in terms of a `MonadWriter`.
 
 ``` {.haskell #transaction}
+testTransaction :: (MonadIO m) => Transaction m -> m Bool
+testTransaction (Transaction Nothing _ _)  = return False
+testTransaction (Transaction (Just _) d _) = liftIO $ T.IO.putStr (showDescriptionMachine d) >> return True
+
+runTransactionMachine :: (MonadIO m) => Transaction m -> m ()
+runTransactionMachine (Transaction Nothing d _) = liftIO $ T.IO.putStr (showDescriptionMachine d)
+runTransactionMachine (Transaction (Just x) d _) = do
+    liftIO $ T.IO.putStr (showDescriptionMachine d)
+    x
+
 runTransaction :: (MonadIO m) => Maybe Doc -> Transaction m -> m ()
-runTransaction (Just h) (Transaction Nothing d _) = liftIO $ Console.putTerminal $ group h d
-runTransaction Nothing (Transaction Nothing d _) = liftIO $ Console.putTerminal d
+runTransaction (Just h) (Transaction Nothing d _) = liftIO $ Console.putTerminal $ group h (showDescriptionHuman d)
+runTransaction Nothing (Transaction Nothing d _) = liftIO $ Console.putTerminal (showDescriptionHuman d)
 runTransaction h (Transaction (Just x) d c) = do
-    liftIO $ Console.putTerminal $ maybe d (`group` d) h
+    liftIO $ Console.putTerminal $ maybe (showDescriptionHuman d) (`group` showDescriptionHuman d) h
     if c then do
         reply <- liftIO $ do
             T.IO.putStr "confirm? (y/n) "

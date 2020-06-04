@@ -34,6 +34,8 @@ import Linters
 data Args = Args
     { versionFlag :: Bool
     , verboseFlag :: Bool
+    , machineFlag :: Bool
+    , checkFlag   :: Bool
     , subCommand :: SubCommand }
 
 data SubCommand
@@ -72,6 +74,8 @@ parseArgs :: Parser Args   {- HLINT ignore parseArgs -}
 parseArgs = Args
     <$> switch (long "version" <> short 'v' <> help "Show version information.")
     <*> switch (long "verbose" <> short 'V' <> help "Be very verbose.")
+    <*> switch (long "machine" <> short 'm' <> help "Machine readable output.")
+    <*> switch (long "check"   <> short 'c' <> help "Don't do anything, returns 1 if changes would be made to file system.")
     <*> ( subparser ( mempty
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[0]
           <>  command "daemon" (info parseDaemonArgs ( progDesc "Run the entangled daemon." ))
@@ -208,19 +212,25 @@ instance HasLogFunc Env where
     logFuncL = lens logFunc' (\x y -> x { logFunc' = y })
 
 run :: Args -> IO ()
-run (Args True _ _)                           = putStrLn $ showVersion version
-run (Args _ _ (CommandConfig ConfigArgs{..})) = printExampleConfig' minimalConfig
-run Args{..}                                  = runWithEnv verboseFlag (runSubCommand subCommand)
+run (Args True _ _ _ _)                           = putStrLn $ showVersion version
+run (Args _ _ _ _ (CommandConfig ConfigArgs{..})) = printExampleConfig' minimalConfig
+run Args{..}                                      = runWithEnv verboseFlag machineFlag checkFlag (runSubCommand subCommand)
 
-runWithEnv :: Bool -> Entangled Env a -> IO a
-runWithEnv verbose x = do
+runWithEnv :: Bool -> Bool -> Bool -> Entangled Env a -> IO a
+runWithEnv verbose machineReadable dryRun x = do
     cfg <- readLocalConfig
     dbPath <- getDatabasePath cfg
     logOptions <- setLogVerboseFormat True . setLogUseColor True
                <$> logOptionsHandle stderr verbose
-    withLogFunc logOptions (\logFunc
+    if dryRun
+    then do
+        todo <- withLogFunc logOptions (\logFunc
+                -> withConnection dbPath (\conn
+                    -> runRIO (Env conn cfg logFunc) (testEntangled x)))
+        if todo then exitFailure else exitSuccess
+    else withLogFunc logOptions (\logFunc
         -> withConnection dbPath (\conn
-            -> runRIO (Env conn cfg logFunc) (runEntangled Nothing x)))
+            -> runRIO (Env conn cfg logFunc) (runEntangled machineReadable Nothing x)))
 
 runSubCommand :: (HasConfig env, HasLogFunc env, HasConnection env)
               => SubCommand -> Entangled env ()

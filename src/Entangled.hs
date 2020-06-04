@@ -12,7 +12,7 @@ import qualified Data.Map.Lazy as LM
 import FileIO
 import Transaction
 
-import Console (msgWrite, msgCreate, msgDelete, Doc, timeStamp)
+import Console (Doc, timeStamp)
 import Paths_entangled
 import Config (config, HasConfig, languageFromName)
 import Database ( db, HasConnection, queryTargetRef, queryReferenceMap
@@ -31,9 +31,29 @@ newtype Entangled env a = Entangled { unEntangled :: WriterT (FileTransaction en
     deriving ( Applicative, Functor, Monad, MonadIO, MonadThrow
              , MonadReader env, MonadWriter (FileTransaction env) )
 
+testEntangled :: (MonadIO m, MonadReader env m, HasLogFunc env)
+              => Entangled env a -> m Bool
+testEntangled (Entangled x) = do
+    e <- ask
+    (_, w) <- runRIO e (runWriterT x)
+    runFileIO' $ testTransaction w
+
 runEntangled :: (MonadIO m, MonadReader env m, HasLogFunc env)
+             => Bool -> Maybe Doc -> Entangled env a -> m a
+runEntangled True  _ = runEntangledMachine
+runEntangled False h = runEntangledHuman h
+
+runEntangledMachine :: (MonadIO m, MonadReader env m, HasLogFunc env)
+             => Entangled env a -> m a
+runEntangledMachine (Entangled x) = do
+    e <- ask
+    (r, w) <- runRIO e (runWriterT x)
+    runFileIO' $ runTransactionMachine w
+    return r
+
+runEntangledHuman :: (MonadIO m, MonadReader env m, HasLogFunc env)
              => Maybe Doc -> Entangled env a -> m a
-runEntangled h (Entangled x) = do
+runEntangledHuman h (Entangled x) = do
     e <- ask
     (r, w) <- runRIO e (runWriterT x)
     ts <- timeStamp
@@ -50,13 +70,10 @@ instance (HasLogFunc env) => MonadFileIO (Entangled env) where
             Right old_content | old_content == text -> return ()
                               | otherwise           -> actionw
             Left  _                                 -> actionc
-        where actionw   = tell $ doc (msgWrite path)
-                              <> plan (writeFile path text)
-              actionc   = tell $ doc (msgCreate path)
-                              <> plan (writeFile path text)
+        where actionw   = tell $ plan (WriteFile path) (writeFile path text)
+              actionc   = tell $ plan (CreateFile path) (writeFile path text)
 
-    deleteFile path     = tell $ doc (msgDelete path)
-                              <> plan (deleteFile path)
+    deleteFile path     = tell $ plan (DeleteFile path) (deleteFile path)
 
 data TangleQuery = TangleFile FilePath | TangleRef Text | TangleAll deriving (Show, Eq)
 

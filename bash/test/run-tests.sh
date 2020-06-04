@@ -147,6 +147,22 @@ function assert-not-exists() {
         fi
 }
 
+function assert-return-fail() {
+        if [ ! $2 -eq 0 ]; then
+                report-success "$1"        
+        else
+                report-failure "$@"
+        fi
+}
+
+function assert-return-success() {
+        if [ $2 -eq 0 ]; then
+                report-success "$1"        
+        else
+                report-failure "$@"
+        fi
+}
+
 function run-test() {
         echo -e "\033[33m ~~~\033[m \033[1m$(basename $1 .test)\033[m \033[33m~~~\033[m"
         if [ -z ${no_setup} ]; then

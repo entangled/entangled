@@ -8,7 +8,16 @@ assert-streq "Tangling gives an correct program #1" \
 assert-streq "Tangling gives an correct program #2" \
         "$(guile -c "$(entangled tangle -f hello.scm)")" "Hello, World!"
 
+assert-streq "That we can check for due changes" \
+        "$(entangled -c -m tangle -a)" "+ factorial.scm
++ hello.scm"
+entangled -c -m tangle -a
+assert-return-fail "That the check returns 1" $?
+
 entangled tangle -a -d
+entangled -c -m tangle -a
+assert-return-success "That now the check returns 0" $?
+
 assert-exists "'tangle -a' created 'factorial.scm'" "factorial.scm"
 assert-exists "'tangle -a' created 'hello.scm'" "hello.scm"
 assert-streq "'factorial.scm' ends in a newline" "$(tail -c 1 factorial.scm)" ""

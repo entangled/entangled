@@ -192,7 +192,7 @@ The `mainLoop` is fed events and handles them.
 ``` {.haskell #daemon-main-loop}
 tryEntangled :: (MonadReader env m, MonadUnliftIO m, MonadIO m, HasLogFunc env)
              => Maybe Doc -> Entangled env a -> m ()
-tryEntangled msg action = catch (void $ runEntangled msg action)
+tryEntangled msg action = catch (void $ runEntangledHuman msg action)
                                 (\(err :: EntangledError) -> logError $ display $ formatError err)
 
 mainLoop :: Event -> Daemon ()
@@ -250,7 +250,7 @@ initSession = do
     rel_paths <- mapM makeRelativeToCurrentDirectory abs_paths
 
     printMsg Console.banner
-    runEntangled (Just "initializing") $ do
+    runEntangledHuman (Just "initializing") $ do
         tell $ doc $
              P.align (P.vsep
                    $ map (Console.bullet
