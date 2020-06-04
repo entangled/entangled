@@ -66,10 +66,9 @@ formatComment lang text = pre <> text <> post
           post = maybe "" (" " <>) $ commentEnd $ languageComment lang
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|generate-comment>>[2]
-standardPreComment :: (MonadReader Config m, MonadError EntangledError m)
-                => ReferenceId -> CodeBlock -> m Text
-standardPreComment (ReferenceId file (ReferenceName name) count) code = comment (codeLanguage code)
-    $ "begin <<" <> T.pack file <> "|" <> name <> ">>[" <> tshow count <> "]"
+standardPreComment :: ReferenceId -> Text
+standardPreComment (ReferenceId file (ReferenceName name) count) =
+    "begin <<" <> T.pack file <> "|" <> name <> ">>[" <> tshow count <> "]"
 
 getReference :: (MonadError EntangledError m) => ReferenceMap -> ReferenceId -> m CodeBlock
 getReference refs ref = maybe (throwError $ ReferenceError $ "not found: " <> tshow ref)
@@ -102,7 +101,7 @@ annotateComment refs ref = do
     Config{..} <- ask
     code <- getReference refs ref
     naked <- annotateNaked refs ref
-    pre <- standardPreComment ref code
+    pre <- comment (codeLanguage code) $ standardPreComment ref
     post <- comment (codeLanguage code) "end"
     return $ unlines' [pre, naked, post]
 
@@ -112,8 +111,7 @@ annotateProject refs ref@(ReferenceId file _ _) = do
     code <- getReference refs ref
     naked <- annotateNaked refs ref
     let line = fromMaybe 0 (codeLineNumber code)
-    pre  <- (<> " project://" <> T.pack file <> "#" <> tshow line)
-         <$> standardPreComment ref code
+    pre  <- comment (codeLanguage code) (standardPreComment ref <> " project://" <> T.pack file <> "#" <> tshow line)
     post <- comment (codeLanguage code) "end"
     return $ unlines' [pre, naked, post]
 
