@@ -100,8 +100,8 @@ findFileAscending filename = do
 
 readLocalConfig :: IO Config
 readLocalConfig = do
-    cfg_path <- fromMaybe (throwM $ SystemError "no config found.")
-             <$> findFileAscending "entangled.dhall"
+    cfg_path <- findFileAscending "entangled.dhall"
+            >>= maybe (throwM $ SystemError "no config found") return
     input configDecoder $ "(" <> T.pack cfg_path <> ").entangled"
 -- ~\~ end
 -- ~\~ begin <<lit/04-configuration.md|config-reader>>[0]
