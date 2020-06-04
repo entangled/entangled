@@ -13,5 +13,5 @@ packaging/alpine-ghcup.sif: packaging/alpine-ghcup.def
 
 static-tar: packaging/alpine-build.sif packaging/alpine-ghcup.sif
 	singularity build -f --sandbox /tmp/alpine-entangled $<
-	singularity run -f --no-home --bind .:/mnt --writable /tmp/alpine-entangled
+	singularity run -f --no-home --writable /tmp/alpine-entangled
 
