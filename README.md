@@ -110,7 +110,7 @@ Entangled is available as a [Docker image](https://hub.docker.com/r/nlesc/entang
 Assuming you have created a Markdown file, say `program.md`, you can start `entangled` by running
 
 ```shell
-docker run --rm --user $(id -u):$(id -g) --volume $PWD:/data nlesc/entangled deamon ./program.md
+docker run --rm --user $(id -u):$(id -g) --volume $PWD:/data nlesc/entangled daemon ./program.md
 ```
 
 This command starts a Docker container with the current working directory mounted as /data and running with your user/group id so files are written with the correct ownership.
