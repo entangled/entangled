@@ -34,6 +34,7 @@ Features:
 
 `Entangled` is written in [Haskell](https://www.haskell.org/), and uses the `cabal` build system. You can build an executable by running
 
+    # (requires cabal >= 3.x)
     cabal build
 
 Install the executable in your `~/.local/bin`
