@@ -68,8 +68,6 @@ matchCodeFooter syntax line =
     else Nothing
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[1]
--- ~\~ end
--- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[2]
 getLanguage :: ( MonadReader Config m )
             => [CodeProperty] -> m ProgrammingLanguage
 getLanguage [] = return NoLanguage
@@ -79,7 +77,7 @@ getLanguage (CodeClass cls : _)
             <$> asks (\cfg -> languageName <$> lookupLanguage cfg cls)
 getLanguage (_ : xs) = getLanguage xs
 -- ~\~ end
--- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[3]
+-- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[2]
 getReference :: ( MonadState ReferenceCount m )
              => [CodeProperty] -> m (Maybe ReferenceId)
 getReference [] = return Nothing
@@ -92,7 +90,7 @@ getReference (CodeAttribute k v:xs)
     | otherwise   = getReference xs
 getReference (_:xs) = getReference xs
 -- ~\~ end
--- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[4]
+-- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[3]
 getFilePath :: [CodeProperty] -> Maybe FilePath
 getFilePath [] = Nothing
 getFilePath (CodeAttribute k v:xs)
@@ -108,7 +106,7 @@ getFileMap = M.fromList . mapMaybe filePair
                   KnownLanguage l -> return (path, (referenceName ref, l))
                   _               -> Nothing
 -- ~\~ end
--- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[5]
+-- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[4]
 data ReferenceCount = ReferenceCount
     { currentDocument :: FilePath
     , refCounts       :: Map ReferenceName Int }
@@ -127,7 +125,7 @@ newReference n = do
     x   <- countReference n
     return $ ReferenceId doc n x
 -- ~\~ end
--- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[6]
+-- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[5]
 type DocumentParser = ReaderT Config (StateT ReferenceCount (Parsec Text (ListStream Text)))
 
 codeBlock :: ( MonadParsec e (ListStream Text) m

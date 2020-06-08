@@ -8,7 +8,7 @@ module ListStream where
 
 import RIO
 import RIO.List (splitAt, headMaybe)
-import Text.Megaparsec ( Parsec, MonadParsec, token, parse
+import Text.Megaparsec ( Parsec, MonadParsec, token, parse, satisfy
                        , Stream (..), PosState (..), SourcePos (..), mkPos, unPos )
 
 <<instance-list-stream>>
@@ -101,6 +101,10 @@ parseLineNot p t = either (const $ Just t) (const Nothing)
 tokenLine :: ( MonadParsec e (ListStream Text) m )
           => (Text -> Maybe a) -> m a
 tokenLine f = token f mempty
+
+tokenLineNot :: ( MonadParsec e (ListStream Text) m )
+             => (Text -> Maybe a) -> m Text
+tokenLineNot f = satisfy (isNothing . f)
 
 tokenP :: ( MonadParsec e (ListStream Text) m )
        => LineParser a -> m (a, Text)
