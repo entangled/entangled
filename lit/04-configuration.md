@@ -20,11 +20,11 @@ let Syntax : Type =
     , matchCodeEnd         : Text }
 
 let defaultSyntax : Syntax =
-    { matchCodeStart       = "```[ ]+{[^{}]*}"
-    , matchCodeEnd         = "```"
-    , extractLanguage      = "```[ ]+{\\.([^{} \t]+)[^{}]*}"
-    , extractReferenceName = "```[ ]+{[^{}]*#([^{} \t]*)[^{}]*}"
-    , extractFileName      = "```[ ]+{[^{}]*file=([^{} \t]*)[^{}]*}" }
+    { matchCodeStart       = "^[ ]*```[ ]*{[^{}]*}"
+    , matchCodeEnd         = "^[ ]*```"
+    , extractLanguage      = "```[ ]*{\\.([^{} \t]+)[^{}]*}"
+    , extractReferenceName = "```[ ]*{[^{}]*#([^{} \t]*)[^{}]*}"
+    , extractFileName      = "```[ ]*{[^{}]*file=([^{} \t]*)[^{}]*}" }
 
 let Config =
     { Type =
