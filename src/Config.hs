@@ -67,11 +67,28 @@ annotateDecoder = union
         <> ( AnnotateStandard       <$ constructor "Standard" unit )
         <> ( AnnotateProject        <$ constructor "Project" unit ) )
 
+data ConfigSyntax = ConfigSyntax
+    { matchCodeStart       :: Text
+    , matchCodeEnd         :: Text
+    , extractLanguage      :: Text
+    , extractReferenceName :: Text
+    , extractFileName      :: Text
+    } deriving (Show)
+
+configSyntaxDecoder :: Decoder ConfigSyntax
+configSyntaxDecoder = record
+    ( ConfigSyntax <$> field "matchCodeStart" auto
+                   <*> field "matchCodeEnd" auto
+                   <*> field "extractLanguage" auto
+                   <*> field "extractReferenceName" auto
+                   <*> field "extractFileName" auto )
+
 data Config = Config
     { configVersion   :: Text
     , configLanguages :: Set ConfigLanguage
     , configWatchList :: [Text]
     , configDatabase  :: Maybe Text
+    , configSyntax    :: ConfigSyntax
     , configAnnotate  :: AnnotateMethod
     , configLineDirectives :: Map Text Format.Spec
     , configUseLineDirectives :: Bool
@@ -83,6 +100,7 @@ configDecoder = record
              <*> field "languages" (setFromDistinctList configLanguage)
              <*> field "watchList" auto
              <*> field "database" auto
+             <*> field "syntax" configSyntaxDecoder
              <*> field "annotate" annotateDecoder
              <*> field "lineDirectives" lineDirectivesDecoder
              <*> field "useLineDirectives" auto

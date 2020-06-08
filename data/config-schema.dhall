@@ -62,20 +62,36 @@ let lineDirectives =
 
 let Annotate = < Naked | Standard | Project >
 
+let Syntax : Type =
+    { matchCodeStart       : Text
+    , extractLanguage      : Text
+    , extractFileName      : Text
+    , extractReferenceName : Text
+    , matchCodeEnd         : Text }
+
+let defaultSyntax : Syntax =
+    { matchCodeStart       = "^[ ]*```[ ]*{[^{}]*}"
+    , matchCodeEnd         = "^[ ]*```"
+    , extractLanguage      = "```[ ]*{\\.([^{} \t]+)[^{}]*}"
+    , extractReferenceName = "```[ ]*{[^{}]*#([^{} \t]*)[^{}]*}"
+    , extractFileName      = "```[ ]*{[^{}]*file=([^{} \t]*)[^{}]*}" }
+
 let Config =
     { Type =
         { version   : Text
         , languages : List Language
         , watchList : List Text
         , database  : Optional Text
+        , syntax    : Syntax
         , annotate  : Annotate
         , lineDirectives : List LineDirective
         , useLineDirectives : Bool }
     , default =
-        { version   = "1.0.0"
+        { version   = "1.2.0"
         , languages = languages
         , watchList = [] : List Text
         , database  = None Text
+        , syntax    = defaultSyntax
         , annotate  = Annotate.Standard
         , lineDirectives = lineDirectives
         , useLineDirectives = False }

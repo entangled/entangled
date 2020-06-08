@@ -21,7 +21,7 @@ import Control.Monad.State (MonadState, gets, modify, StateT, evalStateT)
 
 import ListStream
 import Document
-import Config (config, HasConfig, Config(..), lookupLanguage, ConfigLanguage(..), AnnotateMethod(..) )
+import Config (config, HasConfig, Config(..), lookupLanguage, ConfigLanguage(..), AnnotateMethod(..), ConfigSyntax(..))
 
 <<tangle-imports>>
 
@@ -48,6 +48,7 @@ We'll reuse the attribute parser later on, so we put it in a separate module.
 
 ``` {.haskell #tangle-imports}
 import Attributes (attributes)
+import Text.Regex.TDFA
 ```
 
 ``` {.haskell file=src/Attributes.hs}
@@ -169,6 +170,39 @@ Any code block is one of the following:
 
 * An **ignored** block: anything not matching the previous two.
 
+### Running configure regexes
+
+``` {.haskell #parse-markdown}
+type Match = Maybe (Text, Text, Text, [Text])
+
+matchCodeHeader :: ConfigSyntax -> Text -> Maybe ([CodeProperty], Text)
+matchCodeHeader syntax line =
+    if line =~ matchCodeStart syntax
+    then Just (fromMaybe [] (getLanguage' <> getFileName <> getReferenceName), line)
+    else Nothing
+    where 
+          getLanguage' :: Maybe [CodeProperty]
+          getLanguage' = do
+            (_, _, _, lang) <- line =~~ extractLanguage syntax :: Match
+            return (map CodeClass lang)
+
+          getFileName :: Maybe [CodeProperty]
+          getFileName = do
+            (_, _, _, file) <- line =~~ extractFileName syntax :: Match
+            return (map (CodeAttribute "file") file)
+
+          getReferenceName :: Maybe [CodeProperty]
+          getReferenceName = do
+            (_, _, _, ref)  <- line =~~ extractReferenceName syntax :: Match
+            return (map CodeId ref)
+
+matchCodeFooter :: ConfigSyntax -> Text -> Maybe ((), Text)
+matchCodeFooter syntax line =
+    if line =~ matchCodeEnd syntax
+    then Just ((), line)
+    else Nothing
+```
+
 ### Parsing single lines
 
 Written using parser combinators.
@@ -286,11 +320,11 @@ codeBlock = do
     Config{..} <- ask
     -- linenum        <- Just . unPos . sourceLine . pstateSourcePos . statePosState <$> getParserState
     linenum        <- Just . (+ 2) <$> getOffset
-    (props, begin) <- tokenLine (parseLine codeHeader)
+    (props, begin) <- tokenLine (matchCodeHeader configSyntax)
     code           <- unlines'
                    <$> manyTill (anySingle <?> "code line")
                                 (try $ lookAhead $ tokenLine (parseLine codeFooter))
-    (_, end)       <- tokenLine (parseLine codeFooter)
+    (_, end)       <- tokenLine (matchCodeFooter configSyntax)
     language       <- getLanguage props
     ref'           <- getReference props
     return $ case ref' of

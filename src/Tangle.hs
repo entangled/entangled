@@ -22,10 +22,11 @@ import Control.Monad.State (MonadState, gets, modify, StateT, evalStateT)
 
 import ListStream
 import Document
-import Config (config, HasConfig, Config(..), lookupLanguage, ConfigLanguage(..), AnnotateMethod(..) )
+import Config (config, HasConfig, Config(..), lookupLanguage, ConfigLanguage(..), AnnotateMethod(..), ConfigSyntax(..))
 
 -- ~\~ begin <<lit/13-tangle.md|tangle-imports>>[0]
 import Attributes (attributes)
+import Text.Regex.TDFA
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|tangle-imports>>[1]
 -- import ListStream (parseLine, parseLineNot, tokenLine)
@@ -38,6 +39,36 @@ import Comment (annotateComment, annotateProject, annotateNaked)
 -- ~\~ end
 
 -- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[0]
+type Match = Maybe (Text, Text, Text, [Text])
+
+matchCodeHeader :: ConfigSyntax -> Text -> Maybe ([CodeProperty], Text)
+matchCodeHeader syntax line =
+    if line =~ matchCodeStart syntax
+    then Just (fromMaybe [] (getLanguage' <> getFileName <> getReferenceName), line)
+    else Nothing
+    where
+          getLanguage' :: Maybe [CodeProperty]
+          getLanguage' = do
+            (_, _, _, lang) <- line =~~ extractLanguage syntax :: Match
+            return (map CodeClass lang)
+
+          getFileName :: Maybe [CodeProperty]
+          getFileName = do
+            (_, _, _, file) <- line =~~ extractFileName syntax :: Match
+            return (map (CodeAttribute "file") file)
+
+          getReferenceName :: Maybe [CodeProperty]
+          getReferenceName = do
+            (_, _, _, ref)  <- line =~~ extractReferenceName syntax :: Match
+            return (map CodeId ref)
+
+matchCodeFooter :: ConfigSyntax -> Text -> Maybe ((), Text)
+matchCodeFooter syntax line =
+    if line =~ matchCodeEnd syntax
+    then Just ((), line)
+    else Nothing
+-- ~\~ end
+-- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[1]
 codeHeader :: (MonadParsec e Text m)
            => m [CodeProperty]
 codeHeader = do
@@ -50,7 +81,7 @@ codeFooter :: (MonadParsec e Text m)
            => m ()
 codeFooter = chunk "```" >> space >> eof
 -- ~\~ end
--- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[1]
+-- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[2]
 getLanguage :: ( MonadReader Config m )
             => [CodeProperty] -> m ProgrammingLanguage
 getLanguage [] = return NoLanguage
@@ -60,7 +91,7 @@ getLanguage (CodeClass cls : _)
             <$> asks (\cfg -> languageName <$> lookupLanguage cfg cls)
 getLanguage (_ : xs) = getLanguage xs
 -- ~\~ end
--- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[2]
+-- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[3]
 getReference :: ( MonadState ReferenceCount m )
              => [CodeProperty] -> m (Maybe ReferenceId)
 getReference [] = return Nothing
@@ -73,7 +104,7 @@ getReference (CodeAttribute k v:xs)
     | otherwise   = getReference xs
 getReference (_:xs) = getReference xs
 -- ~\~ end
--- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[3]
+-- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[4]
 getFilePath :: [CodeProperty] -> Maybe FilePath
 getFilePath [] = Nothing
 getFilePath (CodeAttribute k v:xs)
@@ -89,7 +120,7 @@ getFileMap = M.fromList . mapMaybe filePair
                   KnownLanguage l -> return (path, (referenceName ref, l))
                   _               -> Nothing
 -- ~\~ end
--- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[4]
+-- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[5]
 data ReferenceCount = ReferenceCount
     { currentDocument :: FilePath
     , refCounts       :: Map ReferenceName Int }
@@ -108,7 +139,7 @@ newReference n = do
     x   <- countReference n
     return $ ReferenceId doc n x
 -- ~\~ end
--- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[5]
+-- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[6]
 type DocumentParser = ReaderT Config (StateT ReferenceCount (Parsec Text (ListStream Text)))
 
 codeBlock :: ( MonadParsec e (ListStream Text) m
@@ -119,11 +150,11 @@ codeBlock = do
     Config{..} <- ask
     -- linenum        <- Just . unPos . sourceLine . pstateSourcePos . statePosState <$> getParserState
     linenum        <- Just . (+ 2) <$> getOffset
-    (props, begin) <- tokenLine (parseLine codeHeader)
+    (props, begin) <- tokenLine (matchCodeHeader configSyntax)
     code           <- unlines'
                    <$> manyTill (anySingle <?> "code line")
                                 (try $ lookAhead $ tokenLine (parseLine codeFooter))
-    (_, end)       <- tokenLine (parseLine codeFooter)
+    (_, end)       <- tokenLine (matchCodeFooter configSyntax)
     language       <- getLanguage props
     ref'           <- getReference props
     return $ case ref' of

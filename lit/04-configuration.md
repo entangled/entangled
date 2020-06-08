@@ -12,20 +12,36 @@ let LineDirective : Type = { name : Text, format: Text }
 
 let Annotate = < Naked | Standard | Project >
 
+let Syntax : Type =
+    { matchCodeStart       : Text
+    , extractLanguage      : Text
+    , extractFileName      : Text
+    , extractReferenceName : Text
+    , matchCodeEnd         : Text }
+
+let defaultSyntax : Syntax =
+    { matchCodeStart       = "^[ ]*```[ ]*{[^{}]*}"
+    , matchCodeEnd         = "^[ ]*```"
+    , extractLanguage      = "```[ ]*{\\.([^{} \t]+)[^{}]*}"
+    , extractReferenceName = "```[ ]*{[^{}]*#([^{} \t]*)[^{}]*}"
+    , extractFileName      = "```[ ]*{[^{}]*file=([^{} \t]*)[^{}]*}" }
+
 let Config =
     { Type =
         { version   : Text
         , languages : List Language
         , watchList : List Text
         , database  : Optional Text
+        , syntax    : Syntax
         , annotate  : Annotate
         , lineDirectives : List LineDirective
         , useLineDirectives : Bool }
     , default =
-        { version   = "1.0.0"
+        { version   = "1.2.0"
         , languages = languages
         , watchList = [] : List Text
         , database  = None Text
+        , syntax    = defaultSyntax
         , annotate  = Annotate.Standard
         , lineDirectives = lineDirectives
         , useLineDirectives = False }
@@ -159,11 +175,28 @@ annotateDecoder = union
         <> ( AnnotateStandard       <$ constructor "Standard" unit )
         <> ( AnnotateProject        <$ constructor "Project" unit ) )
 
+data ConfigSyntax = ConfigSyntax
+    { matchCodeStart       :: Text
+    , matchCodeEnd         :: Text
+    , extractLanguage      :: Text
+    , extractReferenceName :: Text
+    , extractFileName      :: Text
+    } deriving (Show)
+
+configSyntaxDecoder :: Decoder ConfigSyntax
+configSyntaxDecoder = record
+    ( ConfigSyntax <$> field "matchCodeStart" auto
+                   <*> field "matchCodeEnd" auto
+                   <*> field "extractLanguage" auto
+                   <*> field "extractReferenceName" auto
+                   <*> field "extractFileName" auto )
+
 data Config = Config
     { configVersion   :: Text
     , configLanguages :: Set ConfigLanguage
     , configWatchList :: [Text]
     , configDatabase  :: Maybe Text
+    , configSyntax    :: ConfigSyntax
     , configAnnotate  :: AnnotateMethod
     , configLineDirectives :: Map Text Format.Spec
     , configUseLineDirectives :: Bool
@@ -175,6 +208,7 @@ configDecoder = record
              <*> field "languages" (setFromDistinctList configLanguage)
              <*> field "watchList" auto
              <*> field "database" auto
+             <*> field "syntax" configSyntaxDecoder
              <*> field "annotate" annotateDecoder
              <*> field "lineDirectives" lineDirectivesDecoder
              <*> field "useLineDirectives" auto
