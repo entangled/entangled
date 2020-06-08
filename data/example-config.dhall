@@ -25,8 +25,8 @@ you're
 
        dhall hash <<< <location to schema>
   -}
-let entangled = https://raw.githubusercontent.com/entangled/entangled/v1.0.1/data/config-schema.dhall
-                sha256:9fd18824499379eee53b974ca7570b3bc064fda546348d9b31841afab3b053a7
+let entangled = https://raw.githubusercontent.com/entangled/entangled/v1.2.0/data/config-schema.dhall
+i               sha256:dbf04dd6e3f7ceedb2bdafdf5b884f8d1994cbf8a760936588a76a3925b10a7e
 
 {- Languages
    ---------
@@ -63,6 +63,23 @@ let languages = entangled.languages #
     , { name = "Intercal", identifiers = ["intercal"], comment = intercalComment }
     ]
 
+{- Syntax
+   ------
+
+   (new in v1.2.0) You can configure on which syntax Entangled triggers.
+   Entangled works entirely on single line matches. From a single line it
+   needs to extract a language, reference name and/or a file name.
+   The following is the default syntax which works well with Pandoc. However,
+   there are other renderers that do not work well with that syntax. In that
+   case you may whish to change these settings.
+ -}
+let syntax : Syntax =
+    { matchCodeStart       = "```[ ]+{[^{}]*}"
+    , matchCodeEnd         = "```"
+    , extractLanguage      = "```[ ]+{\\.([^{} \t]+)[^{}]*}"
+    , extractReferenceName = "```[ ]+{[^{}]*#([^{} \t]*)[^{}]*}"
+    , extractFileName      = "```[ ]+{[^{}]*file=([^{} \t]*)[^{}]*}" }
+
 {- Database
    --------
   
@@ -85,7 +102,8 @@ let watchList = [ "lit/*.md" ]
 
 in { entangled = entangled.Config :: { database = database
                                      , watchList = watchList
-                                     , languages = languages }
+                                     , languages = languages
+                                     , syntax = syntax }
 
 {- Extra options
    -------------
