@@ -25,7 +25,6 @@ import Document
 import Config (config, HasConfig, Config(..), lookupLanguage, ConfigLanguage(..), AnnotateMethod(..), ConfigSyntax(..))
 
 -- ~\~ begin <<lit/13-tangle.md|tangle-imports>>[0]
-import Attributes (attributes)
 import Text.Regex.TDFA
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|tangle-imports>>[1]
@@ -69,17 +68,6 @@ matchCodeFooter syntax line =
     else Nothing
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[1]
-codeHeader :: (MonadParsec e Text m)
-           => m [CodeProperty]
-codeHeader = do
-    chunk "```" >> space >> chunk "{" >> space
-    props <- attributes
-    chunk "}" >> space >> eof
-    return props
-
-codeFooter :: (MonadParsec e Text m)
-           => m ()
-codeFooter = chunk "```" >> space >> eof
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[2]
 getLanguage :: ( MonadReader Config m )
@@ -153,7 +141,7 @@ codeBlock = do
     (props, begin) <- tokenLine (matchCodeHeader configSyntax)
     code           <- unlines'
                    <$> manyTill (anySingle <?> "code line")
-                                (try $ lookAhead $ tokenLine (parseLine codeFooter))
+                                (try $ lookAhead $ tokenLine (matchCodeFooter configSyntax))
     (_, end)       <- tokenLine (matchCodeFooter configSyntax)
     language       <- getLanguage props
     ref'           <- getReference props
@@ -162,10 +150,12 @@ codeBlock = do
         Just ref -> ( [ PlainText begin, Reference ref, PlainText end ]
                     , [ ( ref, CodeBlock language props code linenum ) ] )
 
-normalText :: ( MonadParsec e (ListStream Text) m )
+normalText :: ( MonadParsec e (ListStream Text) m
+              , MonadReader Config m )
            => m ([Content], [ReferencePair])
 normalText = do
-    text <- unlines' <$> some (tokenLine (parseLineNot codeHeader))
+    Config{..} <- ask
+    text <- unlines' <$> some (tokenLineNot $ matchCodeHeader configSyntax)
     return ( [ PlainText text ], [] )
 
 markdown :: DocumentParser ([Content], [ReferencePair])
