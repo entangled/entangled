@@ -25,8 +25,8 @@ you're
 
        dhall hash <<< <location to schema>
   -}
-let entangled = https://raw.githubusercontent.com/entangled/entangled/v1.2.0/data/config-schema.dhall
-                sha256:91b014c660eb6a7facee7417d952371c69661b46070c36c8a5689fd548b23947
+let entangled = https://raw.githubusercontent.com/entangled/entangled/v1.2.2/data/config-schema.dhall
+                sha256:9bb4c5649869175ad0b662d292fd81a3d5d9ccb503b1c7e316d531b7856fb096
 
 {- Languages
    ---------
@@ -73,7 +73,7 @@ let languages = entangled.languages #
    there are other renderers that do not work well with that syntax. In that
    case you may whish to change these settings.
  -}
-let syntax : Syntax =
+let syntax : entangled.Syntax =
     { matchCodeStart       = "```[ ]*{[^{}]*}"
     , matchCodeEnd         = "```"
     , extractLanguage      = "```[ ]*{\\.([^{} \t]+)[^{}]*}"

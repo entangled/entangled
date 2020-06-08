@@ -102,6 +102,7 @@ in { Comment   = Comment
    , LineDirective = LineDirective
    , Config    = Config
    , Annotate  = Annotate
+   , Syntax    = Syntax
    , comments  = comments
    , languages = languages
    , lineDirectives = lineDirectives

@@ -1,0 +1,7 @@
+entangled config | dhall
+assert-return-success "Dhall parses \`entangled config\` correctly" $?
+
+entangled config -m | dhall
+assert-return-success "Dhall parses \`entangled config -m\` correctly" $?
+
+# vim:ft=bash
