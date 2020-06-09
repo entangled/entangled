@@ -15,10 +15,12 @@ assert-streq "Tangling gives an correct program #2" \
         "$(guile --no-auto-compile hello.scm)" "Hello, World!"
 
 patch -s hello.scm test-01-01.diff
+sync
 assert-streq "Tangling gives an correct program #3" \
         "$(guile -c "$(entangled tangle -f hello.scm)")" "Hello, Universe!"
 
 patch -s test-01.md test-01-02.diff
+sync
 assert-streq "Tangling gives an correct program #4" \
         "$(guile --no-auto-compile fib.scm)" \
         "(1 1 2 3 5 8 13 21 34 55 89 144)"
