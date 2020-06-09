@@ -1,7 +1,7 @@
 cabal-version: 2.2
 
 name:           entangled
-version:        1.2.3
+version:        1.2.4
 synopsis:       bi-directional tangle daemon for literate programming
 description:    Please see the README on GitHub at <https://github.com/entangled/entangled/#readme>
 category:       Development
