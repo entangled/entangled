@@ -106,5 +106,6 @@ in { Comment   = Comment
    , comments  = comments
    , languages = languages
    , lineDirectives = lineDirectives
+   , defaultSyntax = defaultSyntax
    }
 -- ~\~ end

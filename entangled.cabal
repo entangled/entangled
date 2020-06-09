@@ -63,6 +63,9 @@ library
       Attributes
       Comment
       Config
+      Config.Version_1_0_0
+      Config.Version_1_2_0
+      Config.Record
       Console
       Daemon
       Database

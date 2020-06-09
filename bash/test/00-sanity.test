@@ -4,4 +4,27 @@ assert-return-success "Dhall parses \`entangled config\` correctly" $?
 entangled config -m | dhall
 assert-return-success "Dhall parses \`entangled config -m\` correctly" $?
 
+cat > entangled.dhall <<EOF
+let entangled = https://raw.githubusercontent.com/entangled/entangled/v1.0.1/data/config-schema.dhall
+                sha256:9fd18824499379eee53b974ca7570b3bc064fda546348d9b31841afab3b053a7
+
+in { entangled = entangled.Config :: { database = Some ".entangled/db.sqlite"
+                                     , watchList = [] : List Text
+                                     }
+   }
+EOF
+entangled insert -s test-01.md
+assert-return-success "Entangled accepts v1.0 config" $?
+
+cat > entangled.dhall <<EOF
+let entangled = https://raw.githubusercontent.com/entangled/entangled/v1.2.2/data/config-schema.dhall
+                sha256:9bb4c5649869175ad0b662d292fd81a3d5d9ccb503b1c7e316d531b7856fb096
+
+in { entangled = entangled.Config :: { database = Some ".entangled/db.sqlite"
+                                     , watchList = [] : List Text
+                                     }
+   }
+EOF
+entangled insert -s test-01.md
+assert-return-success "Entangled accepts v1.2 config" $?
 # vim:ft=bash

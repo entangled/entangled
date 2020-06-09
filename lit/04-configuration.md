@@ -56,6 +56,7 @@ in { Comment   = Comment
    , comments  = comments
    , languages = languages
    , lineDirectives = lineDirectives
+   , defaultSyntax = defaultSyntax
    }
 ```
 
@@ -118,15 +119,64 @@ let lineDirectives =
     ]
 ```
 
+## Older versions
+We still would like to read older version of the schema.
+
+``` {.haskell file=src/Config/Version_1_0_0.hs}
+{-# LANGUAGE NoImplicitPrelude #-}
+module Config.Version_1_0_0 where
+
+import RIO
+
+import Config.Record
+import Format
+import Dhall (auto, Decoder, record, field, setFromDistinctList)
+
+<<config-1-0-0-record>>
+<<config-1-0-0-decoder>>
+```
+
+``` {.haskell file=src/Config/Version_1_2_0.hs}
+{-# LANGUAGE NoImplicitPrelude #-}
+module Config.Version_1_2_0 where
+
+import RIO
+import qualified RIO.Text as T
+
+import Config.Record
+import qualified Config.Version_1_0_0 as Version_1_0_0
+import Format
+
+import Paths_entangled
+import Dhall (input, auto, Decoder, record, field, setFromDistinctList )
+
+<<config-1-2-0-record>>
+<<config-1-2-0-decoder>>
+```
+
+``` {.haskell file=src/Config/Record.hs}
+{-# LANGUAGE NoImplicitPrelude #-}
+module Config.Record where
+
+import RIO
+import qualified RIO.Map as M
+
+<<config-imports>>
+<<config-dhall-schema>>
+```
+
 ## Reading config
 
-``` {.haskell #config-import}
-import Dhall (FromDhall, ToDhall, input, auto, Decoder, record, list
-             , field, setFromDistinctList, constructor, unit, union)
-import qualified Data.Text as T
+``` {.haskell #config-imports}
+import Dhall (FromDhall, ToDhall, auto, Decoder, record, list
+             , field, constructor, unit, union)
+
+import qualified Format
 ```
 
 We need to match the Dhall schema with types in Haskell
+
+### Language
 
 ``` {.haskell #config-dhall-schema}
 data ConfigComment
@@ -155,7 +205,11 @@ instance Eq ConfigLanguage where
 
 instance Ord ConfigLanguage where
     compare a b = compare (languageName a) (languageName b)
+```
 
+### Line directives
+
+``` {.haskell #config-dhall-schema}
 decodeFormatSpec :: Decoder Format.Spec
 decodeFormatSpec = fromMaybe [Format.Plain "illegal format spec"] . Format.spec <$> auto
 
@@ -164,7 +218,11 @@ lineDirectivesDecoder = M.fromList <$> list entry
     where entry = record ( pair <$> field "name" auto
                                 <*> field "format" decodeFormatSpec )
           pair a b = (a, b)
+```
 
+### Annotation method
+
+``` {.haskell #config-dhall-schema}
 data AnnotateMethod = AnnotateNaked
                     | AnnotateStandard
                     | AnnotateProject
@@ -175,7 +233,11 @@ annotateDecoder = union
         (  ( AnnotateNaked          <$ constructor "Naked" unit )
         <> ( AnnotateStandard       <$ constructor "Standard" unit )
         <> ( AnnotateProject        <$ constructor "Project" unit ) )
+```
 
+### Syntax
+
+``` {.haskell #config-dhall-schema}
 data ConfigSyntax = ConfigSyntax
     { matchCodeStart       :: Text
     , matchCodeEnd         :: Text
@@ -191,7 +253,41 @@ configSyntaxDecoder = record
                    <*> field "extractLanguage" auto
                    <*> field "extractReferenceName" auto
                    <*> field "extractFileName" auto )
+```
 
+### Decoders
+
+#### Version 1.0.0
+
+``` {.haskell #config-1-0-0-record}
+data Config = Config
+    { configVersion   :: Text
+    , configLanguages :: Set ConfigLanguage
+    , configWatchList :: [Text]
+    , configDatabase  :: Maybe Text
+    , configAnnotate  :: AnnotateMethod
+    , configLineDirectives :: Map Text Format.Spec
+    , configUseLineDirectives :: Bool
+    } deriving (Show)
+```
+
+``` {.haskell #config-1-0-0-decoder}
+configDecoder :: Decoder Config
+configDecoder = record
+    ( Config <$> field "version" auto
+             <*> field "languages" (setFromDistinctList configLanguage)
+             <*> field "watchList" auto
+             <*> field "database" auto
+             <*> field "annotate" annotateDecoder
+             <*> field "lineDirectives" lineDirectivesDecoder
+             <*> field "useLineDirectives" auto
+    )
+```
+
+
+#### Version 1.2.0
+
+``` {.haskell #config-1-2-0-record}
 data Config = Config
     { configVersion   :: Text
     , configLanguages :: Set ConfigLanguage
@@ -203,6 +299,33 @@ data Config = Config
     , configUseLineDirectives :: Bool
     } deriving (Show)
 
+defaultSyntax :: IO ConfigSyntax
+defaultSyntax = do
+    path <- getDataFileName "data/config-schema.dhall"
+    input configSyntaxDecoder $ "(" <> T.pack path <> ").defaultSyntax"
+
+class ToVersion_1_2_0 a where
+    update :: a -> IO Config
+
+instance ToVersion_1_2_0 Config where
+    update = return
+
+instance ToVersion_1_2_0 Version_1_0_0.Config where
+    update old = do
+        syntax <- defaultSyntax
+        return Config
+            { configVersion           = Version_1_0_0.configVersion           old
+            , configLanguages         = Version_1_0_0.configLanguages         old
+            , configWatchList         = Version_1_0_0.configWatchList         old
+            , configDatabase          = Version_1_0_0.configDatabase          old
+            , configSyntax            = syntax
+            , configAnnotate          = Version_1_0_0.configAnnotate          old
+            , configLineDirectives    = Version_1_0_0.configLineDirectives    old
+            , configUseLineDirectives = Version_1_0_0.configUseLineDirectives old
+            }
+```
+
+``` {.haskell #config-1-2-0-decoder}
 configDecoder :: Decoder Config
 configDecoder = record
     ( Config <$> field "version" auto
@@ -214,30 +337,36 @@ configDecoder = record
              <*> field "lineDirectives" lineDirectivesDecoder
              <*> field "useLineDirectives" auto
     )
-
-class HasConfig env where
-    config :: Lens' env Config
 ```
 
 ``` {.haskell file=src/Config.hs}
 {-# LANGUAGE NoImplicitPrelude #-}
-module Config where
+module Config ( module Config
+              , module Version_1_2_0
+              , module Config.Record ) where
 
 import RIO hiding (void)
-import qualified RIO.Map as M
-<<config-import>>
+import RIO.Directory
+import RIO.FilePath
+import RIO.List (scanl1, find)
+import qualified RIO.Text as T
+
+import Dhall (input, auto)
+import System.FilePath.Glob
+
+import qualified Config.Version_1_0_0 as Version_1_0_0
+import qualified Config.Version_1_2_0 as Version_1_2_0
+import Config.Version_1_2_0 (update, Config(..))
+import Config.Record
 
 import Errors
-import qualified Format
-import Data.List (find, scanl1)
-import Control.Monad.Extra (concatMapM)
-import System.FilePath.Glob (glob)
-import System.Directory
-import System.FilePath
+import Select
 
-<<config-dhall-schema>>
 <<config-input>>
 <<config-reader>>
+
+class HasConfig env where
+    config :: Lens' env Config
 
 getDatabasePath :: (MonadIO m, MonadThrow m) => Config -> m FilePath
 getDatabasePath cfg = do
@@ -248,7 +377,7 @@ getDatabasePath cfg = do
     return dbPath
 
 getInputFiles :: (MonadIO m) => Config -> m [FilePath]
-getInputFiles cfg = liftIO $ concatMapM (glob . T.unpack) (configWatchList cfg)
+getInputFiles cfg = liftIO $ mconcat <$> mapM (glob . T.unpack) (configWatchList cfg)
 ```
 
 > ~~Configuration can be stored in `${XDG_CONFIG_HOME}/entangled/config.dhall`. Also the local directory or its parents may contain a `.entangled.dhall` file. These override settings in the global configuration.~~
@@ -265,11 +394,19 @@ findFileAscending filename = do
     let parents = reverse $ scanl1 (</>) $ splitDirectories path
     findFile parents filename
 
+getVersion :: FilePath -> IO Text
+getVersion path =
+    input auto $ "(" <> T.pack path <> ").entangled.version"
+
 readLocalConfig :: IO Config
 readLocalConfig = do
     cfg_path <- findFileAscending "entangled.dhall"
             >>= maybe (throwM $ SystemError "no config found") return
-    input configDecoder $ "(" <> T.pack cfg_path <> ").entangled"
+    version <- getVersion cfg_path
+    decoder <- select (throwM $ SystemError $ "unrecognized version string '" <> version <> "'")
+        [ ( version == "1.0.0", return $ update <=< input Version_1_0_0.configDecoder )
+        , ( version == "1.2.0", return $ update <=< input Version_1_2_0.configDecoder ) ]
+    decoder $ "(" <> T.pack cfg_path <> ").entangled"
 ```
 
 ## Processing
