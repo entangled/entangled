@@ -126,7 +126,7 @@ The `passEvent` function acts as the call-back for the FSNotify watcher. There a
     * remove and create: Vim (by default), gedit and many more editors do this. Actually, the content is written to a temporary file, which is then renamed to the existing file. These operations are atomic so that no data is lost if the system crashes.
     * modify: VS Code does this.
 
-We have to be flexible in how we interpret the incomming events. The most important bit is that we need to ignore the `delete` events. 
+We have to be flexible in how we interpret the incoming events. The most important bit is that we need to ignore the `delete` events. 
 
 `FSNotify` lets us watch directories containing the files we're interested in. In `passEvent` we need to check if the event is actually on an involved file.
 
@@ -199,7 +199,7 @@ mainLoop :: Event -> Daemon ()
 <<main-loop-cases>>
 ```
 
-After the first event we need to wait a bit, there may be more comming.
+After the first event we need to wait a bit, there may be more coming.
 
 ``` {.haskell #main-loop-cases}
 mainLoop (WriteSource abs_path) = do
