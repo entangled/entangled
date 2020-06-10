@@ -1,7 +1,7 @@
 #!/bin/bash
 
-DIR="$(readlink -f "$(dirname "${BASH_SOURCE[0]}")")"
-PROJECT_ROOT="$(readlink -f "${DIR}/../..")"
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+PROJECT_ROOT="${DIR}/../.."
 EXIT_CODE=0
 ENTANGLED_EXEC="$(cabal exec which entangled)"
 
