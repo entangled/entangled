@@ -1,7 +1,8 @@
 entangled-daemon test-102.md
-
+sleep 0.1
 assert-streq "output 1" "$(guile --no-auto-compile a.scm)" "a"
 patch -s b.scm test-102.diff
+sleep 0.1
 assert-streq "output 2" "$(guile --no-auto-compile a.scm)" "b"
 
 kill-daemon

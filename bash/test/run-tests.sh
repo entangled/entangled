@@ -34,6 +34,7 @@ function kill-daemon() {
 }
 
 function setup() {
+        # TMPDIR=$(mktemp -d 2>/dev/null || mktemp -d -t 'entangled-test')
         TMPDIR=$(mktemp --tmpdir -d entangled-test-XXXXXXXX)
         echo "Setting up in ${TMPDIR} ..."
         cp "${DIR}"/*.{md,diff,test,dhall} "${TMPDIR}"
