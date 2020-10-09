@@ -59,7 +59,7 @@ function show_help() {
         echo "    -v           verbose entangled"
         echo
         echo "Available units:"
-        for t in *.test; do
+        for t in "${DIR}"/*.test; do
                 echo "    - $(basename ${t} .test)"
         done
 }
@@ -95,11 +95,11 @@ do
 done
 
 function report-success() {
-        echo -e "\033[32m✓\033[m $1"
+        echo -e "\033[32m✓\033[m  $1"
 }
 
 function report-failure() {
-        echo -e "\033[31m✗\033[m $2, \033[1m$1\033[m args:"
+        echo -e "\033[31m✗\033[m  $2, \033[1m$1\033[m args:"
         shift ; shift
         for var in "$@"; do
                 echo "    - \"${var}\""
@@ -183,7 +183,7 @@ if [ -z ${test_only} ]; then
                 run-test "${unit}"
         done
 else
-        if [ -f "${test_only}.test" ]; then
+        if [ -f "${DIR}/${test_only}.test" ]; then
                 run-test "${test_only}"
         else
                 echo "Could not find test: ${test_only}"

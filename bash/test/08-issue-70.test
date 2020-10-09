@@ -1,0 +1,22 @@
+cat > entangled.dhall <<EOF
+let entangled = ./config-schema.dhall
+
+let syntax : entangled.Syntax =
+   { matchCodeStart       = "\`\`\`.*[ ]*(id|file)=\".*\""
+   , matchCodeEnd         = "\`\`\`"
+   , extractLanguage      = "\`\`\`([a-zA-Z0-9]+).*"
+   -- , extractLanguage      = "\`\`\`([a-zA-Z0-9]+)[ ]*(?:id|file)=\"[^\"]*\""
+   , extractReferenceName = "\`\`\`.*[ ]*id=\"([^\"]*)\""
+   , extractFileName      = "\`\`\`.*[ ]*file=\"([^\"]*)\"" }
+
+in { entangled = entangled.Config :: { database  = Some "entangled.db"
+                                     , annotate  = entangled.Annotate.Standard
+                                     , syntax    = syntax } }
+EOF
+
+entangled insert -s issue-70.md
+assert-return-success "Could insert issue-70.md" $?
+entangled tangle -a
+assert-exists "main.c is created" main.c
+cat main.c
+# vim:ft=bash
