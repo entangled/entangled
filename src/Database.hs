@@ -103,7 +103,7 @@ insertCode docId ( ReferenceId file (ReferenceName name) count
                         >> return (Just c)
         NoLanguage      -> logWarn (display $ "no language class in "
                                  <> T.pack file <> ":<<" <> name <> ">>")
-                        >> return Nothing
+                        >> return (Just "unknown") -- cannot use null language
         KnownLanguage l -> return (Just l)
     insertCode' (name, count, source, langName, docId, linenum) attrs
 
