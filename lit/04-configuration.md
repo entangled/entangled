@@ -110,6 +110,7 @@ let languages =
     , { name = "TypeScript", identifiers = ["ts", "typescript"],
                                                               comment = comments.cppStyle }
     , { name = "YAML",       identifiers = ["yaml"],          comment = comments.hash }
+    , { name = "<unknown>",  identifiers = [] : List Text,    comment = comments.hash }
     ]
 
 let lineDirectives =

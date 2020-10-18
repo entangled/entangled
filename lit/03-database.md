@@ -188,10 +188,10 @@ insertCode docId ( ReferenceId file (ReferenceName name) count
     langName <- case lang of
         UnknownClass c  -> logWarn (display $ "unknown language `" <> c <> "` in "
                                  <> T.pack file <> ":<<" <> name <> ">>")
-                        >> return (Just c)
+                        >> return (Just "<unknown>")
         NoLanguage      -> logWarn (display $ "no language class in "
                                  <> T.pack file <> ":<<" <> name <> ">>")
-                        >> return (Just "unknown") -- cannot use null language
+                        >> return (Just "<unknown>") -- cannot use null language
         KnownLanguage l -> return (Just l)
     insertCode' (name, count, source, langName, docId, linenum) attrs
 
