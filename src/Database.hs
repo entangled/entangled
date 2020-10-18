@@ -99,10 +99,10 @@ insertCode docId ( ReferenceId file (ReferenceName name) count
                  , CodeBlock lang attrs source linenum ) = do
     langName <- case lang of
         UnknownClass c  -> logWarn (display $ "unknown language `" <> c <> "` in "
-                                 <> T.pack file <> ":<<" <> name <> ">>")
+                                 <> T.pack file <> ":<<" <> name <> ">> at #" <> T.pack (show linenum))
                         >> return (Just "<unknown>")
         NoLanguage      -> logWarn (display $ "no language class in "
-                                 <> T.pack file <> ":<<" <> name <> ">>")
+                                 <> T.pack file <> ":<<" <> name <> ">> at #" <> T.pack (show linenum))
                         >> return (Just "<unknown>") -- cannot use null language
         KnownLanguage l -> return (Just l)
     insertCode' (name, count, source, langName, docId, linenum) attrs
