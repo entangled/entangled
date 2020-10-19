@@ -51,6 +51,7 @@ let languages =
     , { name = "TypeScript", identifiers = ["ts", "typescript"],
                                                               comment = comments.cppStyle }
     , { name = "YAML",       identifiers = ["yaml"],          comment = comments.hash }
+    , { name = "<unknown>",  identifiers = [] : List Text,    comment = comments.hash }
     ]
 
 let lineDirectives =
@@ -72,9 +73,9 @@ let Syntax : Type =
 let defaultSyntax : Syntax =
     { matchCodeStart       = "^[ ]*```[ ]*{[^{}]*}"
     , matchCodeEnd         = "^[ ]*```"
-    , extractLanguage      = "```[ ]*{\\.([^{} \t]+)[^{}]*}"
-    , extractReferenceName = "```[ ]*{[^{}]*#([^{} \t]*)[^{}]*}"
-    , extractFileName      = "```[ ]*{[^{}]*file=([^{} \t]*)[^{}]*}" }
+    , extractLanguage      = "^[ ]*```[ ]*{\\.([^{} \t]+)[^{}]*}"
+    , extractReferenceName = "^[ ]*```[ ]*{[^{}]*#([^{} \t]*)[^{}]*}"
+    , extractFileName      = "^[ ]*```[ ]*{[^{}]*file=([^{} \t]*)[^{}]*}" }
 
 let Config =
     { Type =
