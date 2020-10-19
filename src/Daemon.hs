@@ -114,7 +114,7 @@ setWatch = do
 
     state <- asks daemonState
     stopActions <- liftIO $ mapM
-        (\dir -> FSNotify.watchDir fsnotify dir (const True)
+        (\dir -> FSNotify.watchTree fsnotify dir (const True)
                                    (passEvent state channel srcs tgts))
         abs_dirs
     watchesMVar <- asks watches
