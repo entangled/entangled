@@ -289,7 +289,8 @@ parseLintArgs = LintArgs
 ```
 
 ``` {.haskell #sub-parsers}
-<> command "lint" (info (CommandLint <$> parseLintArgs) ( progDesc "Lint input on potential problems." ))
+<> command "lint" (info (CommandLint <$> parseLintArgs) ( progDesc ("Lint input on potential problems. Available linters: "
+                                                                  <> RIO.Text.unpack (RIO.Text.unwords allLinters))))
 ```
 
 ``` {.haskell #sub-runners}
@@ -318,6 +319,7 @@ CommandClearOrphans -> clearOrphans
 module Main where
 
 import RIO
+import RIO.Text (unwords, unpack)
 import Prelude (putStrLn)
 import qualified Data.Text.IO as T.IO
 import Paths_entangled

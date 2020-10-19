@@ -1,6 +1,7 @@
 -- ~\~ language=Haskell filename=src/Linters.hs
 -- ~\~ begin <<lit/a5-linting.md|src/Linters.hs>>[0]
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Linters where
 
 import RIO
@@ -18,6 +19,7 @@ import Database.SQLite.Simple (query_, query, fromOnly, Only(..))
 import Entangled
 import Document (ReferenceMap, ReferenceName(..), codeBlocksByName, CodeBlock(..), referenceNames)
 import Database (HasConnection, db, queryReferenceMap, getConnection)
+import Daemon (Session)
 import Config (HasConfig, config)
 import Tangle (parseCode, CodeLine(..))
 import FileIO
@@ -69,7 +71,11 @@ linters = M.fromList
     [ ("dumpToGraphViz", dumpToGraphViz)
     , ("listUnusedFragments", listUnusedFragments) ]
 
+allLinters :: [Text]
+allLinters  = M.keys (linters :: Map Text (Entangled Session ()))
+
 lint :: (HasConnection env, HasLogFunc env, HasConfig env)
      => [Text] -> Entangled env ()
-lint = sequence_ . mapMaybe (linters M.!?)
+lint [] | allLinters /= [] = lint allLinters -- use all available linters
+lint args = sequence_ $ mapMaybe (linters M.!?) args
 -- ~\~ end
