@@ -22,9 +22,9 @@ let Syntax : Type =
 let defaultSyntax : Syntax =
     { matchCodeStart       = "^[ ]*```[ ]*{[^{}]*}"
     , matchCodeEnd         = "^[ ]*```"
-    , extractLanguage      = "```[ ]*{\\.([^{} \t]+)[^{}]*}"
-    , extractReferenceName = "```[ ]*{[^{}]*#([^{} \t]*)[^{}]*}"
-    , extractFileName      = "```[ ]*{[^{}]*file=([^{} \t]*)[^{}]*}" }
+    , extractLanguage      = "^[ ]*```[ ]*{\\.([^{} \t]+)[^{}]*}"
+    , extractReferenceName = "^[ ]*```[ ]*{[^{}]*#([^{} \t]*)[^{}]*}"
+    , extractFileName      = "^[ ]*```[ ]*{[^{}]*file=([^{} \t]*)[^{}]*}" }
 
 let Config =
     { Type =
