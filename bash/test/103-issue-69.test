@@ -1,6 +1,7 @@
+git init
+
 entangled-daemon test-01.md
 
-git init
 git add test-01.md
 git commit -m 'add test-01.md'
 
@@ -22,15 +23,17 @@ assert-streq "Tangling gives an correct program #2" \
 
 git checkout -b alternate
 patch -s hello.scm test-01-01.diff
+sleep 0.1
 git add test-01.md hello.scm
 git commit -m 'changes to message'
 
-sleep 0.1
 assert-streq "Tangling gives an correct program #3" \
         "$(guile -c "$(entangled tangle -f hello.scm)")" "Hello, Universe!"
 
 echo "[[[Checking out to master branch]]]"
 git checkout master
+sleep 0.1
+
 # This test fails without the following
 # entangled insert -s test-01.md
 # entangled tangle -a
