@@ -16,6 +16,7 @@ import qualified System.FSNotify as FSNotify
 import Database.SQLite.Simple (Connection)
 import Database (db, connection, HasConnection, listSourceFiles, listTargetFiles)
 
+import Select (select)
 import Transaction (doc)
 -- import FileIO
 import Tangle (Annotator, selectAnnotator)
@@ -50,7 +51,7 @@ data DaemonState
 data Event
     = WriteSource FilePath
     | WriteTarget FilePath
-    | DebugEvent Text
+    | DebugEvent FilePath
     deriving (Show)
 -- ~\~ end
 -- ~\~ begin <<lit/10-daemon.md|daemon-session>>[0]
@@ -98,7 +99,9 @@ passEvent state' channel srcs tgts fsEvent = do
                          Stitching -> isTargetFile
 
     when pass $ do
-        let etype = if isSourceFile then WriteSource else WriteTarget
+        let etype = select DebugEvent
+                     [ (isSourceFile, WriteSource)
+                     , (isTargetFile, WriteTarget) ]
         writeChan channel (etype abs_path)
 -- ~\~ end
 -- ~\~ begin <<lit/10-daemon.md|daemon-watches>>[1]
@@ -108,8 +111,9 @@ setWatch = do
     tgts <- db listTargetFiles >>= (liftIO . mapM canonicalizePath)
     fsnotify <- asks manager
     channel  <- asks eventChannel
+    gitdir <- liftIO $ canonicalizePath "./.git"
 
-    let abs_dirs = nub $ map takeDirectory (srcs <> tgts)
+    let abs_dirs = gitdir : (nub $ map takeDirectory (srcs <> tgts))
     rel_dirs <- mapM makeRelativeToCurrentDirectory abs_dirs
 
     state <- asks daemonState
@@ -137,6 +141,10 @@ tryEntangled msg action = catch (void $ runEntangledHuman msg action)
 
 mainLoop :: Event -> Daemon ()
 -- ~\~ begin <<lit/10-daemon.md|main-loop-cases>>[0]
+mainLoop (DebugEvent abs_path) = do
+    rel_path <- makeRelativeToCurrentDirectory abs_path
+    logDebug $ display $ "FSNotify event on `" <> T.pack rel_path <> "` ignored"
+
 mainLoop (WriteSource abs_path) = do
     rel_path <- makeRelativeToCurrentDirectory abs_path
     logDebug $ display $ "tangle triggered on `" <> T.pack rel_path <> "`"
@@ -168,7 +176,7 @@ mainLoop (WriteTarget abs_path) = do
     setWatch
     setDaemonState Idle
 
-mainLoop _ = return ()
+-- mainLoop _ = return ()
 -- ~\~ end
 -- ~\~ end
 -- ~\~ begin <<lit/10-daemon.md|daemon-start>>[0]
@@ -215,7 +223,9 @@ runSession inputFiles = do
     logDebug $ display $ tshow cfg
     conn <- view connection
     logFunc <- view logFuncL
-    fsnotify <- liftIO FSNotify.startManager
+    fsnotify <- liftIO $ FSNotify.startManagerConf
+        (FSNotify.defaultConfig { FSNotify.confUsePolling = True
+                                , FSNotify.confPollInterval = 1 })
     channel <- newChan
     daemonState' <- newMVar Idle
     watches' <- newEmptyMVar
