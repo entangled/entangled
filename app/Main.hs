@@ -4,6 +4,7 @@
 module Main where
 
 import RIO
+import RIO.Text (unwords, unpack)
 import Prelude (putStrLn)
 import qualified Data.Text.IO as T.IO
 import Paths_entangled
@@ -78,10 +79,10 @@ parseArgs = Args
     <*> switch (long "check"   <> short 'c' <> help "Don't do anything, returns 1 if changes would be made to file system.")
     <*> ( subparser ( mempty
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[0]
-          <>  command "daemon" (info parseDaemonArgs ( progDesc "Run the entangled daemon." ))
+          <>  command "daemon" (info parseDaemonArgs ( progDesc "Run the entangled daemon." )) 
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[1]
-          <> command "config" (info parseConfigArgs
+          <> command "config" (info parseConfigArgs 
                                     (progDesc "Print an example configuration."))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[2]
@@ -97,7 +98,8 @@ parseArgs = Args
           <> command "list" (info (pure CommandList <**> helper) ( progDesc "List generated code files." ))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[6]
-          <> command "lint" (info (CommandLint <$> parseLintArgs) ( progDesc "Lint input on potential problems." ))
+          <> command "lint" (info (CommandLint <$> parseLintArgs) ( progDesc ("Lint input on potential problems. Available linters: "
+                                                                            <> RIO.Text.unpack (RIO.Text.unwords allLinters))))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[7]
           <> command "clear-orphans" (info (pure CommandClearOrphans <**> helper) ( progDesc "Deletes orphan targets." ))
@@ -212,7 +214,7 @@ instance HasLogFunc Env where
     logFuncL = lens logFunc' (\x y -> x { logFunc' = y })
 
 run :: Args -> IO ()
-run (Args True _ _ _ _)                           = putStrLn $ showVersion version
+run (Args True _ _ _ _)                           = putStrLn $ showVersion version 
 run (Args _ _ _ _ (CommandConfig ConfigArgs{..})) = printExampleConfig' minimalConfig
 run Args{..}                                      = runWithEnv verboseFlag machineFlag checkFlag (runSubCommand subCommand)
 
