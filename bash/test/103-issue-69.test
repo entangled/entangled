@@ -1,0 +1,44 @@
+entangled-daemon test-01.md
+
+git init
+git add test-01.md
+git commit -m 'add test-01.md'
+
+sleep 0.1
+assert-arrayeq "Source contains expected files" \
+        "$(entangled list | sort)" "factorial.scm hello.scm"
+assert-streq "Stitching conserves content" \
+        "$(entangled stitch test-01.md)" "$(cat test-01.md)"
+
+assert-exists "daemon created 'factorial.scm'" "factorial.scm"
+assert-exists "daemon created 'hello.scm'" "hello.scm"
+assert-streq "'factorial.scm' ends in a newline" "$(tail -c 1 factorial.scm)" ""
+
+sleep 0.1
+assert-streq "Tangling gives an correct program #1" \
+        "$(guile --no-auto-compile factorial.scm)" "3628800"
+assert-streq "Tangling gives an correct program #2" \
+        "$(guile --no-auto-compile hello.scm)" "Hello, World!"
+
+git checkout -b alternate
+patch -s hello.scm test-01-01.diff
+git add test-01.md hello.scm
+git commit -m 'changes to message'
+
+sleep 0.1
+assert-streq "Tangling gives an correct program #3" \
+        "$(guile -c "$(entangled tangle -f hello.scm)")" "Hello, Universe!"
+
+echo "[[[Checking out to master branch]]]"
+git checkout master
+# This test fails without the following
+# entangled insert -s test-01.md
+# entangled tangle -a
+assert-streq "Correct program is on filesystem" \
+        "$(guile --no-auto-compile hello.scm)" "Hello, World!"
+assert-streq "Correct program is in database" \
+        "$(guile -c "$(entangled tangle -f hello.scm)")" "Hello, World!"
+
+kill-daemon
+
+# vim:ft=bash
