@@ -282,7 +282,7 @@ runSession inputFiles = do
     logDebug $ display $ tshow cfg
     conn <- view connection
     logFunc <- view logFuncL
-    fsnotify <- liftIO FSNotify.startManager
+    fsnotify <- liftIO $ FSNotify.startManagerConf (FSNotify.defaultConfig { FSNotify.confDebounce = FSNotify.NoDebounce })
     channel <- newChan
     daemonState' <- newMVar Idle
     watches' <- newEmptyMVar
