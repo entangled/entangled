@@ -1,0 +1,10 @@
+cradle:
+  cabal:
+    - path: "./src"
+      component: "lib:entangled"
+
+    - path: "./app/Main.hs"
+      component: "entangled:exe:entangled"
+
+    - path: "./test"
+      component: "entangled:test:entangled-test"

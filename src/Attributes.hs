@@ -11,7 +11,7 @@ import Document (CodeProperty(..))
 import Text.Megaparsec
     ( MonadParsec, takeWhileP, chunk, endBy )
 import Text.Megaparsec.Char
-    ( space, letterChar )
+    ( space, letterChar, char )
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|parse-attributes>>[0]
 attributes :: (MonadParsec e Text m)
@@ -25,7 +25,7 @@ attributes = (  codeClass
 cssIdentifier :: (MonadParsec e Text m)
               => m Text
 cssIdentifier = do
-    firstLetter <- letterChar
+    firstLetter <- (letterChar <|> char '.')
     rest        <- takeWhileP (Just "identifier")
                         (`notElem` (" {}=<>|" :: String))
     return $ T.singleton firstLetter <> rest
