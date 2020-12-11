@@ -13,11 +13,11 @@ let watchList = [ "lit/*.md" ]
    case you may whish to change these settings.
  -}
 let syntax : entangled.Syntax =
-    { matchCodeStart       = "^[ ]*```[ ]*{[^{}]*}"
-    , matchCodeEnd         = "^[ ]*```"
-    , extractLanguage      = "^[ ]*```[ ]*{\\.([^{} \t]+)[^{}]*}"
-    , extractReferenceName = "^[ ]*```[ ]*{[^{}]*#([^{} \t]*)[^{}]*}"
-    , extractFileName      = "^[ ]*```[ ]*{[^{}]*file=([^{} \t]*)[^{}]*}" }
+    { matchCodeStart       = "^```[ ]*{[^{}]*}"
+    , matchCodeEnd         = "^```"
+    , extractLanguage      = "^```[ ]*{\\.([^{} \t]+)[^{}]*}"
+    , extractReferenceName = "^```[ ]*{[^{}]*#([^{} \t]*)[^{}]*}"
+    , extractFileName      = "^```[ ]*{[^{}]*file=([^{} \t]*)[^{}]*}" }
 
 {- Database
    --------
