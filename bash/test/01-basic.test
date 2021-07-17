@@ -9,13 +9,13 @@ assert-streq "Tangling gives an correct program #2" \
         "$(guile -c "$(entangled tangle -f hello.scm)")" "Hello, World!"
 
 assert-streq "That we can check for due changes" \
-        "$(entangled -c -m tangle -a)" "+ factorial.scm
+        "$(entangled -c -m tangle -a -d)" "+ factorial.scm
 + hello.scm"
-entangled -c -m tangle -a
+entangled -c -m tangle -a -d
 assert-return-fail "That the check returns 1" $?
 
 entangled tangle -a -d
-entangled -c -m tangle -a
+entangled -c -m tangle -a -d
 assert-return-success "That now the check returns 0" $?
 
 assert-exists "'tangle -a' created 'factorial.scm'" "factorial.scm"

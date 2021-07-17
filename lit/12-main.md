@@ -229,7 +229,9 @@ parseTangleArgs = TangleArgs
 ``` {.haskell #sub-runners}
 CommandTangle TangleArgs {..} -> do
     cfg <- view config
-    tangle tangleQuery (selectAnnotator cfg)
+    tangle tangleQuery (if tangleDecorate 
+                        then selectAnnotator cfg
+                        else selectAnnotator (cfg {configAnnotate = AnnotateNaked}))
 ```
 
 ### Stitching a markdown source
@@ -325,7 +327,7 @@ import Data.Version (showVersion)
 
 <<main-imports>>
 
-import Tangle (selectAnnotator)
+import Tangle (selectAnnotator, Annotator)
 import Entangled
 import Linters
 
@@ -350,6 +352,7 @@ main = do
 
 ``` {.haskell #main-imports}
 import Database (HasConnection, connection, createTables, db)
+import Comment (annotateNaked)
 import Database.SQLite.Simple
 ```
 

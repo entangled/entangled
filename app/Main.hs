@@ -23,10 +23,11 @@ import Daemon (runSession)
 -- ~\~ end
 -- ~\~ begin <<lit/12-main.md|main-imports>>[4]
 import Database (HasConnection, connection, createTables, db)
+import Comment (annotateNaked)
 import Database.SQLite.Simple
 -- ~\~ end
 
-import Tangle (selectAnnotator)
+import Tangle (selectAnnotator, Annotator)
 import Entangled
 import Linters
 
@@ -251,7 +252,9 @@ runSubCommand sc = do
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[3]
         CommandTangle TangleArgs {..} -> do
             cfg <- view config
-            tangle tangleQuery (selectAnnotator cfg)
+            tangle tangleQuery (if tangleDecorate
+                                then selectAnnotator cfg
+                                else selectAnnotator (cfg {configAnnotate = AnnotateNaked}))
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[4]
         CommandStitch StitchArgs {..} -> stitch (StitchFile stitchTarget)
