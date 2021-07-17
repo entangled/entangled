@@ -14,7 +14,7 @@ import Errors
 -- ~\~ begin <<lit/02-document-model.md|document-structure>>[0]
 newtype ReferenceName = ReferenceName
     { unReferenceName :: Text
-    } deriving (Show, Eq, Ord)
+    } deriving (Show, Eq, Ord, Display)
 
 data ReferenceId = ReferenceId
     { referenceFile       :: FilePath

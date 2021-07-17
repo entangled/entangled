@@ -1,6 +1,6 @@
 -- ~\~ language=Haskell filename=src/Tangle.hs
 -- ~\~ begin <<lit/13-tangle.md|src/Tangle.hs>>[0]
-{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE NoImplicitPrelude,ScopedTypeVariables #-}
 module Tangle where
 
 import RIO hiding (try, some, many)
@@ -19,6 +19,7 @@ import Text.Megaparsec.Char
     ( space )
 
 import Control.Monad.State (MonadState, gets, modify, StateT, evalStateT)
+import Control.Monad.Except ( MonadError )
 
 import ListStream
 import Document
@@ -194,28 +195,29 @@ parseCode name = map parseLine' . T.lines
                               l
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|generate-code>>[2]
-type ExpandedCode = LM.Map ReferenceName (Either EntangledError Text)
-type Annotator = ReferenceMap -> ReferenceId -> Either EntangledError Text
+type ExpandedCode m = LM.Map ReferenceName (m Text)
+type Annotator m = ReferenceMap -> ReferenceId -> m Text
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|generate-code>>[3]
-expandedCode :: Annotator -> ReferenceMap -> ExpandedCode
+expandedCode :: (MonadIO m, MonadReader env m, HasLogFunc env)
+    => Annotator m -> ReferenceMap -> ExpandedCode m
 expandedCode annotate refs = result
     where result = LM.fromSet expand (referenceNames refs)
           expand name = unlines' <$> mapM
                         (annotate refs >=> expandCodeSource result name)
                         (referencesByName refs name)
 
-expandCodeSource :: ExpandedCode -> ReferenceName -> Text
-                 -> Either EntangledError Text
+expandCodeSource :: (MonadIO m, MonadReader env m, HasLogFunc env)
+    => ExpandedCode m -> ReferenceName -> Text -> m Text
 expandCodeSource result name t
     = unlines' <$> mapM codeLineToText (parseCode name t)
-    where codeLineToText (PlainCode x) = Right x
+    where codeLineToText (PlainCode x) = return x
           codeLineToText (NowebReference name' i)
-              = indent i <$> fromMaybe (Left $ TangleError $ "reference not found: " <> tshow name')
+              = indent i <$> fromMaybe (logWarn ("unknown reference <<" <> display name' <> ">> in #" <> display name) >> return "")
                                        (result LM.!? name')
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|generate-code>>[4]
-selectAnnotator :: Config -> Annotator
+selectAnnotator :: (MonadError EntangledError m) => Config -> Annotator m
 selectAnnotator cfg@Config{..} = case configAnnotate of
     AnnotateNaked         -> \rmap rid -> runReaderT (annotateNaked rmap rid) cfg
     AnnotateStandard      -> \rmap rid -> runReaderT (annotateComment rmap rid) cfg

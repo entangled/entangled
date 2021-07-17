@@ -362,6 +362,7 @@ withSQL dbPath $ do
 
 ``` {.haskell file=src/Entangled.hs}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Entangled where
 
 import RIO
@@ -369,6 +370,7 @@ import RIO.Writer (MonadWriter, WriterT, runWriterT, tell)
 import qualified RIO.Text as T
 
 import qualified Data.Map.Lazy as LM
+import Control.Monad.Except ( MonadError(..) )
 
 import FileIO
 import Transaction
@@ -391,6 +393,10 @@ type FileTransaction env = Transaction (FileIO env)
 newtype Entangled env a = Entangled { unEntangled :: WriterT (FileTransaction env) (RIO env) a }
     deriving ( Applicative, Functor, Monad, MonadIO, MonadThrow
              , MonadReader env, MonadWriter (FileTransaction env) )
+
+instance MonadError EntangledError (Entangled env) where
+    throwError = throwM
+    catchError x _ = x
 
 testEntangled :: (MonadIO m, MonadReader env m, HasLogFunc env)
               => Entangled env a -> m Bool
@@ -438,15 +444,15 @@ instance (HasLogFunc env) => MonadFileIO (Entangled env) where
 
 data TangleQuery = TangleFile FilePath | TangleRef Text | TangleAll deriving (Show, Eq)
 
-tangleRef :: ExpandedCode -> ReferenceName -> Entangled env Text
+tangleRef :: (HasLogFunc env, HasConfig env)
+    => ExpandedCode (Entangled env) -> ReferenceName -> Entangled env Text
 tangleRef codes name =
     case codes LM.!? name of
         Nothing        -> throwM $ TangleError $ "Reference `" <> tshow name <> "` not found."
-        Just (Left e)  -> throwM $ TangleError $ tshow e
-        Just (Right t) -> return t
+        Just t         -> t
 
 tangleFile :: (HasConnection env, HasLogFunc env, HasConfig env)
-           => ExpandedCode -> FilePath -> Entangled env Text
+           => ExpandedCode (Entangled env) -> FilePath -> Entangled env Text
 tangleFile codes path = do
     cfg <- view config
     db (queryTargetRef path) >>= \case
@@ -458,7 +464,7 @@ tangleFile codes path = do
                 Just lang -> return $ T.unlines [headerComment lang path, content]
 
 tangle :: (HasConnection env, HasLogFunc env, HasConfig env)
-       => TangleQuery -> Annotator -> Entangled env ()
+       => TangleQuery -> Annotator (Entangled env) -> Entangled env ()
 tangle query annotate = do
     cfg <- view config
     refs <- db (queryReferenceMap cfg)

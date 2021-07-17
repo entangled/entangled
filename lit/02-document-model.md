@@ -49,7 +49,7 @@ We define the type `ReferenceId`.
 ``` {.haskell #document-structure}
 newtype ReferenceName = ReferenceName
     { unReferenceName :: Text
-    } deriving (Show, Eq, Ord)
+    } deriving (Show, Eq, Ord, Display)
 
 data ReferenceId = ReferenceId
     { referenceFile       :: FilePath
