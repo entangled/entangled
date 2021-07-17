@@ -1,19 +1,9 @@
 # The Daemon
-
-The Entangled daemon does the following:
-
-* Never crash
-* Monitor markdown files, tangle when written to
-* Monitor target files, stitch when written to
-* Pretty print events
-
-``` {.haskell file=src/Daemon.hs}
-<<daemon>>
-```
+The Entangled daemon runs a Milkshake main loop.
 
 ## Strategy
 
-``` {.haskell #daemon}
+``` {.haskell file=src/Daemon.hs #daemon}
 {-# LANGUAGE NoImplicitPrelude,ScopedTypeVariables #-}
 module Daemon where
 

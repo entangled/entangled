@@ -50,6 +50,7 @@ common deps
     , text >=1.2 && <2
     , time >=1.8 && <2
     , transformers >=0.5 && <0.6
+    , milkshake
   default-extensions:
         OverloadedStrings FlexibleContexts FlexibleInstances RecordWildCards
         TypeFamilies GeneralizedNewtypeDeriving NamedFieldPuns LambdaCase
