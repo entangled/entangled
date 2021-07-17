@@ -74,7 +74,7 @@ instance HasLogFunc Env where
     logFuncL = lens logFunc' (\x y -> x { logFunc' = y })
 
 run :: Args -> IO ()
-run (Args True _ _ _ _)                           = putStrLn $ showVersion version 
+run (Args True _ _ _ _)                           = putStrLn $ showVersion version
 run (Args _ _ _ _ (CommandConfig ConfigArgs{..})) = printExampleConfig' minimalConfig
 run Args{..}                                      = runWithEnv verboseFlag machineFlag checkFlag (runSubCommand subCommand)
 
@@ -116,7 +116,7 @@ import Daemon (runSession)
 ```
 
 ``` {.haskell #sub-parsers}
-<>  command "daemon" (info parseDaemonArgs ( progDesc "Run the entangled daemon." )) 
+<>  command "daemon" (info parseDaemonArgs ( progDesc "Run the entangled daemon." ))
 ```
 
 ``` {.haskell #main-options}
@@ -158,7 +158,7 @@ printExampleConfig' minimal = do
 ```
 
 ``` {.haskell #sub-parsers}
-<> command "config" (info parseConfigArgs 
+<> command "config" (info parseConfigArgs
                           (progDesc "Print an example configuration."))
 ```
 

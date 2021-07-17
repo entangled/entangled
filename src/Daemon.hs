@@ -1,5 +1,4 @@
 -- ~\~ language=Haskell filename=src/Daemon.hs
--- ~\~ begin <<lit/10-daemon.md|src/Daemon.hs>>[0]
 -- ~\~ begin <<lit/10-daemon.md|daemon>>[0]
 {-# LANGUAGE NoImplicitPrelude,ScopedTypeVariables #-}
 module Daemon where
@@ -226,6 +225,5 @@ runSession inputFiles = do
         mapM_ mainLoop =<< getChanContents channel
 
     liftIO $ FSNotify.stopManager fsnotify
--- ~\~ end
 -- ~\~ end
 -- ~\~ end

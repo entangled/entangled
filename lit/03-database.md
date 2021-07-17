@@ -186,14 +186,16 @@ insertCode :: Int64 -> ReferencePair -> SQL ()
 insertCode docId ( ReferenceId file (ReferenceName name) count
                  , CodeBlock lang attrs source linenum ) = do
     langName <- case lang of
-        UnknownClass c  -> logWarn (display $ "unknown language `" <> c <> "` in "
-                                 <> T.pack file <> ":<<" <> name <> ">>")
-                        >> return (Just c)
-        NoLanguage      -> logWarn (display $ "no language class in "
-                                 <> T.pack file <> ":<<" <> name <> ">>")
-                        >> return Nothing
+        UnknownClass c  -> logWarn (display $ "unknown language `" <> c <> "` in " <> location)
+                        >> return (Just "<unknown>")
+        NoLanguage      -> logWarn (display $ "no language class in " <> location)
+                        >> return (Just "<unknown>") -- cannot use null language
         KnownLanguage l -> return (Just l)
     insertCode' (name, count, source, langName, docId, linenum) attrs
+  where
+    location = T.pack file <> ":<<" <> name <> ">>" <> T.pack (maybeLineNo linenum)
+    maybeLineNo Nothing    = ""
+    maybeLineNo (Just lno) = " at #" <> show lno
 
 insertCodes :: Int64 -> ReferenceMap -> SQL ()
 insertCodes docId codes = mapM_ (insertCode docId) (M.toList codes)
