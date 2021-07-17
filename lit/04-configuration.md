@@ -372,7 +372,7 @@ class HasConfig env where
 getDatabasePath :: (MonadIO m, MonadThrow m) => Config -> m FilePath
 getDatabasePath cfg = do
     dbPath <- case configDatabase cfg of
-        Nothing -> throwM $ SystemError "database not configured"
+        Nothing -> return ":memory:"
         Just db -> return $ T.unpack db
     liftIO $ createDirectoryIfMissing True (takeDirectory dbPath)
     return dbPath

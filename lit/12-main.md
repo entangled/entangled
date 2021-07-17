@@ -74,7 +74,7 @@ instance HasLogFunc Env where
     logFuncL = lens logFunc' (\x y -> x { logFunc' = y })
 
 run :: Args -> IO ()
-run (Args True _ _ _ _)                           = putStrLn $ showVersion version 
+run (Args True _ _ _ _)                           = putStrLn $ showVersion version
 run (Args _ _ _ _ (CommandConfig ConfigArgs{..})) = printExampleConfig' minimalConfig
 run Args{..}                                      = runWithEnv verboseFlag machineFlag checkFlag (runSubCommand subCommand)
 
@@ -116,7 +116,7 @@ import Daemon (runSession)
 ```
 
 ``` {.haskell #sub-parsers}
-<>  command "daemon" (info parseDaemonArgs ( progDesc "Run the entangled daemon." )) 
+<>  command "daemon" (info parseDaemonArgs ( progDesc "Run the entangled daemon." ))
 ```
 
 ``` {.haskell #main-options}
@@ -158,7 +158,7 @@ printExampleConfig' minimal = do
 ```
 
 ``` {.haskell #sub-parsers}
-<> command "config" (info parseConfigArgs 
+<> command "config" (info parseConfigArgs
                           (progDesc "Print an example configuration."))
 ```
 
@@ -229,7 +229,9 @@ parseTangleArgs = TangleArgs
 ``` {.haskell #sub-runners}
 CommandTangle TangleArgs {..} -> do
     cfg <- view config
-    tangle tangleQuery (selectAnnotator cfg)
+    tangle tangleQuery (if tangleDecorate 
+                        then selectAnnotator cfg
+                        else selectAnnotator (cfg {configAnnotate = AnnotateNaked}))
 ```
 
 ### Stitching a markdown source
@@ -327,7 +329,7 @@ import Data.Version (showVersion)
 
 <<main-imports>>
 
-import Tangle (selectAnnotator)
+import Tangle (selectAnnotator, Annotator)
 import Entangled
 import Linters
 
@@ -352,6 +354,7 @@ main = do
 
 ``` {.haskell #main-imports}
 import Database (HasConnection, connection, createTables, db)
+import Comment (annotateNaked)
 import Database.SQLite.Simple
 ```
 
@@ -364,6 +367,7 @@ withSQL dbPath $ do
 
 ``` {.haskell file=src/Entangled.hs}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Entangled where
 
 import RIO
@@ -371,6 +375,7 @@ import RIO.Writer (MonadWriter, WriterT, runWriterT, tell)
 import qualified RIO.Text as T
 
 import qualified Data.Map.Lazy as LM
+import Control.Monad.Except ( MonadError(..) )
 
 import FileIO
 import Transaction
@@ -393,6 +398,10 @@ type FileTransaction env = Transaction (FileIO env)
 newtype Entangled env a = Entangled { unEntangled :: WriterT (FileTransaction env) (RIO env) a }
     deriving ( Applicative, Functor, Monad, MonadIO, MonadThrow
              , MonadReader env, MonadWriter (FileTransaction env) )
+
+instance MonadError EntangledError (Entangled env) where
+    throwError = throwM
+    catchError x _ = x
 
 testEntangled :: (MonadIO m, MonadReader env m, HasLogFunc env)
               => Entangled env a -> m Bool
@@ -440,15 +449,15 @@ instance (HasLogFunc env) => MonadFileIO (Entangled env) where
 
 data TangleQuery = TangleFile FilePath | TangleRef Text | TangleAll deriving (Show, Eq)
 
-tangleRef :: ExpandedCode -> ReferenceName -> Entangled env Text
+tangleRef :: (HasLogFunc env, HasConfig env)
+    => ExpandedCode (Entangled env) -> ReferenceName -> Entangled env Text
 tangleRef codes name =
     case codes LM.!? name of
         Nothing        -> throwM $ TangleError $ "Reference `" <> tshow name <> "` not found."
-        Just (Left e)  -> throwM $ TangleError $ tshow e
-        Just (Right t) -> return t
+        Just t         -> t
 
 tangleFile :: (HasConnection env, HasLogFunc env, HasConfig env)
-           => ExpandedCode -> FilePath -> Entangled env Text
+           => ExpandedCode (Entangled env) -> FilePath -> Entangled env Text
 tangleFile codes path = do
     cfg <- view config
     db (queryTargetRef path) >>= \case
@@ -460,7 +469,7 @@ tangleFile codes path = do
                 Just lang -> return $ T.unlines [headerComment lang path, content]
 
 tangle :: (HasConnection env, HasLogFunc env, HasConfig env)
-       => TangleQuery -> Annotator -> Entangled env ()
+       => TangleQuery -> Annotator (Entangled env) -> Entangled env ()
 tangle query annotate = do
     cfg <- view config
     refs <- db (queryReferenceMap cfg)

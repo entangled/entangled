@@ -1,7 +1,7 @@
 # Tangling
 
 ``` {.haskell file=src/Tangle.hs}
-{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE NoImplicitPrelude,ScopedTypeVariables #-}
 module Tangle where
 
 import RIO hiding (try, some, many)
@@ -18,6 +18,7 @@ import Text.Megaparsec.Char
     ( space )
 
 import Control.Monad.State (MonadState, gets, modify, StateT, evalStateT)
+import Control.Monad.Except ( MonadError )
 
 import ListStream
 import Document
@@ -406,8 +407,8 @@ We don't want code blocks refering to themselves. I used to keep a history of vi
 I now use a lazy map to provide the recursion, which becomes cumbersome if we also have to detect cycles in the dependency graph.
 
 ``` {.haskell #generate-code}
-type ExpandedCode = LM.Map ReferenceName (Either EntangledError Text)
-type Annotator = ReferenceMap -> ReferenceId -> Either EntangledError Text
+type ExpandedCode m = LM.Map ReferenceName (m Text)
+type Annotator m = ReferenceMap -> ReferenceId -> m Text
 ```
 
 The map of expanded code blocks is generated using an induction pattern here illustrated on lists. Suppose we already have the resulting `output` and a function `g :: [Output] -> Input -> Output` that generates any element in `output` given an input and the rest of all `output`, then `f` generates `output` as follows.
@@ -422,20 +423,21 @@ f input = output
 Lazy evaluation does the rest.
 
 ``` {.haskell #generate-code}
-expandedCode :: Annotator -> ReferenceMap -> ExpandedCode
+expandedCode :: (MonadIO m, MonadReader env m, HasLogFunc env)
+    => Annotator m -> ReferenceMap -> ExpandedCode m
 expandedCode annotate refs = result
     where result = LM.fromSet expand (referenceNames refs)
           expand name = unlines' <$> mapM
                         (annotate refs >=> expandCodeSource result name)
                         (referencesByName refs name)
 
-expandCodeSource :: ExpandedCode -> ReferenceName -> Text
-                 -> Either EntangledError Text
+expandCodeSource :: (MonadIO m, MonadReader env m, HasLogFunc env)
+    => ExpandedCode m -> ReferenceName -> Text -> m Text
 expandCodeSource result name t
     = unlines' <$> mapM codeLineToText (parseCode name t)
-    where codeLineToText (PlainCode x) = Right x
+    where codeLineToText (PlainCode x) = return x
           codeLineToText (NowebReference name' i)
-              = indent i <$> fromMaybe (Left $ TangleError $ "reference not found: " <> tshow name')
+              = indent i <$> fromMaybe (logWarn ("unknown reference <<" <> display name' <> ">> in #" <> display name) >> return "")
                                        (result LM.!? name')
 ```
 
@@ -444,7 +446,7 @@ We have two types of annotators:
 * Naked annotator: creates the output code without annotation. From such an expansion it is not possible to untangle.
 
 ``` {.haskell #generate-code}
-selectAnnotator :: Config -> Annotator
+selectAnnotator :: (MonadError EntangledError m) => Config -> Annotator m
 selectAnnotator cfg@Config{..} = case configAnnotate of
     AnnotateNaked         -> \rmap rid -> runReaderT (annotateNaked rmap rid) cfg
     AnnotateStandard      -> \rmap rid -> runReaderT (annotateComment rmap rid) cfg

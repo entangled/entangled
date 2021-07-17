@@ -1,0 +1,3 @@
+entangled insert -s test-08.md
+assert-streq "That we can tangle with invalid references" \
+        "$(entangled tangle -r root)" "$(echo -e "Hello\n\nWorld")"

@@ -1,19 +1,9 @@
 # The Daemon
-
-The Entangled daemon does the following:
-
-* Never crash
-* Monitor markdown files, tangle when written to
-* Monitor target files, stitch when written to
-* Pretty print events
-
-``` {.haskell file=src/Daemon.hs}
-<<daemon>>
-```
+The Entangled daemon runs a Milkshake main loop.
 
 ## Strategy
 
-``` {.haskell #daemon}
+``` {.haskell file=src/Daemon.hs #daemon}
 {-# LANGUAGE NoImplicitPrelude,ScopedTypeVariables #-}
 module Daemon where
 
@@ -74,6 +64,7 @@ import Console (Doc, putTerminal)
 import qualified Console
 import qualified Data.Text.Prettyprint.Doc as P
 
+import Control.Monad.Except ( MonadError )
 -- import Control.Concurrent.Chan
 -- import Control.Concurrent
 -- import Control.Monad.Catch
@@ -264,8 +255,8 @@ initSession = do
 
     setWatch
 
-getAnnotator :: (HasConfig env, MonadReader env m, MonadIO m, MonadThrow m)
-             => m Annotator
+getAnnotator :: (HasConfig env, MonadReader env m, MonadIO m, MonadThrow m, MonadError EntangledError n)
+             => m (Annotator n)
 getAnnotator = do
     cfg <- view config
     when (configAnnotate cfg == AnnotateNaked) $
