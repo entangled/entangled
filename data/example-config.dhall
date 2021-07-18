@@ -86,6 +86,8 @@ let syntax : entangled.Syntax =
    Entangled is powered by SQLite3. This specifies where the database is
    stored.  An entry of `None Text`, which is the default, keeps the database
    in memory, but this way you cannot insert new files on a running daemon.
+   Alternatively, you can set the database to ":memory:", which has the same
+   effect.
   -}
 let database = Some ".entangled/db.sqlite"
 

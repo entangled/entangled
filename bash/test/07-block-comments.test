@@ -1,6 +1,6 @@
 
 entangled insert -s test-07.md
-entangled tangle -a
+entangled tangle -a -d
 gcc hello.c -o hello
 assert-streq "check output of 'hello.c'" "$(./hello)" "Hello, World!"
 gcc factorial.c -o factorial
@@ -8,6 +8,6 @@ assert-streq "check output of 'factorial.c'" "$(./factorial)" "10! = 3628800"
 
 patch -s hello.c test-07-01.diff
 entangled insert -t hello.c
-assert-streq "update of 'hello.c' succeeds" "$(cat hello.c)" "$(entangled tangle -f hello.c)"
+assert-streq "update of 'hello.c' succeeds" "$(cat hello.c)" "$(entangled tangle -d -f hello.c)"
 
 # vim:ft=bash
