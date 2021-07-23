@@ -19,7 +19,8 @@ jobs:
         cabal-version: '3.2'
 
     - name: Install testing prerequisites
-      run: apt-get update && apt-get install -y bash guile-3.0
+      run: |
+        sudo apt-get install -y bash guile-3.0
     - name: Cache
       uses: actions/cache@v1
       env:
