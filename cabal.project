@@ -1,3 +1,8 @@
 packages:
     ./
-    ../milkshake/
+
+source-repository-package
+    type: git
+    location: https://github.com/entangled/milkshake
+    tag: 1b0d34a2458d09e22b1bed00516d849c00d670b7
+
