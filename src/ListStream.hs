@@ -6,7 +6,8 @@ module ListStream where
 import RIO
 import RIO.List (splitAt, headMaybe)
 import Text.Megaparsec ( Parsec, MonadParsec, token, parse, satisfy
-                       , Stream (..), PosState (..), SourcePos (..), mkPos, unPos )
+                       , Stream (..), VisualStream (..), TraversableStream(..)
+                       , PosState (..), SourcePos (..), mkPos, unPos )
 
 -- ~\~ begin <<lit/a3-megaparsec.md|instance-list-stream>>[0]
 newtype ListStream a = ListStream { unListStream :: [a] }
@@ -35,11 +36,15 @@ instance (Eq a, Ord a, Show a) => Stream (ListStream a) where
         | otherwise = Just (h, ListStream t) where (h, t) = splitAt n xs
     takeWhile_ p (ListStream xs) = (t, ListStream h) where (h, t) = break p xs
     -- ~\~ end
-    -- ~\~ begin <<lit/a3-megaparsec.md|list-stream-methods>>[3]
+
+instance (Eq a, Ord a, Show a) => VisualStream (ListStream a) where
+    -- ~\~ begin <<lit/a3-megaparsec.md|list-visual-stream-methods>>[0]
     showTokens Proxy = show
     -- ~\~ end
-    -- ~\~ begin <<lit/a3-megaparsec.md|list-stream-methods>>[4]
-    reachOffset offset state@PosState{..} = (sourcePos, repr, state')
+
+instance (Eq a, Ord a, Show a) => TraversableStream (ListStream a) where
+    -- ~\~ begin <<lit/a3-megaparsec.md|list-traversable-stream-methods>>[0]
+    reachOffset offset state@PosState{..} = (Just repr, state')
         where sourcePos = offsetSourcePos (offset - pstateOffset) pstateSourcePos
               input     = ListStream $ drop (offset - pstateOffset) (unListStream pstateInput)
               repr      = maybe "<end of stream>" show $ headMaybe $ unListStream input

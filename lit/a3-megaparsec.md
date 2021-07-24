@@ -9,7 +9,8 @@ module ListStream where
 import RIO
 import RIO.List (splitAt, headMaybe)
 import Text.Megaparsec ( Parsec, MonadParsec, token, parse, satisfy
-                       , Stream (..), PosState (..), SourcePos (..), mkPos, unPos )
+                       , Stream (..), VisualStream (..), TraversableStream(..)
+                       , PosState (..), SourcePos (..), mkPos, unPos )
 
 <<instance-list-stream>>
 
@@ -17,7 +18,7 @@ import Text.Megaparsec ( Parsec, MonadParsec, token, parse, satisfy
 <<line-parser>>
 ```
 
-The minimal definition of a stream must define `tokensToChunk`, `chunkToTokens`, `chunkLength`, `take1_`, `takeN_`, `takeWhile_`, `showTokens` and `reachOffset`.
+The minimal definition of a stream must define `tokensToChunk`, `chunkToTokens`, `chunkLength`, `take1_`, `takeN_`, `takeWhile_`. We should alse like to implement `VisualStream`, for which we need `showTokens`, and  `TraversableStream` which needs `reachOffset`.
 
 Because our instance will overlap with that of `[Char] = String` we'll have to wrap the `ListStream` in a `newtype`.
 
@@ -28,6 +29,12 @@ newtype ListStream a = ListStream { unListStream :: [a] }
 instance (Eq a, Ord a, Show a) => Stream (ListStream a) where
     <<list-stream-associated-types>>
     <<list-stream-methods>>
+
+instance (Eq a, Ord a, Show a) => VisualStream (ListStream a) where
+    <<list-visual-stream-methods>>
+
+instance (Eq a, Ord a, Show a) => TraversableStream (ListStream a) where
+    <<list-traversable-stream-methods>>
 ```
 
 ``` {.haskell #list-stream-associated-types}
@@ -62,7 +69,7 @@ takeN_ n (ListStream xs)
 takeWhile_ p (ListStream xs) = (t, ListStream h) where (h, t) = break p xs
 ```
 
-``` {.haskell #list-stream-methods}
+``` {.haskell #list-visual-stream-methods}
 showTokens Proxy = show
 ```
 
@@ -74,8 +81,8 @@ offsetSourcePos offset sourcePos@SourcePos{..}
     = sourcePos { sourceLine = mkPos (unPos sourceLine + offset) }
 ```
 
-``` {.haskell #list-stream-methods}
-reachOffset offset state@PosState{..} = (sourcePos, repr, state')
+``` {.haskell #list-traversable-stream-methods}
+reachOffset offset state@PosState{..} = (Just repr, state')
     where sourcePos = offsetSourcePos (offset - pstateOffset) pstateSourcePos
           input     = ListStream $ drop (offset - pstateOffset) (unListStream pstateInput)
           repr      = maybe "<end of stream>" show $ headMaybe $ unListStream input
