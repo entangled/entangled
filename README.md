@@ -5,6 +5,7 @@ author: Johan Hidding
 
 [![DOI](https://zenodo.org/badge/160842312.svg)](https://zenodo.org/badge/latestdoi/160842312)
 [![Entangled badge](https://img.shields.io/badge/entangled-Use%20the%20source!-%2300aeff)](https://entangled.github.io/)
+[![Haskell CI](https://github.com/entangled/entangled/actions/workflows/haskell-ci.yml/badge.svg)](https://github.com/entangled/entangled/actions/workflows/haskell-ci.yml)
 
 > **Literate programming** [/ˈlɪtəɹət ˈpɹəʊɡɹæmɪŋ/]{.phonetic} (computing) Literate programming is a programming paradigm introduced by Donald Knuth in which a program is given as an explanation of the program logic in a natural language, such as English, interspersed with snippets of macros and traditional source code, from which a compilable source code can be generated. [(Wikipedia)](https://en.wikipedia.org/wiki/Literate_programming)
 
