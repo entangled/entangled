@@ -5,6 +5,9 @@ module Main where
 
 import RIO
 import RIO.Text (unwords, unpack)
+import RIO.Directory (makeRelativeToCurrentDirectory)
+import RIO.List (sort)
+
 import Prelude (putStrLn)
 import qualified Data.Text.IO as T.IO
 import Paths_entangled
@@ -24,12 +27,13 @@ import Daemon (runSession)
 -- ~\~ end
 -- ~\~ begin <<lit/12-main.md|main-imports>>[4]
 import Database (HasConnection, connection, createTables, db)
-import Comment (annotateNaked)
+-- import Comment (annotateNaked)
 import Database.SQLite.Simple
 -- ~\~ end
 
-import Tangle (selectAnnotator, Annotator)
+import Tangle (selectAnnotator)
 import Entangled
+import Errors (EntangledError(..))
 import Linters
 
 -- ~\~ begin <<lit/12-main.md|main-options>>[0]
@@ -38,6 +42,7 @@ data Args = Args
     , verboseFlag :: Bool
     , machineFlag :: Bool
     , checkFlag   :: Bool
+    , preinsertFlag :: Bool
     , subCommand :: SubCommand }
 
 data SubCommand
@@ -78,6 +83,7 @@ parseArgs = Args
     <*> switch (long "verbose" <> short 'V' <> help "Be very verbose.")
     <*> switch (long "machine" <> short 'm' <> help "Machine readable output.")
     <*> switch (long "check"   <> short 'c' <> help "Don't do anything, returns 1 if changes would be made to file system.")
+    <*> switch (long "preinsert" <> short 'p' <> help "Tangle everything as a first action, default when db is in-memory.")
     <*> ( subparser ( mempty
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[0]
           <>  command "daemon" (info parseDaemonArgs ( progDesc "Run the entangled daemon." ))
@@ -215,25 +221,37 @@ instance HasLogFunc Env where
     logFuncL = lens logFunc' (\x y -> x { logFunc' = y })
 
 run :: Args -> IO ()
-run (Args True _ _ _ _)                           = putStrLn $ showVersion version
-run (Args _ _ _ _ (CommandConfig ConfigArgs{..})) = printExampleConfig' minimalConfig
-run Args{..}                                      = runWithEnv verboseFlag machineFlag checkFlag (runSubCommand subCommand)
+run (Args True _ _ _ _ _)                           = putStrLn $ showVersion version
+run (Args _ _ _ _ _ (CommandConfig ConfigArgs{..})) = printExampleConfig' minimalConfig
+run Args{..}                                        = runWithEnv verboseFlag machineFlag checkFlag preinsertFlag (runSubCommand subCommand)
 
-runWithEnv :: Bool -> Bool -> Bool -> Entangled Env a -> IO a
-runWithEnv verbose machineReadable dryRun x = do
+runWithEnv :: Bool -> Bool -> Bool -> Bool -> Entangled Env a -> IO a
+runWithEnv verbose machineReadable dryRun preinsertFlag x = do
     cfg <- readLocalConfig
     dbPath <- getDatabasePath cfg
     logOptions <- setLogVerboseFormat True . setLogUseColor True
                <$> logOptionsHandle stderr verbose
+    let preinsertFlag' = preinsertFlag || dbPath == ":memory:"
+        x' = (if preinsertFlag' then preinsert else pure ()) >> x
     if dryRun
     then do
         todo <- withLogFunc logOptions (\logFunc
                 -> withConnection dbPath (\conn
-                    -> runRIO (Env conn cfg logFunc) (testEntangled x)))
+                    -> runRIO (Env conn cfg logFunc) (testEntangled x')))
         if todo then exitFailure else exitSuccess
     else withLogFunc logOptions (\logFunc
         -> withConnection dbPath (\conn
-            -> runRIO (Env conn cfg logFunc) (runEntangled machineReadable Nothing x)))
+            -> runRIO (Env conn cfg logFunc) (runEntangled machineReadable Nothing x')))
+
+preinsert :: (HasConfig env, HasLogFunc env, HasConnection env)
+          => Entangled env ()
+preinsert = do
+    db createTables
+    cfg <- view config
+    abs_paths <- sort <$> getInputFiles cfg
+    when (null abs_paths) $ throwM $ SystemError "No input files."
+    rel_paths <- mapM makeRelativeToCurrentDirectory abs_paths
+    insertSources rel_paths
 
 runSubCommand :: (HasConfig env, HasLogFunc env, HasConnection env)
               => SubCommand -> Entangled env ()
