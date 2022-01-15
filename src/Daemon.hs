@@ -212,7 +212,6 @@ runSession inputFiles = do
     cfg' <- view config
 
     let cfg = cfg' { configWatchList = configWatchList cfg' <> map T.pack inputFiles }
-    logDebug $ display $ tshow cfg
     conn <- view connection
     logFunc <- view logFuncL
     fsnotify <- liftIO FSNotify.startManager

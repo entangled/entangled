@@ -69,7 +69,8 @@ data ConfigSyntax = ConfigSyntax
     , extractLanguage      :: Text
     , extractReferenceName :: Text
     , extractFileName      :: Text
-    } deriving (Show)
+    , extractProperty      :: Text -> Text
+    }
 
 configSyntaxDecoder :: Decoder ConfigSyntax
 configSyntaxDecoder = record
@@ -77,6 +78,7 @@ configSyntaxDecoder = record
                    <*> field "matchCodeEnd" auto
                    <*> field "extractLanguage" auto
                    <*> field "extractReferenceName" auto
-                   <*> field "extractFileName" auto )
+                   <*> field "extractFileName" auto
+                   <*> field "extractProperty" auto )
 -- ~\~ end
 -- ~\~ end

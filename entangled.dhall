@@ -26,8 +26,6 @@ let syntax : entangled.Syntax =
    stored.  An entry of `None Text`, which is the default, keeps the database
    in memory, but this way you cannot insert new files on a running daemon.
   -}
-let database = Some ".entangled/db.sqlite"
-in { entangled = entangled.Config :: { database = database
-                                     , watchList = watchList
+in { entangled = entangled.Config :: { watchList = watchList
                                      , syntax = syntax }
    }
