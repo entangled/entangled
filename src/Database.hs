@@ -1,6 +1,5 @@
 -- ~\~ language=Haskell filename=src/Database.hs
 -- ~\~ begin <<lit/03-database.md|src/Database.hs>>[0]
-{-# LANGUAGE OverloadedLabels, NoImplicitPrelude #-}
 module Database where
 
 import RIO
@@ -90,9 +89,15 @@ insertCode' tup attrs =  do
         codeId <- lastInsertRowId conn
         executeMany conn "insert into `classes` values (?,?)"
                     [(className, codeId) | className <- getClasses attrs]
+        executeMany conn "insert into `attributes` values (?,?,?)"
+                    [(attr, value, codeId) | (attr, value) <- getAttrs attrs]
     where getClasses [] = []
           getClasses (CodeClass c : cs) = c : getClasses cs
           getClasses (_ : cs) = getClasses cs
+
+          getAttrs [] = []
+          getAttrs (CodeAttribute attr val : cs) = (attr, val) : getAttrs cs
+          getAttrs (_ : cs) = getAttrs cs
 
 insertCode :: Int64 -> ReferencePair -> SQL ()
 insertCode docId ( ReferenceId file (ReferenceName name) count
@@ -141,6 +146,16 @@ queryCodeSource (ReferenceId doc (ReferenceName name) count) = do
                       \ where   `documents`.`filename` is ? \
                       \     and `name` is ? \
                       \     and `ordinal` is ?"
+
+queryCodeAttr :: ReferenceName -> Text -> SQL (Maybe Text)
+queryCodeAttr (ReferenceName name) attr = do
+    conn    <- getConnection
+    expectUnique' fromOnly =<< liftIO (query conn codeQuery (name, attr))
+    where codeQuery = "select `attributes`.`value` \
+                      \ from `attributes` inner join `codes` \
+                      \     on `codes`.`id` is `attributes`.`code` \
+                      \ where `name` is ? and `ordinal` is 0 \
+                      \     and `attribute` is ?"
 
 contentToRow :: Int64 -> Content -> SQL (Int64, Maybe Text, Maybe Int64)
 contentToRow docId (PlainText text) = return (docId, Just text, Nothing)

@@ -6,6 +6,7 @@ module Stitch where
 
 import RIO hiding (some)
 import qualified RIO.Text as T
+import RIO.List.Partial (head, tail)
 
 <<stitch-imports>>
 <<source-parser>>
@@ -23,11 +24,14 @@ sourceDocument :: ( MonadParsec e (ListStream Text) m
                => m [ReferencePair]
 sourceDocument = do
     cfg <- ask
-    (prop, _) <- tokenP topHeader
+    (header, (prop, _)) <- manyTill_ anySingle (tokenP topHeader)
+    -- (prop, _) <- tokenP topHeader
     lang <- maybe (fail "No valid language found in header.") return
                   $ getAttribute prop "language" >>= languageFromName cfg
     (_, refs) <- mconcat <$> some (sourceBlock lang)
-    return refs
+    return (prependCode header (head refs) : tail refs)
+    where prependCode h (ref, cb@CodeBlock{..})
+            = (ref, cb {codeSource = unlines' (h <> [codeSource])})
 ```
 
 A `sourceBlock` starts with a *begin* marker, then has many lines of plain source or nested `sourceBlock`s. Both `sourceBlock` and `sourceLine` return pairs of texts and references. The content of these pairs are concatenated. If a `sourceBlock` is the first in a series (index 0), the noweb reference is generated with the correct indentation.
@@ -81,5 +85,5 @@ import Comment (topHeader, beginBlock, endBlock, commented)
 import TextUtil (indent, unindent, unlines')
 
 import Text.Megaparsec
-    ( MonadParsec, Parsec, parse, anySingle, manyTill, some, errorBundlePretty )
+    ( MonadParsec, Parsec, parse, anySingle, manyTill, some, errorBundlePretty, manyTill_ )
 ```

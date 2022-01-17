@@ -44,7 +44,7 @@ type Match = Maybe (Text, Text, Text, [Text])
 matchCodeHeader :: ConfigSyntax -> Text -> Maybe ([CodeProperty], Text)
 matchCodeHeader syntax line =
     if line =~ matchCodeStart syntax
-    then Just (fromMaybe [] (getLanguage' <> getFileName <> getReferenceName), line)
+    then Just (fromMaybe [] (getLanguage' <> getFileName <> getReferenceName <> getHeaderLen), line)
     else Nothing
     where
           getLanguage' :: Maybe [CodeProperty]
@@ -61,6 +61,11 @@ matchCodeHeader syntax line =
           getReferenceName = do
             (_, _, _, ref)  <- line =~~ extractReferenceName syntax :: Match
             return (map CodeId ref)
+
+          getHeaderLen :: Maybe [CodeProperty]
+          getHeaderLen = do
+            (_, _, _, headLen) <- line =~~ extractProperty syntax "header" :: Match
+            return $ CodeAttribute "header" <$> headLen
 
 matchCodeFooter :: ConfigSyntax -> Text -> Maybe ((), Text)
 matchCodeFooter syntax line =
@@ -189,7 +194,7 @@ nowebReference = do
 
 parseCode :: ReferenceName -> Text -> [CodeLine]
 parseCode name = map parseLine' . T.lines
-    where parseLine' l = either (const $ PlainCode l) id
+    where parseLine' l = fromRight (PlainCode l)
                        $ parse nowebReference
                               (T.unpack $ unReferenceName name)
                               l
