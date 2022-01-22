@@ -14,7 +14,7 @@ import Test.QuickCheck.Instances.Text
 import TextUtil
 
 propUnlines :: Maybe Text -> Bool
-propUnlines t =
+propUnlines t = 
     -- ~\~ begin <<lit/a6-text-utils.md|test-unlines-inverse>>[0]
     t == mUnlines (mLines t)
     -- ~\~ end

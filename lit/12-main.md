@@ -243,7 +243,7 @@ parseTangleArgs = TangleArgs
 ``` {.haskell #sub-runners}
 CommandTangle TangleArgs {..} -> do
     cfg <- view config
-    tangle tangleQuery (if tangleDecorate 
+    tangle tangleQuery (if tangleDecorate
                         then selectAnnotator cfg
                         else selectAnnotator (cfg {configAnnotate = AnnotateNaked}))
 ```
