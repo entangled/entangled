@@ -62,7 +62,7 @@ import Errors (EntangledError(..), formatError)
 
 import Console (Doc, putTerminal)
 import qualified Console
-import qualified Data.Text.Prettyprint.Doc as P
+import qualified Prettyprinter as P
 
 import Control.Monad.Except ( MonadError )
 -- import Control.Concurrent.Chan

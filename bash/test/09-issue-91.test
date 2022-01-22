@@ -29,9 +29,6 @@ entangled insert -s file01.md
 entangled insert -s file02.md
 entangled tangle -a -d
 
-cat hello.py
-python hello.py
-
 cat > hello.py <<EOF
 # ~\~ language=Python filename=hello.py
 # ~\~ begin <<file01.md|hello.py>>[0]
@@ -39,7 +36,7 @@ config = {
     # ~\~ begin <<file01.md|config>>[0]
     "Hello": "World",
     # ~\~ end
-    # ~\~ begin <<file02.md|config>>[0]
+    # ~\~ begin <<file02.md|config>>[1]
     "See": "how they run",
     # ~\~ end
 }
@@ -51,4 +48,4 @@ EOF
 
 entangled insert -t hello.py
 
-assert-streq "$(cat file01.md)" "$(entangled stitch file01.md)"
+assert-streq "First file is unchanged" "$(cat file01.md)" "$(entangled stitch file01.md)"

@@ -9,12 +9,12 @@ import qualified RIO.Text as T
 import Data.Maybe (catMaybes, isJust)
 import Test.Hspec
 import Test.QuickCheck
-import Test.QuickCheck.Instances.Text
+import Test.QuickCheck.Instances.Text ()
 
 import TextUtil
 
 propUnlines :: Maybe Text -> Bool
-propUnlines t = 
+propUnlines t =
     -- ~\~ begin <<lit/a6-text-utils.md|test-unlines-inverse>>[0]
     t == mUnlines (mLines t)
     -- ~\~ end

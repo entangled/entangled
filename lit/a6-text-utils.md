@@ -92,12 +92,12 @@ module TextUtilSpec where
 import Data.Maybe (catMaybes, isJust)
 import Test.Hspec
 import Test.QuickCheck
-import Test.QuickCheck.Instances.Text
+import Test.QuickCheck.Instances.Text ()
 
 import TextUtil
 
 propUnlines :: Maybe Text -> Bool
-propUnlines t = 
+propUnlines t =
     <<test-unlines-inverse>>
 
 propUnlineLists :: ([Text], [Text]) -> Bool
