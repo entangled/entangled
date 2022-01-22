@@ -7,6 +7,12 @@ jobs:
     runs-on: macOS-latest #, or windows-latest
     steps:
       - uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        with:
+          path: ~/.cabal
+          key: ${{ runner.os }}-cabal-${{ hashFiles('**/entangled.cabal') }}
+          restore-keys: |
+            ${{ runner.os }}-cabal-
       - uses: haskell/actions/setup@v1
         with:
           ghc-version: '8.10' # Resolves to the latest point release of GHC 8.8
