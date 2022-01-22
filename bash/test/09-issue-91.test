@@ -1,0 +1,54 @@
+cat > file01.md <<EOF
+Here we have some reference:
+
+\`\`\` {.python file=hello.py}
+config = {
+    <<config>>
+}
+
+for k, v in config.items():
+    print(f"{k}: {v}")
+\`\`\`
+
+We may now fill config:
+
+\`\`\` {.python #config}
+"Hello": "World",
+\`\`\`
+EOF
+
+cat > file02.md <<EOF
+We add to the configuration
+
+\`\`\` {.python #config}
+"Good": "Bye",
+\`\`\`
+EOF
+
+entangled insert -s file01.md
+entangled insert -s file02.md
+entangled tangle -a -d
+
+cat hello.py
+python hello.py
+
+cat > hello.py <<EOF
+# ~\~ language=Python filename=hello.py
+# ~\~ begin <<file01.md|hello.py>>[0]
+config = {
+    # ~\~ begin <<file01.md|config>>[0]
+    "Hello": "World",
+    # ~\~ end
+    # ~\~ begin <<file02.md|config>>[0]
+    "See": "how they run",
+    # ~\~ end
+}
+
+for k, v in config.items():
+    print(f"{k}: {v}")
+# ~\~ end
+EOF
+
+entangled insert -t hello.py
+
+assert-streq "$(cat file01.md)" "$(entangled stitch file01.md)"
