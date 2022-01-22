@@ -105,8 +105,7 @@ parseArgs = Args
           <> command "list" (info (pure CommandList <**> helper) ( progDesc "List generated code files." ))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[6]
-          <> command "lint" (info (CommandLint <$> parseLintArgs) ( progDesc ("Lint input on potential problems. Available linters: "
-                                                                            <> RIO.Text.unpack (RIO.Text.unwords allLinters))))
+          <> command "lint" (info (CommandLint <$> parseLintArgs) ( progDesc ("Lint input on potential problems. Available linters: " <> RIO.Text.unpack (RIO.Text.unwords allLinters))))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[7]
           <> command "clear-orphans" (info (pure CommandClearOrphans <**> helper) ( progDesc "Deletes orphan targets." ))

@@ -3,7 +3,7 @@
 module Database where
 
 import RIO
-import RIO.List (initMaybe, sortOn)
+import RIO.List (initMaybe, sortOn, nub)
 import qualified RIO.Text as T
 import qualified RIO.Map as M
 
@@ -136,6 +136,15 @@ queryCodeId (ReferenceId doc (ReferenceName name) count) = do
                       \     and `name` is ? \
                       \     and `ordinal` is ?"
 
+queryReferenceCount :: ReferenceName -> SQL Int
+queryReferenceCount (ReferenceName name) = do
+    conn <- getConnection
+    result <- liftIO (query conn codeQuery (Only name))
+    case result of
+        [Only a] -> return a
+        _        -> return 0
+    where codeQuery = "select count(*) from `codes` where `name` is ?"
+
 queryCodeSource :: ReferenceId -> SQL (Maybe Text)
 queryCodeSource (ReferenceId doc (ReferenceName name) count) = do
     conn    <- getConnection
@@ -207,7 +216,10 @@ removeDocumentData docId = do
 
 insertDocument :: FilePath -> Document -> SQL ()
 insertDocument rel_path Document{..} = do
+    let refNames = nub $ map referenceName $ M.keys references
     conn <- getConnection
+    refCountMap <- M.fromList . zip refNames
+                <$> mapM queryReferenceCount refNames
     docId' <- getDocumentId rel_path
     docId <- case docId' of
         Just docId -> do
@@ -217,8 +229,14 @@ insertDocument rel_path Document{..} = do
             logDebug $ display $ "Inserting new '" <> T.pack rel_path <> "'."
             liftIO $ execute conn "insert into `documents`(`filename`) values (?)" (Only rel_path)
             liftIO $ lastInsertRowId conn
-    insertCodes docId references
-    insertContent docId documentContent
+    let mapref r@ReferenceId{..}
+            = maybe r (\c -> r {referenceCount=referenceCount+c})
+                    (refCountMap M.!? referenceName)
+        refs = M.mapKeys mapref references
+        cont = map (\case { Reference rid -> Reference (mapref rid);
+                            x             -> x }) documentContent
+    insertCodes docId refs
+    insertContent docId cont
     insertTargets docId documentTargets
 -- ~\~ end
 -- ~\~ begin <<lit/03-database.md|database-update>>[1]

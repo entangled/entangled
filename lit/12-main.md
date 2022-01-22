@@ -305,8 +305,7 @@ parseLintArgs = LintArgs
 ```
 
 ``` {.haskell #sub-parsers}
-<> command "lint" (info (CommandLint <$> parseLintArgs) ( progDesc ("Lint input on potential problems. Available linters: "
-                                                                  <> RIO.Text.unpack (RIO.Text.unwords allLinters))))
+<> command "lint" (info (CommandLint <$> parseLintArgs) ( progDesc ("Lint input on potential problems. Available linters: " <> RIO.Text.unpack (RIO.Text.unwords allLinters))))
 ```
 
 ``` {.haskell #sub-runners}
