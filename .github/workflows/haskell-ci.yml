@@ -13,6 +13,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - uses: actions/cache@v2
+      with:
+        path: ~/.cabal
+        key: ${{ runner.os }}-cabal-${{ hashFiles('**/entangled.cabal') }}
+        restore-keys: |
+          ${{ runner.os }}-cabal-
     - uses: actions/setup-haskell@v1
       with:
         ghc-version: '8.8'
