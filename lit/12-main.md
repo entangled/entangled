@@ -389,7 +389,6 @@ withSQL dbPath $ do
 module Entangled where
 
 import RIO
-import RIO.List (headMaybe)
 import RIO.Writer (MonadWriter, WriterT, runWriterT, tell)
 import qualified RIO.Text as T
 

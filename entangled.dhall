@@ -17,7 +17,8 @@ let syntax : entangled.Syntax =
     , matchCodeEnd         = "^```"
     , extractLanguage      = "^```[ ]*{\\.([^{} \t]+)[^{}]*}"
     , extractReferenceName = "^```[ ]*{[^{}]*#([^{} \t]*)[^{}]*}"
-    , extractFileName      = "^```[ ]*{[^{}]*file=([^{} \t]*)[^{}]*}" }
+    , extractFileName      = "^```[ ]*{[^{}]*file=([^{} \t]*)[^{}]*}"
+    , extractProperty      = \(name: Text) -> "^```[ ]*{[^{}]*${name}=([^{} \t]*)[^{}]*}" }
 
 {- Database
    --------
