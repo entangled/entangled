@@ -143,7 +143,7 @@ queryReferenceCount (ReferenceName name) = do
     case result of
         [Only a] -> return a
         _        -> return 0
-    where codeQuery = "select count(*) from `codes` where `name` is ?"
+    where codeQuery = "select count(`id`) from `codes` where `name` is ?"
 
 queryCodeSource :: ReferenceId -> SQL (Maybe Text)
 queryCodeSource (ReferenceId doc (ReferenceName name) count) = do
@@ -218,8 +218,6 @@ insertDocument :: FilePath -> Document -> SQL ()
 insertDocument rel_path Document{..} = do
     let refNames = nub $ map referenceName $ M.keys references
     conn <- getConnection
-    refCountMap <- M.fromList . zip refNames
-                <$> mapM queryReferenceCount refNames
     docId' <- getDocumentId rel_path
     docId <- case docId' of
         Just docId -> do
@@ -229,6 +227,8 @@ insertDocument rel_path Document{..} = do
             logDebug $ display $ "Inserting new '" <> T.pack rel_path <> "'."
             liftIO $ execute conn "insert into `documents`(`filename`) values (?)" (Only rel_path)
             liftIO $ lastInsertRowId conn
+    refCountMap <- M.fromList . zip refNames
+                <$> mapM queryReferenceCount refNames
     let mapref r@ReferenceId{..}
             = maybe r (\c -> r {referenceCount=referenceCount+c})
                     (refCountMap M.!? referenceName)
