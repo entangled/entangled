@@ -95,6 +95,14 @@ referencesByName refs name
 
 codeBlocksByName :: ReferenceMap -> ReferenceName -> [CodeBlock]
 codeBlocksByName refs name = mapMaybe (refs M.!?) $ referencesByName refs name
+
+mapReferences :: (ReferenceId -> ReferenceId) -> Document -> Document
+mapReferences f (Document {..}) =
+    Document (M.mapKeys f references)
+             (map mapContent documentContent)
+             documentTargets
+    where mapContent (Reference rid) = Reference (f rid)
+          mapContent x               = x
 ```
 
 ### Code blocks

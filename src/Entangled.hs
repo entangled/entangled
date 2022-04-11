@@ -19,7 +19,8 @@ import Paths_entangled
 import Config (config, HasConfig, languageFromName)
 import Database ( db, HasConnection, queryTargetRef, queryReferenceMap
                 , listTargetFiles, insertDocument, stitchDocument, listSourceFiles
-                , deduplicateRefs, updateTarget, listOrphanTargets, clearOrphanTargets )
+                , deduplicateRefs, updateTarget, listOrphanTargets, clearOrphanTargets
+                , queryCodeAttr )
 import Errors (EntangledError (..))
 
 import Comment (headerComment)
@@ -90,6 +91,16 @@ tangleRef codes name =
         Nothing        -> throwM $ TangleError $ "Reference `" <> tshow name <> "` not found."
         Just t         -> t
 
+toInt :: Text -> Maybe Int
+toInt = readMaybe . T.unpack
+
+takeLines :: Text -> Int -> [Text]
+takeLines txt n = take n $ drop 1 $ T.lines txt
+
+dropLines :: Text -> Int -> [Text]
+dropLines txt n = take 1 lines_ <> drop (n+1) lines_
+    where lines_ = T.lines txt
+
 tangleFile :: (HasConnection env, HasLogFunc env, HasConfig env)
            => ExpandedCode (Entangled env) -> FilePath -> Entangled env Text
 tangleFile codes path = do
@@ -98,9 +109,12 @@ tangleFile codes path = do
         Nothing              -> throwM $ TangleError $ "Target `" <> T.pack path <> "` not found."
         Just (ref, langName) -> do
             content <- tangleRef codes ref
+            headerLen <- db (queryCodeAttr ref "header")
             case languageFromName cfg langName of
                 Nothing -> throwM $ TangleError $ "Language unknown " <> langName
-                Just lang -> return $ T.unlines [headerComment lang path, content]
+                Just lang -> return $ maybe (T.unlines [headerComment lang path, content])
+                                            (\n -> T.unlines $ takeLines content n <> [headerComment lang path] <> dropLines content n)
+                                            (toInt =<< headerLen)
 
 tangle :: (HasConnection env, HasLogFunc env, HasConfig env)
        => TangleQuery -> Annotator (Entangled env) -> Entangled env ()
@@ -126,7 +140,7 @@ stitch StitchAll = mapM_ (\f -> writeFile f =<< stitchFile f) =<< db listSourceF
 
 listTargets :: (HasConnection env, HasLogFunc env, HasConfig env)
             => Entangled env ()
-listTargets = dump =<< (T.unlines . map T.pack <$> db listTargetFiles)
+listTargets = dump . T.unlines . map T.pack =<< db listTargetFiles
 
 insertSources :: (HasConnection env, HasLogFunc env, HasConfig env)
               => [FilePath] -> Entangled env ()

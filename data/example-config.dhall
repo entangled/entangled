@@ -25,8 +25,8 @@ you're
 
        dhall hash <<< <location to schema>
   -}
-let entangled = https://raw.githubusercontent.com/entangled/entangled/v1.2.2/data/config-schema.dhall
-                sha256:9bb4c5649869175ad0b662d292fd81a3d5d9ccb503b1c7e316d531b7856fb096
+let entangled = https://raw.githubusercontent.com/entangled/entangled/v1.3.0/data/config-schema.dhall
+                sha256:cb03a230547147223b6bd522c133d16d17921e249e7c2bd505d31bf7729d2cc5
 
 {- Languages
    ---------
@@ -78,7 +78,8 @@ let syntax : entangled.Syntax =
     , matchCodeEnd         = "```"
     , extractLanguage      = "```[ ]*{\\.([^{} \t]+)[^{}]*}"
     , extractReferenceName = "```[ ]*{[^{}]*#([^{} \t]*)[^{}]*}"
-    , extractFileName      = "```[ ]*{[^{}]*file=([^{} \t]*)[^{}]*}" }
+    , extractFileName      = "```[ ]*{[^{}]*file=([^{} \t]*)[^{}]*}"
+    , extractProperty      = \(name : Text) -> "```[ ]*{[^{}]*${name}=([^{} \t]*)[^{}]*}" }
 
 {- Database
    --------

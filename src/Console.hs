@@ -16,8 +16,8 @@ module Console
 
 import RIO
 import Data.Text.IO as T
-import qualified Data.Text.Prettyprint.Doc as P
-import qualified Data.Text.Prettyprint.Doc.Render.Terminal as ANSI
+import qualified Prettyprinter as P
+import qualified Prettyprinter.Render.Terminal as ANSI
 import qualified System.Info
 import Data.Time
 

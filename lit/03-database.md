@@ -2,11 +2,10 @@
 We use an SQLite database to manage document content. Using SQL requires a remapping of the available data.
 
 ``` {.haskell file=src/Database.hs}
-{-# LANGUAGE OverloadedLabels, NoImplicitPrelude #-}
 module Database where
 
 import RIO
-import RIO.List (initMaybe, sortOn)
+import RIO.List (initMaybe, sortOn, nub)
 import qualified RIO.Text as T
 import qualified RIO.Map as M
 
@@ -178,9 +177,15 @@ insertCode' tup attrs =  do
         codeId <- lastInsertRowId conn
         executeMany conn "insert into `classes` values (?,?)"
                     [(className, codeId) | className <- getClasses attrs]
+        executeMany conn "insert into `attributes` values (?,?,?)"
+                    [(attr, value, codeId) | (attr, value) <- getAttrs attrs]
     where getClasses [] = []
           getClasses (CodeClass c : cs) = c : getClasses cs
           getClasses (_ : cs) = getClasses cs
+
+          getAttrs [] = []
+          getAttrs (CodeAttribute attr val : cs) = (attr, val) : getAttrs cs
+          getAttrs (_ : cs) = getAttrs cs
 
 insertCode :: Int64 -> ReferencePair -> SQL ()
 insertCode docId ( ReferenceId file (ReferenceName name) count
@@ -258,6 +263,15 @@ queryCodeId (ReferenceId doc (ReferenceName name) count) = do
                       \     and `name` is ? \
                       \     and `ordinal` is ?"
 
+queryReferenceCount :: ReferenceName -> SQL Int
+queryReferenceCount (ReferenceName name) = do
+    conn <- getConnection
+    result <- liftIO (query conn codeQuery (Only name))
+    case result of
+        [Only a] -> return a
+        _        -> return 0
+    where codeQuery = "select count(`id`) from `codes` where `name` is ?"
+
 queryCodeSource :: ReferenceId -> SQL (Maybe Text)
 queryCodeSource (ReferenceId doc (ReferenceName name) count) = do
     conn    <- getConnection
@@ -268,6 +282,16 @@ queryCodeSource (ReferenceId doc (ReferenceName name) count) = do
                       \ where   `documents`.`filename` is ? \
                       \     and `name` is ? \
                       \     and `ordinal` is ?"
+
+queryCodeAttr :: ReferenceName -> Text -> SQL (Maybe Text)
+queryCodeAttr (ReferenceName name) attr = do
+    conn    <- getConnection
+    expectUnique' fromOnly =<< liftIO (query conn codeQuery (name, attr))
+    where codeQuery = "select `attributes`.`value` \
+                      \ from `attributes` inner join `codes` \
+                      \     on `codes`.`id` is `attributes`.`code` \
+                      \ where `name` is ? and `ordinal` is 0 \
+                      \     and `attribute` is ?"
 
 contentToRow :: Int64 -> Content -> SQL (Int64, Maybe Text, Maybe Int64)
 contentToRow docId (PlainText text) = return (docId, Just text, Nothing)
@@ -341,6 +365,7 @@ removeDocumentData docId = do
 
 insertDocument :: FilePath -> Document -> SQL ()
 insertDocument rel_path Document{..} = do
+    let refNames = nub $ map referenceName $ M.keys references
     conn <- getConnection
     docId' <- getDocumentId rel_path
     docId <- case docId' of
@@ -351,8 +376,16 @@ insertDocument rel_path Document{..} = do
             logDebug $ display $ "Inserting new '" <> T.pack rel_path <> "'."
             liftIO $ execute conn "insert into `documents`(`filename`) values (?)" (Only rel_path)
             liftIO $ lastInsertRowId conn
-    insertCodes docId references
-    insertContent docId documentContent
+    refCountMap <- M.fromList . zip refNames
+                <$> mapM queryReferenceCount refNames
+    let mapref r@ReferenceId{..}
+            = maybe r (\c -> r {referenceCount=referenceCount+c})
+                    (refCountMap M.!? referenceName)
+        refs = M.mapKeys mapref references
+        cont = map (\case { Reference rid -> Reference (mapref rid);
+                            x             -> x }) documentContent
+    insertCodes docId refs
+    insertContent docId cont
     insertTargets docId documentTargets
 ```
 

@@ -2,7 +2,7 @@
 -- ~\~ begin <<lit/04-configuration.md|src/Config.hs>>[0]
 {-# LANGUAGE NoImplicitPrelude #-}
 module Config ( module Config
-              , module Version_1_2_0
+              , module Version_1_3_0
               , module Config.Record ) where
 
 import RIO hiding (void)
@@ -16,7 +16,8 @@ import System.FilePath.Glob
 
 import qualified Config.Version_1_0_0 as Version_1_0_0
 import qualified Config.Version_1_2_0 as Version_1_2_0
-import Config.Version_1_2_0 (update, Config(..))
+import qualified Config.Version_1_3_0 as Version_1_3_0
+import Config.Version_1_3_0 (update, Config(..))
 import Config.Record
 
 import Errors
@@ -40,7 +41,8 @@ readLocalConfig = do
     version <- getVersion cfg_path
     decoder <- select (throwM $ SystemError $ "unrecognized version string '" <> version <> "'")
         [ ( version == "1.0.0", return $ update <=< input Version_1_0_0.configDecoder )
-        , ( version == "1.2.0", return $ update <=< input Version_1_2_0.configDecoder ) ]
+        , ( version == "1.2.0", return $ update <=< input Version_1_2_0.configDecoder )
+        , ( version == "1.3.0", return $ input Version_1_3_0.configDecoder ) ]
     decoder $ "(" <> T.pack cfg_path <> ").entangled"
 -- ~\~ end
 -- ~\~ begin <<lit/04-configuration.md|config-reader>>[0]

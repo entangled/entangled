@@ -4,16 +4,30 @@
 module Config.Version_1_2_0 where
 
 import RIO
-import qualified RIO.Text as T
 
-import Config.Record
+import Config.Record hiding (ConfigSyntax, configSyntaxDecoder)
 import qualified Config.Version_1_0_0 as Version_1_0_0
 import Format
 
-import Paths_entangled
-import Dhall (input, auto, Decoder, record, field, setFromDistinctList )
+import Dhall (auto, Decoder, record, field, setFromDistinctList )
 
 -- ~\~ begin <<lit/04-configuration.md|config-1-2-0-record>>[0]
+data ConfigSyntax = ConfigSyntax
+    { matchCodeStart       :: Text
+    , matchCodeEnd         :: Text
+    , extractLanguage      :: Text
+    , extractReferenceName :: Text
+    , extractFileName      :: Text
+    }
+
+configSyntaxDecoder :: Decoder ConfigSyntax
+configSyntaxDecoder = record
+    ( ConfigSyntax <$> field "matchCodeStart" auto
+                   <*> field "matchCodeEnd" auto
+                   <*> field "extractLanguage" auto
+                   <*> field "extractReferenceName" auto
+                   <*> field "extractFileName" auto )
+
 data Config = Config
     { configVersion   :: Text
     , configLanguages :: Set ConfigLanguage
@@ -23,12 +37,15 @@ data Config = Config
     , configAnnotate  :: AnnotateMethod
     , configLineDirectives :: Map Text Format.Spec
     , configUseLineDirectives :: Bool
-    } deriving (Show)
+    }
 
-defaultSyntax :: IO ConfigSyntax
-defaultSyntax = do
-    path <- getDataFileName "data/config-schema.dhall"
-    input configSyntaxDecoder $ "(" <> T.pack path <> ").defaultSyntax"
+defaultSyntax :: ConfigSyntax
+defaultSyntax = ConfigSyntax
+    { matchCodeStart       = "^[ ]*```[ ]*{[^{}]*}"
+    , matchCodeEnd         = "^[ ]*```"
+    , extractLanguage      = "^[ ]*```[ ]*{\\.([^{} \t]+)[^{}]*}"
+    , extractReferenceName = "^[ ]*```[ ]*{[^{}]*#([^{} \t]*)[^{}]*}"
+    , extractFileName      = "^[ ]*```[ ]*{[^{}]*file=([^{} \t]*)[^{}]*}" }
 
 class ToVersion_1_2_0 a where
     update :: a -> IO Config
@@ -38,13 +55,12 @@ instance ToVersion_1_2_0 Config where
 
 instance ToVersion_1_2_0 Version_1_0_0.Config where
     update old = do
-        syntax <- defaultSyntax
         return Config
             { configVersion           = Version_1_0_0.configVersion           old
             , configLanguages         = Version_1_0_0.configLanguages         old
             , configWatchList         = Version_1_0_0.configWatchList         old
             , configDatabase          = Version_1_0_0.configDatabase          old
-            , configSyntax            = syntax
+            , configSyntax            = defaultSyntax
             , configAnnotate          = Version_1_0_0.configAnnotate          old
             , configLineDirectives    = Version_1_0_0.configLineDirectives    old
             , configUseLineDirectives = Version_1_0_0.configUseLineDirectives old

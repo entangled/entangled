@@ -98,7 +98,6 @@ annotateNaked refs ref = do
 annotateComment :: (MonadReader Config m, MonadError EntangledError m)
                 => ReferenceMap -> ReferenceId -> m Text
 annotateComment refs ref = do
-    Config{..} <- ask
     code <- getReference refs ref
     naked <- annotateNaked refs ref
     pre <- comment (codeLanguage code) $ standardPreComment ref

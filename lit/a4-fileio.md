@@ -1,6 +1,5 @@
-# FileIO
-
-## Transactions
+# Transactions
+The idea here is that we'd like to create an abstract class to do all our file system interactions. For this we define a `Transaction` that encodes a monadic action, together with a description of that action and the possibility of needing human confirmation on the transaction.
 
 ``` {.haskell file=src/Transaction.hs}
 {-# LANGUAGE NoImplicitPrelude,UndecidableInstances #-}
@@ -10,11 +9,25 @@ import RIO
 import qualified RIO.Text as T
 <<transaction-imports>>
 
+<<transaction>>
+```
+
+``` {.haskell #transaction}
 data Description = Message Doc
                  | CreateFile FilePath
                  | WriteFile FilePath
                  | DeleteFile FilePath
 
+data Transaction m = Transaction
+  { action :: Maybe (m ())
+  , description :: [Description]
+  , needConfirm :: Bool }
+```
+
+Here `Doc` is pretty-printing class from `Console`.
+Now, considering the different options for displaying a transaction, we need a human readable and a machine readable description
+
+``` {.haskell #transaction}
 showDescriptionHuman :: [Description] -> Doc
 showDescriptionHuman = mconcat . map (\case
     Message x    -> x
@@ -28,19 +41,11 @@ showDescriptionMachine = T.unlines . mapMaybe (\case
     CreateFile f -> Just $ "+ " <> T.pack f
     WriteFile f  -> Just $ "~ " <> T.pack f
     DeleteFile f -> Just $ "- " <> T.pack f)
-
-data Transaction m = Transaction
-  { action :: Maybe (m ())
-  , description :: [Description]
-  , needConfirm :: Bool }
-
-<<transaction>>
 ```
 
 When an event happened we need to respond, usually by writing out several files. Since `IO` is a `Monoid`, we can append `IO` actions and keep track of describing the gathered events in a `Transaction`. There are some things that we may need to ask the user permission for, like overwriting files in dubious circumstances. Messaging is done through pretty-printed `Doc`.
 
 ``` {.haskell #transaction-imports}
--- import qualified Data.Text.Prettyprint.Doc as P
 import Console (Doc, group, msgCreate, msgDelete, msgWrite)
 import qualified Console
 import qualified Data.Text.IO as T.IO

@@ -27,6 +27,7 @@ data Args = Args
     , verboseFlag :: Bool
     , machineFlag :: Bool
     , checkFlag   :: Bool
+    , preinsertFlag :: Bool
     , subCommand :: SubCommand }
 
 data SubCommand
@@ -47,6 +48,7 @@ parseArgs = Args
     <*> switch (long "verbose" <> short 'V' <> help "Be very verbose.")
     <*> switch (long "machine" <> short 'm' <> help "Machine readable output.")
     <*> switch (long "check"   <> short 'c' <> help "Don't do anything, returns 1 if changes would be made to file system.")
+    <*> switch (long "preinsert" <> short 'p' <> help "Tangle everything as a first action, default when db is in-memory.")
     <*> ( subparser ( mempty
           <<sub-parsers>>
         ) <|> parseNoCommand )
@@ -74,25 +76,37 @@ instance HasLogFunc Env where
     logFuncL = lens logFunc' (\x y -> x { logFunc' = y })
 
 run :: Args -> IO ()
-run (Args True _ _ _ _)                           = putStrLn $ showVersion version
-run (Args _ _ _ _ (CommandConfig ConfigArgs{..})) = printExampleConfig' minimalConfig
-run Args{..}                                      = runWithEnv verboseFlag machineFlag checkFlag (runSubCommand subCommand)
+run (Args True _ _ _ _ _)                           = putStrLn $ showVersion version
+run (Args _ _ _ _ _ (CommandConfig ConfigArgs{..})) = printExampleConfig' minimalConfig
+run Args{..}                                        = runWithEnv verboseFlag machineFlag checkFlag preinsertFlag (runSubCommand subCommand)
 
-runWithEnv :: Bool -> Bool -> Bool -> Entangled Env a -> IO a
-runWithEnv verbose machineReadable dryRun x = do
+runWithEnv :: Bool -> Bool -> Bool -> Bool -> Entangled Env a -> IO a
+runWithEnv verbose machineReadable dryRun preinsertFlag x = do
     cfg <- readLocalConfig
     dbPath <- getDatabasePath cfg
     logOptions <- setLogVerboseFormat True . setLogUseColor True
                <$> logOptionsHandle stderr verbose
+    let preinsertFlag' = preinsertFlag || dbPath == ":memory:"
+        x' = (if preinsertFlag' then preinsert else pure ()) >> x
     if dryRun
     then do
         todo <- withLogFunc logOptions (\logFunc
                 -> withConnection dbPath (\conn
-                    -> runRIO (Env conn cfg logFunc) (testEntangled x)))
+                    -> runRIO (Env conn cfg logFunc) (testEntangled x')))
         if todo then exitFailure else exitSuccess
     else withLogFunc logOptions (\logFunc
         -> withConnection dbPath (\conn
-            -> runRIO (Env conn cfg logFunc) (runEntangled machineReadable Nothing x)))
+            -> runRIO (Env conn cfg logFunc) (runEntangled machineReadable Nothing x')))
+
+preinsert :: (HasConfig env, HasLogFunc env, HasConnection env)
+          => Entangled env ()
+preinsert = do
+    db createTables
+    cfg <- view config
+    abs_paths <- sort <$> getInputFiles cfg
+    when (null abs_paths) $ throwM $ SystemError "No input files."
+    rel_paths <- mapM makeRelativeToCurrentDirectory abs_paths
+    insertSources rel_paths
 
 runSubCommand :: (HasConfig env, HasLogFunc env, HasConnection env)
               => SubCommand -> Entangled env ()
@@ -229,7 +243,7 @@ parseTangleArgs = TangleArgs
 ``` {.haskell #sub-runners}
 CommandTangle TangleArgs {..} -> do
     cfg <- view config
-    tangle tangleQuery (if tangleDecorate 
+    tangle tangleQuery (if tangleDecorate
                         then selectAnnotator cfg
                         else selectAnnotator (cfg {configAnnotate = AnnotateNaked}))
 ```
@@ -291,8 +305,7 @@ parseLintArgs = LintArgs
 ```
 
 ``` {.haskell #sub-parsers}
-<> command "lint" (info (CommandLint <$> parseLintArgs) ( progDesc ("Lint input on potential problems. Available linters: "
-                                                                  <> RIO.Text.unpack (RIO.Text.unwords allLinters))))
+<> command "lint" (info (CommandLint <$> parseLintArgs) ( progDesc ("Lint input on potential problems. Available linters: " <> RIO.Text.unpack (RIO.Text.unwords allLinters))))
 ```
 
 ``` {.haskell #sub-runners}
@@ -322,6 +335,9 @@ module Main where
 
 import RIO
 import RIO.Text (unwords, unpack)
+import RIO.Directory (makeRelativeToCurrentDirectory)
+import RIO.List (sort)
+
 import Prelude (putStrLn)
 import qualified Data.Text.IO as T.IO
 import Paths_entangled
@@ -329,8 +345,9 @@ import Data.Version (showVersion)
 
 <<main-imports>>
 
-import Tangle (selectAnnotator, Annotator)
+import Tangle (selectAnnotator)
 import Entangled
+import Errors (EntangledError(..))
 import Linters
 
 <<main-options>>
@@ -354,7 +371,7 @@ main = do
 
 ``` {.haskell #main-imports}
 import Database (HasConnection, connection, createTables, db)
-import Comment (annotateNaked)
+-- import Comment (annotateNaked)
 import Database.SQLite.Simple
 ```
 
@@ -385,7 +402,8 @@ import Paths_entangled
 import Config (config, HasConfig, languageFromName)
 import Database ( db, HasConnection, queryTargetRef, queryReferenceMap
                 , listTargetFiles, insertDocument, stitchDocument, listSourceFiles
-                , deduplicateRefs, updateTarget, listOrphanTargets, clearOrphanTargets )
+                , deduplicateRefs, updateTarget, listOrphanTargets, clearOrphanTargets
+                , queryCodeAttr )
 import Errors (EntangledError (..))
 
 import Comment (headerComment)
@@ -456,6 +474,16 @@ tangleRef codes name =
         Nothing        -> throwM $ TangleError $ "Reference `" <> tshow name <> "` not found."
         Just t         -> t
 
+toInt :: Text -> Maybe Int
+toInt = readMaybe . T.unpack
+
+takeLines :: Text -> Int -> [Text]
+takeLines txt n = take n $ drop 1 $ T.lines txt
+
+dropLines :: Text -> Int -> [Text]
+dropLines txt n = take 1 lines_ <> drop (n+1) lines_
+    where lines_ = T.lines txt
+
 tangleFile :: (HasConnection env, HasLogFunc env, HasConfig env)
            => ExpandedCode (Entangled env) -> FilePath -> Entangled env Text
 tangleFile codes path = do
@@ -464,9 +492,12 @@ tangleFile codes path = do
         Nothing              -> throwM $ TangleError $ "Target `" <> T.pack path <> "` not found."
         Just (ref, langName) -> do
             content <- tangleRef codes ref
+            headerLen <- db (queryCodeAttr ref "header")
             case languageFromName cfg langName of
                 Nothing -> throwM $ TangleError $ "Language unknown " <> langName
-                Just lang -> return $ T.unlines [headerComment lang path, content]
+                Just lang -> return $ maybe (T.unlines [headerComment lang path, content])
+                                            (\n -> T.unlines $ takeLines content n <> [headerComment lang path] <> dropLines content n)
+                                            (toInt =<< headerLen)
 
 tangle :: (HasConnection env, HasLogFunc env, HasConfig env)
        => TangleQuery -> Annotator (Entangled env) -> Entangled env ()
@@ -492,7 +523,7 @@ stitch StitchAll = mapM_ (\f -> writeFile f =<< stitchFile f) =<< db listSourceF
 
 listTargets :: (HasConnection env, HasLogFunc env, HasConfig env)
             => Entangled env ()
-listTargets = dump =<< (T.unlines . map T.pack <$> db listTargetFiles)
+listTargets = dump . T.unlines . map T.pack =<< db listTargetFiles
 
 insertSources :: (HasConnection env, HasLogFunc env, HasConfig env)
               => [FilePath] -> Entangled env ()

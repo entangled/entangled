@@ -5,6 +5,7 @@ module Stitch where
 
 import RIO hiding (some)
 import qualified RIO.Text as T
+import RIO.List.Partial (head, tail)
 
 -- ~\~ begin <<lit/14-stitch.md|stitch-imports>>[0]
 import ListStream (ListStream(..), tokenP)
@@ -14,7 +15,7 @@ import Comment (topHeader, beginBlock, endBlock, commented)
 import TextUtil (indent, unindent, unlines')
 
 import Text.Megaparsec
-    ( MonadParsec, Parsec, parse, anySingle, manyTill, some, errorBundlePretty )
+    ( MonadParsec, Parsec, parse, anySingle, manyTill, some, errorBundlePretty, manyTill_ )
 -- ~\~ end
 -- ~\~ begin <<lit/14-stitch.md|source-parser>>[0]
 sourceDocument :: ( MonadParsec e (ListStream Text) m
@@ -23,11 +24,14 @@ sourceDocument :: ( MonadParsec e (ListStream Text) m
                => m [ReferencePair]
 sourceDocument = do
     cfg <- ask
-    (prop, _) <- tokenP topHeader
+    (header, (prop, _)) <- manyTill_ anySingle (tokenP topHeader)
+    -- (prop, _) <- tokenP topHeader
     lang <- maybe (fail "No valid language found in header.") return
                   $ getAttribute prop "language" >>= languageFromName cfg
     (_, refs) <- mconcat <$> some (sourceBlock lang)
-    return refs
+    return (prependCode header (head refs) : tail refs)
+    where prependCode h (ref, cb@CodeBlock{..})
+            = (ref, cb {codeSource = unlines' (h <> [codeSource])})
 -- ~\~ end
 -- ~\~ begin <<lit/14-stitch.md|source-parser>>[1]
 sourceBlock :: ( MonadReader Config m, MonadParsec e (ListStream Text) m, MonadFail m )

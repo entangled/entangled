@@ -11,7 +11,7 @@ Source0:        https://github.com/entangled/entangled/archive/v%{version}.tar.g
 # Requires:       
 
 %description
-Entangled helps you write Literate Programs in Mardown. You put all your code inside Markdown code blocks. Entangled automatically extracts the code and writes it to more traditional source files. You can then edit these generated files, and the changes are being fed back to the Markdown.
+Entangled helps you write Literate Programs in Markdown. You put all your code inside Markdown code blocks. Entangled automatically extracts the code and writes it to more traditional source files. You can then edit these generated files, and the changes are fed back to the Markdown.
 
 %prep
 %autosetup

@@ -1,0 +1,42 @@
+# This is a basic workflow to help you get started with Actions
+on:
+  push:
+    tags:
+      - "*"
+      
+name: Build and Release
+jobs:
+  publish:
+    name: Build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset_name: entangled-linux-amd64
+          - os: windows-latest
+            asset_name: mything-windows-amd64
+          - os: macos-latest
+            asset_name: mything-macos-amd64
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        with:
+          path: ~/.cabal
+          key: ${{ runner.os }}-cabal-${{ hashFiles('**/entangled.cabal') }}
+          restore-keys: |
+            ${{ runner.os }}-cabal-
+      - uses: haskell/actions/setup@v1
+        with:
+          ghc-version: '8.10' # Resolves to the latest point release of GHC 8.8
+          cabal-version: '3.6.2.0' # Exact version of Cabal
+      - run: |
+          rm -f cabal.project.local
+          cabal configure --disable-executable-dynamic --disable-shared \
+                          --ghc-option=-optl=-static --enable-split-sections
+          make dist
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist-newstyle/entangled*

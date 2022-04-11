@@ -68,14 +68,16 @@ let Syntax : Type =
     , extractLanguage      : Text
     , extractFileName      : Text
     , extractReferenceName : Text
-    , matchCodeEnd         : Text }
+    , matchCodeEnd         : Text
+    , extractProperty      : Text -> Text }
 
 let defaultSyntax : Syntax =
     { matchCodeStart       = "^[ ]*```[ ]*{[^{}]*}"
     , matchCodeEnd         = "^[ ]*```"
     , extractLanguage      = "^[ ]*```[ ]*{\\.([^{} \t]+)[^{}]*}"
     , extractReferenceName = "^[ ]*```[ ]*{[^{}]*#([^{} \t]*)[^{}]*}"
-    , extractFileName      = "^[ ]*```[ ]*{[^{}]*file=([^{} \t]*)[^{}]*}" }
+    , extractFileName      = "^[ ]*```[ ]*{[^{}]*file=([^{} \t]*)[^{}]*}"
+    , extractProperty      = \(name : Text) -> "^[ ]*```[ ]*{[^{}]*${name}=([^{} \t]*)[^{}]*}" }
 
 let Config =
     { Type =
@@ -88,7 +90,7 @@ let Config =
         , lineDirectives : List LineDirective
         , useLineDirectives : Bool }
     , default =
-        { version   = "1.2.0"
+        { version   = "1.3.0"
         , languages = languages
         , watchList = [] : List Text
         , database  = None Text
