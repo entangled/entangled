@@ -22,14 +22,6 @@ import Options.Applicative
 All true options are left to the sub-commands. We're leaving `<<sub-commands>>` to be expanded.
 
 ``` {.haskell #main-options}
-data Args = Args
-    { versionFlag :: Bool
-    , verboseFlag :: Bool
-    , machineFlag :: Bool
-    , checkFlag   :: Bool
-    , preinsertFlag :: Bool
-    , subCommand :: SubCommand }
-
 data SubCommand
     = NoCommand
     <<sub-commands>>

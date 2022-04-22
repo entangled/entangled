@@ -37,14 +37,6 @@ import Errors (EntangledError(..))
 import Linters
 
 -- ~\~ begin <<lit/12-main.md|main-options>>[0]
-data Args = Args
-    { versionFlag :: Bool
-    , verboseFlag :: Bool
-    , machineFlag :: Bool
-    , checkFlag   :: Bool
-    , preinsertFlag :: Bool
-    , subCommand :: SubCommand }
-
 data SubCommand
     = NoCommand
     -- ~\~ begin <<lit/12-main.md|sub-commands>>[0]

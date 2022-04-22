@@ -3,7 +3,7 @@ cradle:
     - path: "./src"
       component: "lib:entangled"
 
-    - path: "./app/Main.hs"
+    - path: "./app"
       component: "entangled:exe:entangled"
 
     - path: "./test"

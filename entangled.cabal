@@ -94,6 +94,8 @@ executable entangled
   import: deps
   main-is: Main.hs
   other-modules:
+      Commands.Common
+      Commands.Shake
       Paths_entangled
   autogen-modules:
       Paths_entangled

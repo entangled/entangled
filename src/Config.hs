@@ -1,6 +1,5 @@
 -- ~\~ language=Haskell filename=src/Config.hs
 -- ~\~ begin <<lit/04-configuration.md|src/Config.hs>>[0]
-{-# LANGUAGE NoImplicitPrelude #-}
 module Config ( module Config
               , module Version_1_3_0
               , module Config.Record ) where
@@ -8,7 +7,7 @@ module Config ( module Config
 import RIO hiding (void)
 import RIO.Directory
 import RIO.FilePath
-import RIO.List (scanl1, find)
+import RIO.List (find)
 import qualified RIO.Text as T
 
 import Dhall (input, auto)
