@@ -12,7 +12,7 @@ import RIO.Set (elems)
 import qualified RIO.Set as S
 import qualified RIO.Map as M
 
-import Data.Graph (Graph, Vertex)
+import Data.Graph (Graph, Vertex, SCC(..))
 import qualified Data.Graph as G
 
 import Database.SQLite.Simple (query_, query, fromOnly, Only(..))
@@ -24,6 +24,8 @@ import Daemon (Session)
 import Config (HasConfig, config)
 import Tangle (parseCode, CodeLine(..))
 import FileIO
+
+data Result = Success | Fail
 
 referencesInFragment :: ReferenceMap -> ReferenceName -> [ReferenceName]
 referencesInFragment refs r =
@@ -39,6 +41,29 @@ referenceGraph = do
     refs <- db (queryReferenceMap cfg)
     let names = elems $ referenceNames refs
     return $ G.graphFromEdges $ zip3 (repeat ()) names (map (referencesInFragment refs) names)
+
+referenceSCC :: (HasConnection env, HasLogFunc env, HasConfig env)
+               => Entangled env [SCC ReferenceName]
+referenceSCC = do
+    cfg <- view config
+    refs <- db (queryReferenceMap cfg)
+    let names = elems $ referenceNames refs
+    return $ G.stronglyConnComp $ zip3 names names (map (referencesInFragment refs) names)
+
+checkCycles :: (HasConnection env, HasLogFunc env, HasConfig env)
+            => Entangled env Result
+checkCycles = do
+    scc <- referenceSCC
+    if all isAcyclic scc then do
+        return Success
+    else do
+        mapM_ (\c -> dump $ "cycle found: " <> T.intercalate " -> " c <> " ⤾ \n")
+              $ mapMaybe cyclicName scc
+        return Fail
+    where isAcyclic (CyclicSCC _) = False
+          isAcyclic _             = True
+          cyclicName (CyclicSCC ref) = Just (map unReferenceName ref)
+          cyclicName _               = Nothing
 
 dumpToGraphViz :: (HasConnection env, HasLogFunc env, HasConfig env)
                => Entangled env ()
@@ -70,6 +95,7 @@ linters :: (HasConnection env, HasLogFunc env, HasConfig env)
         => Map Text (Entangled env ())
 linters = M.fromList
     [ ("dumpToGraphViz", dumpToGraphViz)
+    , ("checkCycles", checkCycles)
     , ("listUnusedFragments", listUnusedFragments) ]
 
 allLinters :: [Text]
