@@ -301,7 +301,7 @@ parseLintArgs = LintArgs
 ```
 
 ``` {.haskell #sub-runners}
-CommandLint LintArgs {..} -> lint lintFlags
+CommandLint LintArgs {..} -> void $ liftRIO $ lint lintFlags
 ```
 
 ### Cleaning orphan targets

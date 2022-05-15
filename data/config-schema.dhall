@@ -88,16 +88,18 @@ let Config =
         , syntax    : Syntax
         , annotate  : Annotate
         , lineDirectives : List LineDirective
-        , useLineDirectives : Bool }
+        , useLineDirectives : Bool
+        , lineNumberSeparator : Text }
     , default =
-        { version   = "1.3.0"
+        { version   = "1.4.0"
         , languages = languages
         , watchList = [] : List Text
         , database  = None Text
         , syntax    = defaultSyntax
         , annotate  = Annotate.Standard
         , lineDirectives = lineDirectives
-        , useLineDirectives = False }
+        , useLineDirectives = False
+        , lineNumberSeparator = "#" }
     }
 
 in { Comment   = Comment
