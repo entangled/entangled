@@ -282,7 +282,7 @@ runSubCommand sc = do
         CommandList -> listTargets
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[6]
-        CommandLint LintArgs {..} -> lint lintFlags
+        CommandLint LintArgs {..} -> void $ liftRIO $ lint lintFlags
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[7]
         CommandClearOrphans -> clearOrphans
