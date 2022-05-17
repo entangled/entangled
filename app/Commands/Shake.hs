@@ -1,6 +1,7 @@
 module Commands.Shake where
 
 import RIO
+import qualified RIO.Text as T
 import Milkshake
     ( readConfig, loadIncludes, immediateActions, shake, shakeOptions, monitor, withWatchManager, want, enter
     , HasWatchManager, HasEventChannel(..), Config )

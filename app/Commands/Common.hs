@@ -37,6 +37,11 @@ forwardFlags args = catMaybes
     , if preinsertFlag args then Just "-p" else Nothing
     ]
 
+withLogFunc' :: MonadUnliftIO m => Args b -> (LogFunc -> m a) -> m a
+withLogFunc' args action = do
+    logOptions <- setLogVerboseFormat True . setLogUseColor True
+               <$> logOptionsHandle stderr (verboseFlag args)
+    withLogFunc logOptions action
 
 data Env = Env
     { connection' :: Connection
