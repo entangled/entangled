@@ -21,4 +21,5 @@ cabal.project.local
 docker/**/*.tar.gz
 docker/**/*.deb
 .entangled
-
+.direnv
+result
