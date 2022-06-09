@@ -96,8 +96,9 @@ executable entangled
   main-is: Main.hs
   other-modules:
       Commands.Common
-      Commands.Shake
       Commands.Config
+      Commands.List
+      Commands.Shake
       Paths_entangled
   autogen-modules:
       Paths_entangled

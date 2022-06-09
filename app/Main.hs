@@ -37,6 +37,7 @@ import Errors (EntangledError(..))
 import Linters
 import qualified Commands.Common as Common
 import qualified Commands.Config
+import qualified Commands.List
 
 -- ~\~ begin <<lit/12-main.md|main-options>>[0]
 data SubCommand
@@ -57,7 +58,7 @@ data SubCommand
     | CommandStitch StitchArgs
     -- ~\~ end
     -- ~\~ begin <<lit/12-main.md|sub-commands>>[5]
-    | CommandList
+    | CommandList Commands.List.Args
     -- ~\~ end
     -- ~\~ begin <<lit/12-main.md|sub-commands>>[6]
     | CommandLint LintArgs
@@ -90,7 +91,8 @@ parseSubCommand = ( subparser ( mempty
           <> command "stitch" (info (CommandStitch <$> parseStitchArgs) ( progDesc "Retrieve stitched markdown." ))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[5]
-          <> command "list" (info (pure CommandList <**> helper) ( progDesc "List generated code files." ))
+          <> command "list" (info (CommandList <$> Commands.List.parseArgs)
+                                  (progDesc "List generated code files." ))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[6]
           <> command "lint" (info (CommandLint <$> parseLintArgs) ( progDesc ("Lint input on potential problems. Available linters: " <> RIO.Text.unpack (RIO.Text.unwords allLinters))))
@@ -197,7 +199,10 @@ instance HasLogFunc Env where
 run :: Common.Args SubCommand -> IO ()
 run (Common.Args True _ _ _ _ _)                           = putStrLn $ showVersion version
 run args@(Common.Args _ _ _ _ _ (CommandConfig x)) = Commands.Config.run (args {Common.subArgs = x})
-run Common.Args{..}                                        = runWithEnv verboseFlag machineFlag checkFlag preinsertFlag (runSubCommand subArgs)
+run args@Common.Args{..} = 
+    case subArgs of
+      CommandList x -> Common.withEnv args $ Commands.List.run (args {Common.subArgs = x})
+      _             -> runWithEnv verboseFlag machineFlag checkFlag preinsertFlag (runSubCommand subArgs)
 
 runWithEnv :: Bool -> Bool -> Bool -> Bool -> Entangled Env a -> IO a
 runWithEnv verbose machineReadable dryRun preinsertFlag x = do
@@ -254,7 +259,7 @@ runSubCommand sc = do
         CommandStitch StitchArgs {..} -> stitch (StitchFile stitchTarget)
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[5]
-        CommandList -> listTargets
+        CommandList _ -> listTargets
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[6]
         CommandLint LintArgs {..} -> void $ liftRIO $ lint lintFlags

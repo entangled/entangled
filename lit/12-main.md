@@ -64,7 +64,10 @@ instance HasLogFunc Env where
 run :: Common.Args SubCommand -> IO ()
 run (Common.Args True _ _ _ _ _)                           = putStrLn $ showVersion version
 run args@(Common.Args _ _ _ _ _ (CommandConfig x)) = Commands.Config.run (args {Common.subArgs = x})
-run Common.Args{..}                                        = runWithEnv verboseFlag machineFlag checkFlag preinsertFlag (runSubCommand subArgs)
+run args@Common.Args{..} = 
+    case subArgs of
+      CommandList x -> Common.withEnv args $ Commands.List.run (args {Common.subArgs = x})
+      _             -> runWithEnv verboseFlag machineFlag checkFlag preinsertFlag (runSubCommand subArgs)
 
 runWithEnv :: Bool -> Bool -> Bool -> Bool -> Entangled Env a -> IO a
 runWithEnv verbose machineReadable dryRun preinsertFlag x = do
@@ -249,15 +252,16 @@ CommandStitch StitchArgs {..} -> stitch (StitchFile stitchTarget)
 ### Listing all target files
 
 ``` {.haskell #sub-commands}
-| CommandList
+| CommandList Commands.List.Args
 ```
 
 ``` {.haskell #sub-parsers}
-<> command "list" (info (pure CommandList <**> helper) ( progDesc "List generated code files." ))
+<> command "list" (info (CommandList <$> Commands.List.parseArgs)
+                        (progDesc "List generated code files." ))
 ```
 
 ``` {.haskell #sub-runners}
-CommandList -> listTargets
+CommandList _ -> listTargets
 ```
 
 ### Linter
@@ -324,6 +328,7 @@ import Errors (EntangledError(..))
 import Linters
 import qualified Commands.Common as Common
 import qualified Commands.Config
+import qualified Commands.List
 
 <<main-options>>
 

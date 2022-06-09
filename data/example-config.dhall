@@ -90,7 +90,7 @@ let syntax : entangled.Syntax =
    Alternatively, you can set the database to ":memory:", which has the same
    effect.
   -}
-let database = Some ".entangled/db.sqlite"
+let database = None Text    -- Some ".entangled/db.sqlite"
 
 {- Watch list
    ----------
