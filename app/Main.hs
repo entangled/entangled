@@ -5,11 +5,8 @@ module Main where
 
 import RIO
 import RIO.Text (unwords, unpack)
-import RIO.Directory (makeRelativeToCurrentDirectory)
-import RIO.List (sort)
 
 import Prelude (putStrLn)
-import qualified Data.Text.IO as T.IO
 import Paths_entangled
 import Data.Version (showVersion)
 
@@ -26,14 +23,12 @@ import Config
 import Daemon (runSession)
 -- ~\~ end
 -- ~\~ begin <<lit/12-main.md|main-imports>>[4]
-import Database (HasConnection, connection, createTables, db)
+import Database (HasConnection, createTables, db)
 -- import Comment (annotateNaked)
-import Database.SQLite.Simple
 -- ~\~ end
 
 import Tangle (selectAnnotator)
 import Entangled
-import Errors (EntangledError(..))
 import Linters
 import qualified Commands.Common as Common
 import qualified Commands.Config
@@ -182,55 +177,13 @@ main = do
             )
 
 -- ~\~ begin <<lit/12-main.md|main-run>>[0]
-data Env = Env
-    { connection' :: Connection
-    , config'     :: Config
-    , logFunc'    :: LogFunc }
-
-instance HasConnection Env where
-    connection = lens connection' (\ x y -> x { connection' = y })
-
-instance HasConfig Env where
-    config = lens config' (\x y -> x { config' = y })
-
-instance HasLogFunc Env where
-    logFuncL = lens logFunc' (\x y -> x { logFunc' = y })
-
 run :: Common.Args SubCommand -> IO ()
-run (Common.Args True _ _ _ _ _)                           = putStrLn $ showVersion version
-run args@(Common.Args _ _ _ _ _ (CommandConfig x)) = Commands.Config.run (args {Common.subArgs = x})
+run (Common.Args True _ _ _ _ _) = putStrLn $ showVersion version
 run args@Common.Args{..} = 
     case subArgs of
-      CommandList x -> Common.withEnv args $ Commands.List.run (args {Common.subArgs = x})
-      _             -> runWithEnv verboseFlag machineFlag checkFlag preinsertFlag (runSubCommand subArgs)
-
-runWithEnv :: Bool -> Bool -> Bool -> Bool -> Entangled Env a -> IO a
-runWithEnv verbose machineReadable dryRun preinsertFlag x = do
-    cfg <- readLocalConfig
-    dbPath <- getDatabasePath cfg
-    logOptions <- setLogVerboseFormat True . setLogUseColor True
-               <$> logOptionsHandle stderr verbose
-    let preinsertFlag' = preinsertFlag || dbPath == ":memory:"
-        x' = (if preinsertFlag' then preinsert else pure ()) >> x
-    if dryRun
-    then do
-        todo <- withLogFunc logOptions (\logFunc
-                -> withConnection dbPath (\conn
-                    -> runRIO (Env conn cfg logFunc) (testEntangled x')))
-        if todo then exitFailure else exitSuccess
-    else withLogFunc logOptions (\logFunc
-        -> withConnection dbPath (\conn
-            -> runRIO (Env conn cfg logFunc) (runEntangled machineReadable Nothing x')))
-
-preinsert :: (HasConfig env, HasLogFunc env, HasConnection env)
-          => Entangled env ()
-preinsert = do
-    db createTables
-    cfg <- view config
-    abs_paths <- sort <$> getInputFiles cfg
-    when (null abs_paths) $ throwM $ SystemError "No input files."
-    rel_paths <- mapM makeRelativeToCurrentDirectory abs_paths
-    insertSources rel_paths
+      CommandConfig x -> Commands.Config.run (args {Common.subArgs = x})
+      CommandList x   -> Common.withEnv args $ Commands.List.run (args {Common.subArgs = x})
+      _               -> Common.withEnv args $ Common.withEntangled args (runSubCommand subArgs)
 
 runSubCommand :: (HasConfig env, HasLogFunc env, HasConnection env)
               => SubCommand -> Entangled env ()

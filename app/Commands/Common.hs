@@ -77,7 +77,7 @@ withEnv args action = do
             -> runRIO (Env conn cfg logFunc) action))
 
 withEntangled :: (HasConfig env, HasLogFunc env, HasConnection env)
-              => Args a -> Entangled env a -> RIO env a
+              => Args s -> Entangled env a -> RIO env a
 withEntangled args action = do
     cfg <- view config
     dbPath <- getDatabasePath cfg
@@ -104,7 +104,7 @@ instance HasLogFunc Env where
     logFuncL = lens logFunc' (\x y -> x { logFunc' = y })
 
 runEntangled :: (MonadIO m, MonadReader env m, HasLogFunc env)
-             => Args a -> Maybe Doc -> Entangled env a -> m a
+             => Args s -> Maybe Doc -> Entangled env a -> m a
 runEntangled Args { machineFlag = True } _ = runEntangledMachine
 runEntangled Args { machineFlag = False } h = runEntangledHuman h
 
