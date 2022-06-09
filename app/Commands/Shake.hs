@@ -1,3 +1,5 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module Commands.Shake where
 
 import RIO
@@ -14,7 +16,7 @@ helpText :: Text
 helpText = "Runs a Milkshake loop, following config in '(./entangled.dhall).milkshake'"
 
 data Args = Args
-    { once :: Bool }
+    { runOnce :: Bool }
 
 parseArgs :: Parser Args
 parseArgs = Args <$> switch (long "once" <> short '1' <> help "Run Milkshake in batch mode.")
@@ -34,23 +36,21 @@ instance HasLogFunc Env where
 instance HasEventChannel Env MS.Data.Target where
     eventChannel = lens _channel (\e c -> e { _channel = c })
 
-runEnv :: MonadUnliftIO m => RIO Env a -> m a
-runEnv x = do
-    logOptions <- logOptionsHandle stderr True
-    withLogFunc logOptions (\logFunc -> do
-        withWatchManager (\wm -> do
-            ch <- newChan
-            let env = Env wm ch logFunc
-            runRIO env x))
-
+withEnv :: (MonadUnliftIO m, MonadReader env m, HasLogFunc env) => RIO Env a -> m a
+withEnv action =
+    withWatchManager (\wm -> do
+        ch <- newChan
+        logFunc <- view logFuncL
+        runRIO (Env wm ch logFunc) action)
+        
 runAction :: Config -> [FilePath] -> RIO Env ()
 runAction cfg tgts = do
     actions <- either throwM return $ immediateActions cfg
     liftIO $ shake shakeOptions (mapM_ enter actions >> want tgts)
 
-mainLoop :: FilePath -> RIO Env ()
-mainLoop path = do
-    cfg <- loadIncludes =<< readConfig path
+mainLoop :: Text -> RIO Env ()
+mainLoop script = do
+    cfg <- loadIncludes =<< readConfig script
     chan <- view eventChannel
     stop <- monitor $ map (\MS.Data.Watch{..} -> (paths, \_ -> return target)) (MS.Data.watches cfg)
     target <- readChan chan
@@ -60,12 +60,15 @@ mainLoop path = do
             logDebug $ "building " <> display path
             runAction cfg [T.unpack path]
         _           -> return ()
-    mainLoop path
+    mainLoop script
 
-runMain :: FilePath -> RIO Env ()
+runMain :: Text -> RIO Env ()
 runMain path = do
     cfg <- loadIncludes =<< readConfig path
     runAction cfg []
-run :: (HasLogFunc env) => Args a -> RIO env ()
-run = do
-    
+
+run :: (HasLogFunc env) => Common.Args Args -> RIO env ()
+run args = withEnv $ if (runOnce $ Common.subArgs args)
+                       then runMain "(./entangled.dhall).milkshake"
+                       else mainLoop "(./entangled.dhall).milkshake"
+

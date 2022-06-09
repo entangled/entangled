@@ -34,14 +34,8 @@ The same goes for the sub-command parsers, which are collected in `<<sub-parsers
 parseNoCommand :: Parser SubCommand
 parseNoCommand = pure NoCommand
 
-parseArgs :: Parser Args   {- HLINT ignore parseArgs -}
-parseArgs = Args
-    <$> switch (long "version" <> short 'v' <> help "Show version information.")
-    <*> switch (long "verbose" <> short 'V' <> help "Be very verbose.")
-    <*> switch (long "machine" <> short 'm' <> help "Machine readable output.")
-    <*> switch (long "check"   <> short 'c' <> help "Don't do anything, returns 1 if changes would be made to file system.")
-    <*> switch (long "preinsert" <> short 'p' <> help "Tangle everything as a first action, default when db is in-memory.")
-    <*> ( subparser ( mempty
+parseSubCommand :: Parser SubCommand   {- HLINT ignore parseArgs -}
+parseSubCommand = ( subparser ( mempty
           <<sub-parsers>>
         ) <|> parseNoCommand )
 ```
@@ -67,10 +61,10 @@ instance HasConfig Env where
 instance HasLogFunc Env where
     logFuncL = lens logFunc' (\x y -> x { logFunc' = y })
 
-run :: Args -> IO ()
-run (Args True _ _ _ _ _)                           = putStrLn $ showVersion version
-run (Args _ _ _ _ _ (CommandConfig ConfigArgs{..})) = printExampleConfig' minimalConfig
-run Args{..}                                        = runWithEnv verboseFlag machineFlag checkFlag preinsertFlag (runSubCommand subCommand)
+run :: Common.Args SubCommand -> IO ()
+run (Common.Args True _ _ _ _ _)                           = putStrLn $ showVersion version
+run (Common.Args _ _ _ _ _ (CommandConfig ConfigArgs{..})) = printExampleConfig' minimalConfig
+run Common.Args{..}                                        = runWithEnv verboseFlag machineFlag checkFlag preinsertFlag (runSubCommand subArgs)
 
 runWithEnv :: Bool -> Bool -> Bool -> Bool -> Entangled Env a -> IO a
 runWithEnv verbose machineReadable dryRun preinsertFlag x = do
@@ -341,6 +335,7 @@ import Tangle (selectAnnotator)
 import Entangled
 import Errors (EntangledError(..))
 import Linters
+import qualified Commands.Common as Common
 
 <<main-options>>
 
@@ -348,7 +343,7 @@ main :: IO ()
 main = do
     <<main-set-encoding>>
     run =<< execParser args
-    where args = info (parseArgs <**> helper)
+    where args = info (Common.parseArgs parseSubCommand <**> helper)
             (  fullDesc
             <> progDesc "Automatically tangles and untangles 'FILES...'."
             <> header   "Entangled -- daemonised literate programming"

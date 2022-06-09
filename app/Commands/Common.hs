@@ -13,7 +13,7 @@ data Args a = Args
     , machineFlag :: Bool
     , checkFlag   :: Bool
     , preinsertFlag :: Bool
-    , subCommand :: a }
+    , subArgs :: a }
 
 
 parseArgs :: Parser a -> Parser (Args a)   {- HLINT ignore parseArgs -}
