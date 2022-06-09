@@ -97,6 +97,7 @@ executable entangled
   other-modules:
       Commands.Common
       Commands.Shake
+      Commands.Config
       Paths_entangled
   autogen-modules:
       Paths_entangled

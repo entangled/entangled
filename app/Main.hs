@@ -36,6 +36,7 @@ import Entangled
 import Errors (EntangledError(..))
 import Linters
 import qualified Commands.Common as Common
+import qualified Commands.Config
 
 -- ~\~ begin <<lit/12-main.md|main-options>>[0]
 data SubCommand
@@ -44,7 +45,7 @@ data SubCommand
     | CommandDaemon DaemonArgs
     -- ~\~ end
     -- ~\~ begin <<lit/12-main.md|sub-commands>>[1]
-    | CommandConfig ConfigArgs
+    | CommandConfig Commands.Config.Args
     -- ~\~ end
     -- ~\~ begin <<lit/12-main.md|sub-commands>>[2]
     | CommandInsert InsertArgs
@@ -76,7 +77,7 @@ parseSubCommand = ( subparser ( mempty
           <>  command "daemon" (info parseDaemonArgs ( progDesc "Run the entangled daemon." ))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[1]
-          <> command "config" (info parseConfigArgs
+          <> command "config" (info (CommandConfig <$> Commands.Config.parseArgs)
                                     (progDesc "Print an example configuration."))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[2]
@@ -110,20 +111,7 @@ parseDaemonArgs = CommandDaemon . DaemonArgs
     <**> helper
 -- ~\~ end
 -- ~\~ begin <<lit/12-main.md|main-options>>[3]
-newtype ConfigArgs = ConfigArgs
-    { minimalConfig :: Bool
-    } deriving (Show, Eq)
 
-parseConfigArgs :: Parser SubCommand
-parseConfigArgs = CommandConfig . ConfigArgs
-    <$> switch (long "minimal" <> short 'm' <> help "Print minimal config.")
-    <**> helper
-
-printExampleConfig' :: Bool -> IO ()
-printExampleConfig' minimal = do
-    let path = if minimal then "data/minimal-config.dhall"
-               else "data/example-config.dhall"
-    T.IO.putStr =<< T.IO.readFile =<< getDataFileName path
 -- ~\~ end
 -- ~\~ begin <<lit/12-main.md|main-options>>[4]
 data FileType = SourceFile | TargetFile deriving (Show, Eq)
@@ -208,7 +196,7 @@ instance HasLogFunc Env where
 
 run :: Common.Args SubCommand -> IO ()
 run (Common.Args True _ _ _ _ _)                           = putStrLn $ showVersion version
-run (Common.Args _ _ _ _ _ (CommandConfig ConfigArgs{..})) = printExampleConfig' minimalConfig
+run args@(Common.Args _ _ _ _ _ (CommandConfig x)) = Commands.Config.run (args {Common.subArgs = x})
 run Common.Args{..}                                        = runWithEnv verboseFlag machineFlag checkFlag preinsertFlag (runSubCommand subArgs)
 
 runWithEnv :: Bool -> Bool -> Bool -> Bool -> Entangled Env a -> IO a

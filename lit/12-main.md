@@ -63,7 +63,7 @@ instance HasLogFunc Env where
 
 run :: Common.Args SubCommand -> IO ()
 run (Common.Args True _ _ _ _ _)                           = putStrLn $ showVersion version
-run (Common.Args _ _ _ _ _ (CommandConfig ConfigArgs{..})) = printExampleConfig' minimalConfig
+run args@(Common.Args _ _ _ _ _ (CommandConfig x)) = Commands.Config.run (args {Common.subArgs = x})
 run Common.Args{..}                                        = runWithEnv verboseFlag machineFlag checkFlag preinsertFlag (runSubCommand subArgs)
 
 runWithEnv :: Bool -> Bool -> Bool -> Bool -> Entangled Env a -> IO a
@@ -137,28 +137,15 @@ CommandDaemon DaemonArgs {..} -> runSession inputFiles
 ### Printing the config
 
 ``` {.haskell #main-options}
-newtype ConfigArgs = ConfigArgs
-    { minimalConfig :: Bool
-    } deriving (Show, Eq)
 
-parseConfigArgs :: Parser SubCommand
-parseConfigArgs = CommandConfig . ConfigArgs
-    <$> switch (long "minimal" <> short 'm' <> help "Print minimal config.")
-    <**> helper
-
-printExampleConfig' :: Bool -> IO ()
-printExampleConfig' minimal = do
-    let path = if minimal then "data/minimal-config.dhall"
-               else "data/example-config.dhall"
-    T.IO.putStr =<< T.IO.readFile =<< getDataFileName path
 ```
 
 ``` {.haskell #sub-commands}
-| CommandConfig ConfigArgs
+| CommandConfig Commands.Config.Args
 ```
 
 ``` {.haskell #sub-parsers}
-<> command "config" (info parseConfigArgs
+<> command "config" (info (CommandConfig <$> Commands.Config.parseArgs)
                           (progDesc "Print an example configuration."))
 ```
 
@@ -336,6 +323,7 @@ import Entangled
 import Errors (EntangledError(..))
 import Linters
 import qualified Commands.Common as Common
+import qualified Commands.Config
 
 <<main-options>>
 
