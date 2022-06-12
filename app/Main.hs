@@ -27,12 +27,12 @@ import Database (HasConnection, createTables, db)
 -- import Comment (annotateNaked)
 -- ~\~ end
 
-import Tangle (selectAnnotator)
 import Entangled
 import Linters
 import qualified Commands.Common as Common
 import qualified Commands.Config
 import qualified Commands.List
+import qualified Commands.Tangle
 
 -- ~\~ begin <<lit/12-main.md|main-options>>[0]
 data SubCommand
@@ -47,7 +47,7 @@ data SubCommand
     | CommandInsert InsertArgs
     -- ~\~ end
     -- ~\~ begin <<lit/12-main.md|sub-commands>>[3]
-    | CommandTangle TangleArgs
+    | CommandTangle Commands.Tangle.Args
     -- ~\~ end
     -- ~\~ begin <<lit/12-main.md|sub-commands>>[4]
     | CommandStitch StitchArgs
@@ -80,7 +80,7 @@ parseSubCommand = ( subparser ( mempty
           <> command "insert" (info parseInsertArgs ( progDesc "Insert markdown files into database." ))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[3]
-          <> command "tangle" (info (CommandTangle <$> parseTangleArgs) ( progDesc "Retrieve tangled code." ))
+          <> command "tangle" (info (CommandTangle <$> Commands.Tangle.parseArgs) ( progDesc "Retrieve tangled code." ))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[4]
           <> command "stitch" (info (CommandStitch <$> parseStitchArgs) ( progDesc "Retrieve stitched markdown." ))
@@ -128,20 +128,7 @@ parseInsertArgs = CommandInsert <$> (InsertArgs
     <**> helper)
 -- ~\~ end
 -- ~\~ begin <<lit/12-main.md|main-options>>[5]
-data TangleArgs = TangleArgs
-    { tangleQuery :: TangleQuery
-    , tangleDecorate :: Bool
-    } deriving (Show, Eq)
 
-parseTangleArgs :: Parser TangleArgs
-parseTangleArgs = TangleArgs
-    <$> (   (TangleFile <$> strOption ( long "file" <> short 'f'
-                                      <> metavar "TARGET" <> help "file target" ))
-        <|> (TangleRef  <$> strOption ( long "ref"  <> short 'r'
-                                      <> metavar "TARGET" <> help "reference target" ))
-        <|> flag' TangleAll (long "all" <> short 'a' <> help "tangle all and write to disk" ))
-    <*> switch (long "decorate" <> short 'd' <> help "Decorate with stitching comments.")
-    <**> helper
 -- ~\~ end
 -- ~\~ begin <<lit/12-main.md|main-options>>[6]
 newtype StitchArgs = StitchArgs
@@ -183,6 +170,7 @@ run args@Common.Args{..} =
     case subArgs of
       CommandConfig x -> Commands.Config.run (args {Common.subArgs = x})
       CommandList x   -> Common.withEnv args $ Commands.List.run (args {Common.subArgs = x})
+      CommandTangle x -> Common.withEnv args $ Common.withEntangled args $ Commands.Tangle.run x
       _               -> Common.withEnv args $ Common.withEntangled args (runSubCommand subArgs)
 
 runSubCommand :: (HasConfig env, HasLogFunc env, HasConnection env)
@@ -202,11 +190,7 @@ runSubCommand sc = do
         CommandInsert (InsertArgs TargetFile fs) -> insertTargets fs
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[3]
-        CommandTangle TangleArgs {..} -> do
-            cfg <- view config
-            tangle tangleQuery (if tangleDecorate
-                                then selectAnnotator cfg
-                                else selectAnnotator (cfg {configAnnotate = AnnotateNaked}))
+
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[4]
         CommandStitch StitchArgs {..} -> stitch (StitchFile stitchTarget)
@@ -220,5 +204,6 @@ runSubCommand sc = do
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[7]
         CommandClearOrphans -> clearOrphans
         -- ~\~ end
+        _    -> return ()
 -- ~\~ end
 -- ~\~ end

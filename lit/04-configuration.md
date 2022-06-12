@@ -532,7 +532,7 @@ module Config ( module Config
 import RIO hiding (void)
 import RIO.Directory
 import RIO.FilePath
-import RIO.List (find)
+import RIO.List (find, scanl1)
 import qualified RIO.Text as T
 
 import Dhall (input, auto)

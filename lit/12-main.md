@@ -53,6 +53,7 @@ run args@Common.Args{..} =
     case subArgs of
       CommandConfig x -> Commands.Config.run (args {Common.subArgs = x})
       CommandList x   -> Common.withEnv args $ Commands.List.run (args {Common.subArgs = x})
+      CommandTangle x -> Common.withEnv args $ Common.withEntangled args $ Commands.Tangle.run x
       _               -> Common.withEnv args $ Common.withEntangled args (runSubCommand subArgs)
 
 runSubCommand :: (HasConfig env, HasLogFunc env, HasConnection env)
@@ -62,6 +63,7 @@ runSubCommand sc = do
     case sc of
         NoCommand -> return ()
         <<sub-runners>>
+        _    -> return ()
 ```
 
 This way we can add sub-commands independently in the following sections.
@@ -150,36 +152,19 @@ CommandInsert (InsertArgs TargetFile fs) -> insertTargets fs
 ### Tangling a single reference
 
 ``` {.haskell #sub-commands}
-| CommandTangle TangleArgs
+| CommandTangle Commands.Tangle.Args
 ```
 
 ``` {.haskell #sub-parsers}
-<> command "tangle" (info (CommandTangle <$> parseTangleArgs) ( progDesc "Retrieve tangled code." ))
+<> command "tangle" (info (CommandTangle <$> Commands.Tangle.parseArgs) ( progDesc "Retrieve tangled code." ))
 ```
 
 ``` {.haskell #main-options}
-data TangleArgs = TangleArgs
-    { tangleQuery :: TangleQuery
-    , tangleDecorate :: Bool
-    } deriving (Show, Eq)
 
-parseTangleArgs :: Parser TangleArgs
-parseTangleArgs = TangleArgs
-    <$> (   (TangleFile <$> strOption ( long "file" <> short 'f'
-                                      <> metavar "TARGET" <> help "file target" ))
-        <|> (TangleRef  <$> strOption ( long "ref"  <> short 'r'
-                                      <> metavar "TARGET" <> help "reference target" ))
-        <|> flag' TangleAll (long "all" <> short 'a' <> help "tangle all and write to disk" ))
-    <*> switch (long "decorate" <> short 'd' <> help "Decorate with stitching comments.")
-    <**> helper
 ```
 
 ``` {.haskell #sub-runners}
-CommandTangle TangleArgs {..} -> do
-    cfg <- view config
-    tangle tangleQuery (if tangleDecorate
-                        then selectAnnotator cfg
-                        else selectAnnotator (cfg {configAnnotate = AnnotateNaked}))
+
 ```
 
 ### Stitching a markdown source
@@ -277,12 +262,12 @@ import Data.Version (showVersion)
 
 <<main-imports>>
 
-import Tangle (selectAnnotator)
 import Entangled
 import Linters
 import qualified Commands.Common as Common
 import qualified Commands.Config
 import qualified Commands.List
+import qualified Commands.Tangle
 
 <<main-options>>
 
@@ -398,17 +383,8 @@ instance (HasLogFunc env) => MonadFileIO (Entangled env) where
 
     deleteFile path     = tell $ plan (DeleteFile path) (deleteFile path)
 
+-- up for deletion
 data TangleQuery = TangleFile FilePath | TangleRef Text | TangleAll deriving (Show, Eq)
-
-tangleRef :: (HasLogFunc env, HasConfig env)
-    => ExpandedCode (Entangled env) -> ReferenceName -> Entangled env Text
-tangleRef codes name =
-    case codes LM.!? name of
-        Nothing        -> throwM $ TangleError $ "Reference `" <> tshow name <> "` not found."
-        Just t         -> t
-
-toInt :: Text -> Maybe Int
-toInt = readMaybe . T.unpack
 
 takeLines :: Text -> Int -> [Text]
 takeLines txt n = take n $ drop 1 $ T.lines txt
@@ -416,6 +392,16 @@ takeLines txt n = take n $ drop 1 $ T.lines txt
 dropLines :: Text -> Int -> [Text]
 dropLines txt n = take 1 lines_ <> drop (n+1) lines_
     where lines_ = T.lines txt
+
+toInt :: Text -> Maybe Int
+toInt = readMaybe . T.unpack
+
+tangleRef :: (HasLogFunc env, HasConfig env)
+    => ExpandedCode (Entangled env) -> ReferenceName -> Entangled env Text
+tangleRef codes name =
+    case codes LM.!? name of
+        Nothing        -> throwM $ TangleError $ "Reference `" <> tshow name <> "` not found."
+        Just t         -> t
 
 tangleFile :: (HasConnection env, HasLogFunc env, HasConfig env)
            => ExpandedCode (Entangled env) -> FilePath -> Entangled env Text
@@ -442,6 +428,7 @@ tangle query annotate = do
         TangleRef ref   -> dump =<< tangleRef codes (ReferenceName ref)
         TangleFile path -> dump =<< tangleFile codes path
         TangleAll       -> mapM_ (\f -> writeFile f =<< tangleFile codes f) =<< db listTargetFiles
+--
 
 data StitchQuery = StitchFile FilePath | StitchAll
 

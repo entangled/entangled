@@ -82,17 +82,8 @@ instance (HasLogFunc env) => MonadFileIO (Entangled env) where
 
     deleteFile path     = tell $ plan (DeleteFile path) (deleteFile path)
 
+-- up for deletion
 data TangleQuery = TangleFile FilePath | TangleRef Text | TangleAll deriving (Show, Eq)
-
-tangleRef :: (HasLogFunc env, HasConfig env)
-    => ExpandedCode (Entangled env) -> ReferenceName -> Entangled env Text
-tangleRef codes name =
-    case codes LM.!? name of
-        Nothing        -> throwM $ TangleError $ "Reference `" <> tshow name <> "` not found."
-        Just t         -> t
-
-toInt :: Text -> Maybe Int
-toInt = readMaybe . T.unpack
 
 takeLines :: Text -> Int -> [Text]
 takeLines txt n = take n $ drop 1 $ T.lines txt
@@ -100,6 +91,16 @@ takeLines txt n = take n $ drop 1 $ T.lines txt
 dropLines :: Text -> Int -> [Text]
 dropLines txt n = take 1 lines_ <> drop (n+1) lines_
     where lines_ = T.lines txt
+
+toInt :: Text -> Maybe Int
+toInt = readMaybe . T.unpack
+
+tangleRef :: (HasLogFunc env, HasConfig env)
+    => ExpandedCode (Entangled env) -> ReferenceName -> Entangled env Text
+tangleRef codes name =
+    case codes LM.!? name of
+        Nothing        -> throwM $ TangleError $ "Reference `" <> tshow name <> "` not found."
+        Just t         -> t
 
 tangleFile :: (HasConnection env, HasLogFunc env, HasConfig env)
            => ExpandedCode (Entangled env) -> FilePath -> Entangled env Text
@@ -126,6 +127,7 @@ tangle query annotate = do
         TangleRef ref   -> dump =<< tangleRef codes (ReferenceName ref)
         TangleFile path -> dump =<< tangleFile codes path
         TangleAll       -> mapM_ (\f -> writeFile f =<< tangleFile codes f) =<< db listTargetFiles
+--
 
 data StitchQuery = StitchFile FilePath | StitchAll
 

@@ -54,7 +54,7 @@ common deps
   default-extensions:
         OverloadedStrings FlexibleContexts FlexibleInstances RecordWildCards
         TypeFamilies GeneralizedNewtypeDeriving NamedFieldPuns LambdaCase
-        DeriveGeneric
+        DeriveGeneric NoImplicitPrelude
   default-language: Haskell2010
   ghc-options: -Wall
 
@@ -99,6 +99,7 @@ executable entangled
       Commands.Config
       Commands.List
       Commands.Shake
+      Commands.Tangle
       Paths_entangled
   autogen-modules:
       Paths_entangled
