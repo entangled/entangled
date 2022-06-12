@@ -51,10 +51,11 @@ run :: Common.Args SubCommand -> IO ()
 run (Common.Args True _ _ _ _ _) = putStrLn $ showVersion version
 run args@Common.Args{..} = 
     case subArgs of
-      CommandClearOrphans -> Common.withEnv args $ Common.withEntangled args $ Commands.ClearOrphans.run
-      CommandConfig x -> Commands.Config.run (args {Common.subArgs = x})
+      CommandClearOrphans -> Common.withEnv args $ Common.withEntangled args Commands.ClearOrphans.run
+      CommandConfig x -> Commands.Config.run x
       CommandInsert x -> Common.withEnv args $ Common.withEntangled args $ Commands.Insert.run x
-      CommandList x   -> Common.withEnv args $ Commands.List.run (args {Common.subArgs = x})
+      CommandLint x   -> Common.withEnv args $ Common.withEntangled args $ Commands.Lint.run x
+      CommandList     -> Common.withEnv args $ Common.withEntangled args Commands.List.run 
       CommandTangle x -> Common.withEnv args $ Common.withEntangled args $ Commands.Tangle.run x
       CommandStitch x -> Common.withEnv args $ Common.withEntangled args $ Commands.Stitch.run x
       _               -> Common.withEnv args $ Common.withEntangled args (runSubCommand subArgs)
@@ -116,7 +117,7 @@ CommandDaemon DaemonArgs {..} -> runSession inputFiles
 ```
 
 ``` {.haskell #sub-runners}
-CommandConfig _ -> printExampleConfig
+
 ```
 
 ### Inserting files to the database
@@ -177,11 +178,11 @@ CommandConfig _ -> printExampleConfig
 ### Listing all target files
 
 ``` {.haskell #sub-commands}
-| CommandList Commands.List.Args
+| CommandList
 ```
 
 ``` {.haskell #sub-parsers}
-<> command "list" (info (CommandList <$> Commands.List.parseArgs)
+<> command "list" (info (pure CommandList <**> helper)
                         (progDesc "List generated code files." ))
 ```
 
@@ -203,15 +204,16 @@ parseLintArgs = LintArgs
 ```
 
 ``` {.haskell #sub-commands}
-| CommandLint LintArgs
+| CommandLint Commands.Lint.Args
 ```
 
 ``` {.haskell #sub-parsers}
-<> command "lint" (info (CommandLint <$> parseLintArgs) ( progDesc ("Lint input on potential problems. Available linters: " <> RIO.Text.unpack (RIO.Text.unwords allLinters))))
+<> command "lint" (info (CommandLint <$> Commands.Lint.parseArgs)
+                  ( progDesc ("Lint input on potential problems.")))
 ```
 
 ``` {.haskell #sub-runners}
-CommandLint LintArgs {..} -> void $ liftRIO $ lint lintFlags
+
 ```
 
 ### Cleaning orphan targets
@@ -226,7 +228,7 @@ This action deletes orphan targets from both the database and the file system.
 ```
 
 ``` {.haskell #sub-runners}
-CommandClearOrphans -> clearOrphans
+
 ```
 
 ## Main
@@ -236,7 +238,6 @@ CommandClearOrphans -> clearOrphans
 module Main where
 
 import RIO
-import RIO.Text (unwords, unpack)
 
 import Prelude (putStrLn)
 import Paths_entangled
@@ -245,11 +246,11 @@ import Data.Version (showVersion)
 <<main-imports>>
 
 import Entangled
-import Linters
 import qualified Commands.Common as Common
 import qualified Commands.ClearOrphans
 import qualified Commands.Config
 import qualified Commands.Insert
+import qualified Commands.Lint
 import qualified Commands.List
 import qualified Commands.Tangle
 import qualified Commands.Stitch

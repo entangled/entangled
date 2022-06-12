@@ -99,6 +99,7 @@ executable entangled
       Commands.ClearOrphans
       Commands.Config
       Commands.Insert
+      Commands.Lint
       Commands.List
       Commands.Shake
       Commands.Stitch

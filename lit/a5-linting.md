@@ -47,8 +47,8 @@ instance Monoid LinterResult where
 dump :: (MonadIO m) => Text -> m ()
 dump text = B.hPutStr stdout (T.encodeUtf8 text)
 
-runLinter :: (HasLogFunc env) => Linter env () -> RIO env LinterResult
-runLinter (Linter l) = do
+runLinter :: (MonadIO m, MonadReader env m, HasLogFunc env) => Linter env () -> m LinterResult
+runLinter (Linter l) = liftRIO $ do
     result <- execWriterT l
     case filter linterErr result of
       []  -> return LinterSuccess
@@ -139,8 +139,8 @@ linters = M.fromList
 allLinters :: [Text]
 allLinters  = M.keys (linters :: Map Text (Linter Session ()))
 
-lint :: (HasConnection env, HasLogFunc env, HasConfig env)
-     => [Text] -> RIO env LinterResult
+lint :: (MonadIO m, MonadReader env m, HasConnection env, HasLogFunc env, HasConfig env)
+     => [Text] -> m LinterResult
 lint [] | allLinters /= [] = lint allLinters -- use all available linters
 lint args = mconcat <$> mapM runLinter (mapMaybe (linters M.!?) args)
 ```

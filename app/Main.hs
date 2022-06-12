@@ -4,7 +4,6 @@
 module Main where
 
 import RIO
-import RIO.Text (unwords, unpack)
 
 import Prelude (putStrLn)
 import Paths_entangled
@@ -28,11 +27,11 @@ import Database (HasConnection, createTables, db)
 -- ~\~ end
 
 import Entangled
-import Linters
 import qualified Commands.Common as Common
 import qualified Commands.ClearOrphans
 import qualified Commands.Config
 import qualified Commands.Insert
+import qualified Commands.Lint
 import qualified Commands.List
 import qualified Commands.Tangle
 import qualified Commands.Stitch
@@ -56,10 +55,10 @@ data SubCommand
     | CommandStitch Commands.Stitch.Args
     -- ~\~ end
     -- ~\~ begin <<lit/12-main.md|sub-commands>>[5]
-    | CommandList Commands.List.Args
+    | CommandList
     -- ~\~ end
     -- ~\~ begin <<lit/12-main.md|sub-commands>>[6]
-    | CommandLint LintArgs
+    | CommandLint Commands.Lint.Args
     -- ~\~ end
     -- ~\~ begin <<lit/12-main.md|sub-commands>>[7]
     | CommandClearOrphans
@@ -90,11 +89,12 @@ parseSubCommand = ( subparser ( mempty
           <> command "stitch" (info (CommandStitch <$> Commands.Stitch.parseArgs) ( progDesc "Retrieve stitched markdown." ))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[5]
-          <> command "list" (info (CommandList <$> Commands.List.parseArgs)
+          <> command "list" (info (pure CommandList <**> helper)
                                   (progDesc "List generated code files." ))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[6]
-          <> command "lint" (info (CommandLint <$> parseLintArgs) ( progDesc ("Lint input on potential problems. Available linters: " <> RIO.Text.unpack (RIO.Text.unwords allLinters))))
+          <> command "lint" (info (CommandLint <$> Commands.Lint.parseArgs)
+                            ( progDesc ("Lint input on potential problems.")))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[7]
           <> command "clear-orphans" (info (pure CommandClearOrphans <**> helper) ( progDesc "Deletes orphan targets." ))
@@ -151,10 +151,11 @@ run :: Common.Args SubCommand -> IO ()
 run (Common.Args True _ _ _ _ _) = putStrLn $ showVersion version
 run args@Common.Args{..} = 
     case subArgs of
-      CommandClearOrphans -> Common.withEnv args $ Common.withEntangled args $ Commands.ClearOrphans.run
-      CommandConfig x -> Commands.Config.run (args {Common.subArgs = x})
+      CommandClearOrphans -> Common.withEnv args $ Common.withEntangled args Commands.ClearOrphans.run
+      CommandConfig x -> Commands.Config.run x
       CommandInsert x -> Common.withEnv args $ Common.withEntangled args $ Commands.Insert.run x
-      CommandList x   -> Common.withEnv args $ Commands.List.run (args {Common.subArgs = x})
+      CommandLint x   -> Common.withEnv args $ Common.withEntangled args $ Commands.Lint.run x
+      CommandList     -> Common.withEnv args $ Common.withEntangled args Commands.List.run 
       CommandTangle x -> Common.withEnv args $ Common.withEntangled args $ Commands.Tangle.run x
       CommandStitch x -> Common.withEnv args $ Common.withEntangled args $ Commands.Stitch.run x
       _               -> Common.withEnv args $ Common.withEntangled args (runSubCommand subArgs)
@@ -169,7 +170,7 @@ runSubCommand sc = do
         CommandDaemon DaemonArgs {..} -> runSession inputFiles
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[1]
-        CommandConfig _ -> printExampleConfig
+
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[2]
 
@@ -184,10 +185,10 @@ runSubCommand sc = do
 
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[6]
-        CommandLint LintArgs {..} -> void $ liftRIO $ lint lintFlags
+
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[7]
-        CommandClearOrphans -> clearOrphans
+
         -- ~\~ end
         _    -> return ()
 -- ~\~ end
