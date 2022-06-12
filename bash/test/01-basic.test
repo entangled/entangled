@@ -2,7 +2,7 @@ entangled insert -s test-01.md
 assert-arrayeq "Source contains expected files" \
         "$(entangled list | sort)" "factorial.scm hello.scm"
 assert-streq "Stitching conserves content" \
-        "$(entangled stitch test-01.md)" "$(cat test-01.md)"
+        "$(entangled stitch -f test-01.md)" "$(cat test-01.md)"
 assert-streq "Tangling gives an correct program #1" \
         "$(guile -c "$(entangled tangle -f factorial.scm)")" "3628800"
 assert-streq "Tangling gives an correct program #2" \
@@ -26,7 +26,7 @@ patch -s hello.scm test-01-01.diff
 entangled insert -t hello.scm 
 assert-streq "Tangling gives an correct program #3" \
         "$(guile -c "$(entangled tangle -f hello.scm)")" "Hello, Universe!"
-entangled stitch test-01.md > test-01.md
+entangled stitch -f test-01.md > test-01.md
 
 patch -s test-01.md test-01-02.diff
 entangled insert -s test-01.md 

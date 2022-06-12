@@ -33,6 +33,7 @@ import qualified Commands.Common as Common
 import qualified Commands.Config
 import qualified Commands.List
 import qualified Commands.Tangle
+import qualified Commands.Stitch
 
 -- ~\~ begin <<lit/12-main.md|main-options>>[0]
 data SubCommand
@@ -50,7 +51,7 @@ data SubCommand
     | CommandTangle Commands.Tangle.Args
     -- ~\~ end
     -- ~\~ begin <<lit/12-main.md|sub-commands>>[4]
-    | CommandStitch StitchArgs
+    | CommandStitch Commands.Stitch.Args
     -- ~\~ end
     -- ~\~ begin <<lit/12-main.md|sub-commands>>[5]
     | CommandList Commands.List.Args
@@ -83,7 +84,7 @@ parseSubCommand = ( subparser ( mempty
           <> command "tangle" (info (CommandTangle <$> Commands.Tangle.parseArgs) ( progDesc "Retrieve tangled code." ))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[4]
-          <> command "stitch" (info (CommandStitch <$> parseStitchArgs) ( progDesc "Retrieve stitched markdown." ))
+          <> command "stitch" (info (CommandStitch <$> Commands.Stitch.parseArgs) ( progDesc "Retrieve stitched markdown." ))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[5]
           <> command "list" (info (CommandList <$> Commands.List.parseArgs)
@@ -131,14 +132,7 @@ parseInsertArgs = CommandInsert <$> (InsertArgs
 
 -- ~\~ end
 -- ~\~ begin <<lit/12-main.md|main-options>>[6]
-newtype StitchArgs = StitchArgs
-    { stitchTarget :: FilePath
-    } deriving (Show, Eq)
 
-parseStitchArgs :: Parser StitchArgs
-parseStitchArgs = StitchArgs
-    <$> argument str ( metavar "TARGET" )
-    <**> helper
 -- ~\~ end
 -- ~\~ begin <<lit/12-main.md|main-options>>[7]
 newtype LintArgs = LintArgs
@@ -171,6 +165,7 @@ run args@Common.Args{..} =
       CommandConfig x -> Commands.Config.run (args {Common.subArgs = x})
       CommandList x   -> Common.withEnv args $ Commands.List.run (args {Common.subArgs = x})
       CommandTangle x -> Common.withEnv args $ Common.withEntangled args $ Commands.Tangle.run x
+      CommandStitch x -> Common.withEnv args $ Common.withEntangled args $ Commands.Stitch.run x
       _               -> Common.withEnv args $ Common.withEntangled args (runSubCommand subArgs)
 
 runSubCommand :: (HasConfig env, HasLogFunc env, HasConnection env)
@@ -193,7 +188,7 @@ runSubCommand sc = do
 
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[4]
-        CommandStitch StitchArgs {..} -> stitch (StitchFile stitchTarget)
+
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[5]
         CommandList _ -> listTargets

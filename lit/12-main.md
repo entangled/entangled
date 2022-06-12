@@ -54,6 +54,7 @@ run args@Common.Args{..} =
       CommandConfig x -> Commands.Config.run (args {Common.subArgs = x})
       CommandList x   -> Common.withEnv args $ Commands.List.run (args {Common.subArgs = x})
       CommandTangle x -> Common.withEnv args $ Common.withEntangled args $ Commands.Tangle.run x
+      CommandStitch x -> Common.withEnv args $ Common.withEntangled args $ Commands.Stitch.run x
       _               -> Common.withEnv args $ Common.withEntangled args (runSubCommand subArgs)
 
 runSubCommand :: (HasConfig env, HasLogFunc env, HasConnection env)
@@ -170,26 +171,19 @@ CommandInsert (InsertArgs TargetFile fs) -> insertTargets fs
 ### Stitching a markdown source
 
 ``` {.haskell #sub-commands}
-| CommandStitch StitchArgs
+| CommandStitch Commands.Stitch.Args
 ```
 
 ``` {.haskell #sub-parsers}
-<> command "stitch" (info (CommandStitch <$> parseStitchArgs) ( progDesc "Retrieve stitched markdown." ))
+<> command "stitch" (info (CommandStitch <$> Commands.Stitch.parseArgs) ( progDesc "Retrieve stitched markdown." ))
 ```
 
 ``` {.haskell #main-options}
-newtype StitchArgs = StitchArgs
-    { stitchTarget :: FilePath
-    } deriving (Show, Eq)
 
-parseStitchArgs :: Parser StitchArgs
-parseStitchArgs = StitchArgs
-    <$> argument str ( metavar "TARGET" )
-    <**> helper
 ```
 
 ``` {.haskell #sub-runners}
-CommandStitch StitchArgs {..} -> stitch (StitchFile stitchTarget)
+
 ```
 
 ### Listing all target files
@@ -268,6 +262,7 @@ import qualified Commands.Common as Common
 import qualified Commands.Config
 import qualified Commands.List
 import qualified Commands.Tangle
+import qualified Commands.Stitch
 
 <<main-options>>
 

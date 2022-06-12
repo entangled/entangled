@@ -99,6 +99,7 @@ executable entangled
       Commands.Config
       Commands.List
       Commands.Shake
+      Commands.Stitch
       Commands.Tangle
       Paths_entangled
   autogen-modules:

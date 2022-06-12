@@ -48,4 +48,4 @@ EOF
 
 entangled insert -t hello.py
 
-assert-streq "First file is unchanged" "$(cat file01.md)" "$(entangled stitch file01.md)"
+assert-streq "First file is unchanged" "$(cat file01.md)" "$(entangled stitch -f file01.md)"
