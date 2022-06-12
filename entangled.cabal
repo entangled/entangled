@@ -96,6 +96,7 @@ executable entangled
   main-is: Main.hs
   other-modules:
       Commands.Common
+      Commands.ClearOrphans
       Commands.Config
       Commands.Insert
       Commands.List

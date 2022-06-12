@@ -16,7 +16,7 @@ import Console
     ( Doc )
 import Database
     ( HasConnection, connection, db
-    , insertDocument )
+    , insertDocument, createTables )
 import Tangle (parseMarkdown')
 import FileIO (readFile)
 import Database.SQLite.Simple
@@ -86,7 +86,7 @@ withEnv args action = do
                <$> logOptionsHandle stderr (verboseFlag args)
     withLogFunc logOptions (\logFunc
         -> withConnection dbPath (\conn
-            -> runRIO (Env conn cfg logFunc) action))
+            -> runRIO (Env conn cfg logFunc) (db createTables >> action)))
 
 withEntangled :: (HasConfig env, HasLogFunc env, HasConnection env)
               => Args s -> Entangled env a -> RIO env a

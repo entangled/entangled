@@ -30,6 +30,7 @@ import Database (HasConnection, createTables, db)
 import Entangled
 import Linters
 import qualified Commands.Common as Common
+import qualified Commands.ClearOrphans
 import qualified Commands.Config
 import qualified Commands.Insert
 import qualified Commands.List
@@ -150,6 +151,7 @@ run :: Common.Args SubCommand -> IO ()
 run (Common.Args True _ _ _ _ _) = putStrLn $ showVersion version
 run args@Common.Args{..} = 
     case subArgs of
+      CommandClearOrphans -> Common.withEnv args $ Common.withEntangled args $ Commands.ClearOrphans.run
       CommandConfig x -> Commands.Config.run (args {Common.subArgs = x})
       CommandInsert x -> Common.withEnv args $ Common.withEntangled args $ Commands.Insert.run x
       CommandList x   -> Common.withEnv args $ Commands.List.run (args {Common.subArgs = x})
