@@ -11,12 +11,14 @@ import Config
     ( Config(..), HasConfig(..), readLocalConfig, getDatabasePath
     , getInputFiles )
 import Entangled
-    ( Entangled, runEntangledHuman, runEntangledMachine, insertSources
-    , testEntangled )
+    ( Entangled, runEntangledHuman, runEntangledMachine, testEntangled )
 import Console
     ( Doc )
 import Database
-    ( HasConnection, connection, db, createTables )
+    ( HasConnection, connection, db
+    , insertDocument )
+import Tangle (parseMarkdown')
+import FileIO (readFile)
 import Database.SQLite.Simple
 
 data Args a = Args
@@ -55,16 +57,26 @@ withLogFunc' args action = do
                <$> logOptionsHandle stderr (verboseFlag args)
     withLogFunc logOptions action
 
-
-preinsert :: (HasConfig env, HasLogFunc env, HasConnection env)
-          => Entangled env ()
-preinsert = do
-    db createTables
+listSourceFiles :: (HasConfig env, HasLogFunc env, HasConnection env)
+                => Entangled env [FilePath]
+listSourceFiles = do
     cfg <- view config
     abs_paths <- sort <$> getInputFiles cfg
     when (null abs_paths) $ throwM $ SystemError "No input files."
-    rel_paths <- mapM makeRelativeToCurrentDirectory abs_paths
-    insertSources rel_paths
+    mapM makeRelativeToCurrentDirectory abs_paths
+    
+insertSources :: (HasConnection env, HasLogFunc env, HasConfig env)
+              => [FilePath] -> Entangled env ()
+insertSources files = do
+    logDebug $ display $ "inserting files: " <> tshow files
+    mapM_ readDoc files
+    where readDoc f = do
+            document <- parseMarkdown' f =<< readFile f
+            db (insertDocument f document)
+
+preinsert :: (HasConfig env, HasLogFunc env, HasConnection env)
+          => Entangled env ()
+preinsert = listSourceFiles >>= insertSources
 
 withEnv :: Args a -> RIO Env b -> IO b
 withEnv args action = do

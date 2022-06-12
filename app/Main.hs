@@ -31,6 +31,7 @@ import Entangled
 import Linters
 import qualified Commands.Common as Common
 import qualified Commands.Config
+import qualified Commands.Insert
 import qualified Commands.List
 import qualified Commands.Tangle
 import qualified Commands.Stitch
@@ -45,7 +46,7 @@ data SubCommand
     | CommandConfig Commands.Config.Args
     -- ~\~ end
     -- ~\~ begin <<lit/12-main.md|sub-commands>>[2]
-    | CommandInsert InsertArgs
+    | CommandInsert Commands.Insert.Args
     -- ~\~ end
     -- ~\~ begin <<lit/12-main.md|sub-commands>>[3]
     | CommandTangle Commands.Tangle.Args
@@ -78,7 +79,8 @@ parseSubCommand = ( subparser ( mempty
                                     (progDesc "Print an example configuration."))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[2]
-          <> command "insert" (info parseInsertArgs ( progDesc "Insert markdown files into database." ))
+          <> command "insert" (info (CommandInsert <$> Commands.Insert.parseArgs)
+                                    ( progDesc "Insert markdown files into database." ))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[3]
           <> command "tangle" (info (CommandTangle <$> Commands.Tangle.parseArgs) ( progDesc "Retrieve tangled code." ))
@@ -112,21 +114,7 @@ parseDaemonArgs = CommandDaemon . DaemonArgs
 
 -- ~\~ end
 -- ~\~ begin <<lit/12-main.md|main-options>>[4]
-data FileType = SourceFile | TargetFile deriving (Show, Eq)
 
-data InsertArgs = InsertArgs
-    { insertType :: FileType
-    , insertFiles :: [FilePath] } deriving (Show, Eq)
-
-parseFileType :: Parser FileType
-parseFileType = flag' SourceFile (long "source" <> short 's' <> help "insert markdown source file")
-            <|> flag' TargetFile (long "target" <> short 't' <> help "insert target code file")
-
-parseInsertArgs :: Parser SubCommand
-parseInsertArgs = CommandInsert <$> (InsertArgs
-    <$> parseFileType
-    <*> many (argument str (metavar "FILES..."))
-    <**> helper)
 -- ~\~ end
 -- ~\~ begin <<lit/12-main.md|main-options>>[5]
 
@@ -163,6 +151,7 @@ run (Common.Args True _ _ _ _ _) = putStrLn $ showVersion version
 run args@Common.Args{..} = 
     case subArgs of
       CommandConfig x -> Commands.Config.run (args {Common.subArgs = x})
+      CommandInsert x -> Common.withEnv args $ Common.withEntangled args $ Commands.Insert.run x
       CommandList x   -> Common.withEnv args $ Commands.List.run (args {Common.subArgs = x})
       CommandTangle x -> Common.withEnv args $ Common.withEntangled args $ Commands.Tangle.run x
       CommandStitch x -> Common.withEnv args $ Common.withEntangled args $ Commands.Stitch.run x
@@ -181,8 +170,7 @@ runSubCommand sc = do
         CommandConfig _ -> printExampleConfig
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[2]
-        CommandInsert (InsertArgs SourceFile fs) -> insertSources fs
-        CommandInsert (InsertArgs TargetFile fs) -> insertTargets fs
+
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[3]
 
@@ -191,7 +179,7 @@ runSubCommand sc = do
 
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[5]
-        CommandList _ -> listTargets
+
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[6]
         CommandLint LintArgs {..} -> void $ liftRIO $ lint lintFlags

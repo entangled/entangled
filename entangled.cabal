@@ -97,6 +97,7 @@ executable entangled
   other-modules:
       Commands.Common
       Commands.Config
+      Commands.Insert
       Commands.List
       Commands.Shake
       Commands.Stitch

@@ -52,6 +52,7 @@ run (Common.Args True _ _ _ _ _) = putStrLn $ showVersion version
 run args@Common.Args{..} = 
     case subArgs of
       CommandConfig x -> Commands.Config.run (args {Common.subArgs = x})
+      CommandInsert x -> Common.withEnv args $ Common.withEntangled args $ Commands.Insert.run x
       CommandList x   -> Common.withEnv args $ Commands.List.run (args {Common.subArgs = x})
       CommandTangle x -> Common.withEnv args $ Common.withEntangled args $ Commands.Tangle.run x
       CommandStitch x -> Common.withEnv args $ Common.withEntangled args $ Commands.Stitch.run x
@@ -120,34 +121,20 @@ CommandConfig _ -> printExampleConfig
 ### Inserting files to the database
 
 ``` {.haskell #sub-commands}
-| CommandInsert InsertArgs
+| CommandInsert Commands.Insert.Args
 ```
 
 ``` {.haskell #sub-parsers}
-<> command "insert" (info parseInsertArgs ( progDesc "Insert markdown files into database." ))
+<> command "insert" (info (CommandInsert <$> Commands.Insert.parseArgs)
+                          ( progDesc "Insert markdown files into database." ))
 ```
 
 ``` {.haskell #main-options}
-data FileType = SourceFile | TargetFile deriving (Show, Eq)
 
-data InsertArgs = InsertArgs
-    { insertType :: FileType
-    , insertFiles :: [FilePath] } deriving (Show, Eq)
-
-parseFileType :: Parser FileType
-parseFileType = flag' SourceFile (long "source" <> short 's' <> help "insert markdown source file")
-            <|> flag' TargetFile (long "target" <> short 't' <> help "insert target code file")
-
-parseInsertArgs :: Parser SubCommand
-parseInsertArgs = CommandInsert <$> (InsertArgs
-    <$> parseFileType
-    <*> many (argument str (metavar "FILES..."))
-    <**> helper)
 ```
 
 ``` {.haskell #sub-runners}
-CommandInsert (InsertArgs SourceFile fs) -> insertSources fs
-CommandInsert (InsertArgs TargetFile fs) -> insertTargets fs
+
 ```
 
 ### Tangling a single reference
@@ -198,7 +185,7 @@ CommandInsert (InsertArgs TargetFile fs) -> insertTargets fs
 ```
 
 ``` {.haskell #sub-runners}
-CommandList _ -> listTargets
+
 ```
 
 ### Linter
@@ -260,6 +247,7 @@ import Entangled
 import Linters
 import qualified Commands.Common as Common
 import qualified Commands.Config
+import qualified Commands.Insert
 import qualified Commands.List
 import qualified Commands.Tangle
 import qualified Commands.Stitch
