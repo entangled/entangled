@@ -33,6 +33,7 @@ import qualified Commands.Config
 import qualified Commands.Insert
 import qualified Commands.Lint
 import qualified Commands.List
+import qualified Commands.Rules
 import qualified Commands.Tangle
 import qualified Commands.Stitch
 
@@ -63,6 +64,7 @@ data SubCommand
     -- ~\~ begin <<lit/12-main.md|sub-commands>>[7]
     | CommandClearOrphans
     -- ~\~ end
+    | CommandRules
     deriving (Show, Eq)
 -- ~\~ end
 -- ~\~ begin <<lit/12-main.md|main-options>>[1]
@@ -99,6 +101,8 @@ parseSubCommand = ( subparser ( mempty
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[7]
           <> command "clear-orphans" (info (pure CommandClearOrphans <**> helper) ( progDesc "Deletes orphan targets." ))
           -- ~\~ end
+          <> command "rules" (info (pure CommandRules <**> helper)
+                                   (progDesc "get build rules"))
         ) <|> parseNoCommand )
 -- ~\~ end
 -- ~\~ begin <<lit/12-main.md|main-options>>[2]
@@ -155,7 +159,8 @@ run args@Common.Args{..} =
       CommandConfig x -> Commands.Config.run x
       CommandInsert x -> Common.withEnv args $ Common.withEntangled args $ Commands.Insert.run x
       CommandLint x   -> Common.withEnv args $ Common.withEntangled args $ Commands.Lint.run x
-      CommandList     -> Common.withEnv args $ Common.withEntangled args Commands.List.run 
+      CommandList     -> Common.withEnv args $ Common.withEntangled args Commands.List.run
+      CommandRules    -> Common.withEnv args $ Common.withEntangled args Commands.Rules.run
       CommandTangle x -> Common.withEnv args $ Common.withEntangled args $ Commands.Tangle.run x
       CommandStitch x -> Common.withEnv args $ Common.withEntangled args $ Commands.Stitch.run x
       _               -> Common.withEnv args $ Common.withEntangled args (runSubCommand subArgs)

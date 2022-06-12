@@ -17,8 +17,8 @@ newtype Args = Args
 
 parseArgs :: Parser Args
 parseArgs = Args
-    <$> (  ( StitchFile <$> strOption ( long "--file" <> short 'f' <> metavar "TARGET" <> help "literate source file" ) )
-       <|> flag' StitchAll ( long "--all" <> short 'a' <> help "stitch all literate sources" ) )
+    <$> (  ( StitchFile <$> strOption ( long "file" <> short 'f' <> metavar "TARGET" <> help "literate source file" ) )
+       <|> flag' StitchAll ( long "all" <> short 'a' <> help "stitch all literate sources" ) )
     <**> helper
 
 stitchFile :: (HasConnection env, HasLogFunc env, HasConfig env)

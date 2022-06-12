@@ -25,6 +25,7 @@ All true options are left to the sub-commands. We're leaving `<<sub-commands>>` 
 data SubCommand
     = NoCommand
     <<sub-commands>>
+    | CommandRules
     deriving (Show, Eq)
 ```
 
@@ -37,6 +38,8 @@ parseNoCommand = pure NoCommand
 parseSubCommand :: Parser SubCommand   {- HLINT ignore parseArgs -}
 parseSubCommand = ( subparser ( mempty
           <<sub-parsers>>
+          <> command "rules" (info (pure CommandRules <**> helper)
+                                   (progDesc "get build rules"))
         ) <|> parseNoCommand )
 ```
 
@@ -55,7 +58,8 @@ run args@Common.Args{..} =
       CommandConfig x -> Commands.Config.run x
       CommandInsert x -> Common.withEnv args $ Common.withEntangled args $ Commands.Insert.run x
       CommandLint x   -> Common.withEnv args $ Common.withEntangled args $ Commands.Lint.run x
-      CommandList     -> Common.withEnv args $ Common.withEntangled args Commands.List.run 
+      CommandList     -> Common.withEnv args $ Common.withEntangled args Commands.List.run
+      CommandRules    -> Common.withEnv args $ Common.withEntangled args Commands.Rules.run
       CommandTangle x -> Common.withEnv args $ Common.withEntangled args $ Commands.Tangle.run x
       CommandStitch x -> Common.withEnv args $ Common.withEntangled args $ Commands.Stitch.run x
       _               -> Common.withEnv args $ Common.withEntangled args (runSubCommand subArgs)
@@ -252,6 +256,7 @@ import qualified Commands.Config
 import qualified Commands.Insert
 import qualified Commands.Lint
 import qualified Commands.List
+import qualified Commands.Rules
 import qualified Commands.Tangle
 import qualified Commands.Stitch
 

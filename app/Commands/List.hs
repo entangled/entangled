@@ -2,9 +2,7 @@ module Commands.List where
 
 import RIO
 import qualified RIO.Text as T
-import Options.Applicative (Parser, helper, (<**>))
 
-import qualified Commands.Common as Common
 import Config (HasConfig)
 import Database (HasConnection, db, listTargetFiles)
 import Entangled (Entangled)

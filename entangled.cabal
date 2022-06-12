@@ -101,6 +101,7 @@ executable entangled
       Commands.Insert
       Commands.Lint
       Commands.List
+      Commands.Rules
       Commands.Shake
       Commands.Stitch
       Commands.Tangle
