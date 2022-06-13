@@ -1,0 +1,19 @@
+cat <<EOF > entangled.dhall
+let entangled = ./config-schema.dhall
+let ms = ./milkshake.dhall
+in { entangled = entangled.Config :: { watchList = [ "test-01.md" ] }
+   , milkshake =
+        [ ms.fileAction "test.out" ([] : List Text) ''
+                echo "Hello, World!" > test.out
+                ''
+        , ms.mainAction ["test.out"]
+        ]
+}
+EOF
+
+entangled milkshake -1
+assert-exists "entangled milkshake created test.out" "test.out"
+assert-streq "content of test.out" "Hello, World!" "$(cat test.out)"
+
+
+# vim:ft=bash

@@ -36,6 +36,7 @@ import qualified Commands.List
 import qualified Commands.Rules
 import qualified Commands.Tangle
 import qualified Commands.Stitch
+import qualified Commands.Milkshake
 
 -- ~\~ begin <<lit/12-main.md|main-options>>[0]
 data SubCommand
@@ -65,6 +66,7 @@ data SubCommand
     | CommandClearOrphans
     -- ~\~ end
     | CommandRules
+    | CommandMilkshake Commands.Milkshake.Args
     deriving (Show, Eq)
 -- ~\~ end
 -- ~\~ begin <<lit/12-main.md|main-options>>[1]
@@ -96,13 +98,15 @@ parseSubCommand = ( subparser ( mempty
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[6]
           <> command "lint" (info (CommandLint <$> Commands.Lint.parseArgs)
-                            ( progDesc ("Lint input on potential problems.")))
+                            ( progDesc "Lint input on potential problems."))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[7]
           <> command "clear-orphans" (info (pure CommandClearOrphans <**> helper) ( progDesc "Deletes orphan targets." ))
           -- ~\~ end
           <> command "rules" (info (pure CommandRules <**> helper)
                                    (progDesc "get build rules"))
+          <> command "milkshake" (info (CommandMilkshake <$> Commands.Milkshake.parseArgs)
+                                       (progDesc "Run milkshake loop"))
         ) <|> parseNoCommand )
 -- ~\~ end
 -- ~\~ begin <<lit/12-main.md|main-options>>[2]
@@ -157,6 +161,7 @@ run args@Common.Args{..} =
     case subArgs of
       CommandClearOrphans -> Common.withEnv args $ Common.withEntangled args Commands.ClearOrphans.run
       CommandConfig x -> Commands.Config.run x
+      CommandMilkshake x -> Common.withEnv args $ Commands.Milkshake.run (args { Common.subArgs = x })
       CommandInsert x -> Common.withEnv args $ Common.withEntangled args $ Commands.Insert.run x
       CommandLint x   -> Common.withEnv args $ Common.withEntangled args $ Commands.Lint.run x
       CommandList     -> Common.withEnv args $ Common.withEntangled args Commands.List.run

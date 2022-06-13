@@ -26,6 +26,7 @@ data SubCommand
     = NoCommand
     <<sub-commands>>
     | CommandRules
+    | CommandMilkshake Commands.Milkshake.Args
     deriving (Show, Eq)
 ```
 
@@ -40,6 +41,8 @@ parseSubCommand = ( subparser ( mempty
           <<sub-parsers>>
           <> command "rules" (info (pure CommandRules <**> helper)
                                    (progDesc "get build rules"))
+          <> command "milkshake" (info (CommandMilkshake <$> Commands.Milkshake.parseArgs)
+                                       (progDesc "Run milkshake loop"))
         ) <|> parseNoCommand )
 ```
 
@@ -56,6 +59,7 @@ run args@Common.Args{..} =
     case subArgs of
       CommandClearOrphans -> Common.withEnv args $ Common.withEntangled args Commands.ClearOrphans.run
       CommandConfig x -> Commands.Config.run x
+      CommandMilkshake x -> Common.withEnv args $ Commands.Milkshake.run (args { Common.subArgs = x })
       CommandInsert x -> Common.withEnv args $ Common.withEntangled args $ Commands.Insert.run x
       CommandLint x   -> Common.withEnv args $ Common.withEntangled args $ Commands.Lint.run x
       CommandList     -> Common.withEnv args $ Common.withEntangled args Commands.List.run
@@ -213,7 +217,7 @@ parseLintArgs = LintArgs
 
 ``` {.haskell #sub-parsers}
 <> command "lint" (info (CommandLint <$> Commands.Lint.parseArgs)
-                  ( progDesc ("Lint input on potential problems.")))
+                  ( progDesc "Lint input on potential problems."))
 ```
 
 ``` {.haskell #sub-runners}
@@ -259,6 +263,7 @@ import qualified Commands.List
 import qualified Commands.Rules
 import qualified Commands.Tangle
 import qualified Commands.Stitch
+import qualified Commands.Milkshake
 
 <<main-options>>
 

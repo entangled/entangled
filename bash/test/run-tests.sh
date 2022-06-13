@@ -28,6 +28,18 @@ function entangled-daemon() {
         sleep 0.1
 }
 
+function entangled-milkshake() {
+        export entangled_datadir="${PROJECT_ROOT}"
+        if [ -z $verbose ]; then
+                ${ENTANGLED_EXEC} milkshake $@ &
+        else
+                ${ENTANGLED_EXEC} -V milkshake $@ &
+        fi
+        daemon_pid=$!
+        echo "Running 'entangled milkshake' with PID=$daemon_pid"
+        sleep 0.1
+}
+
 function kill-daemon() {
         echo "Killing PID $daemon_pid"
         kill $daemon_pid

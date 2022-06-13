@@ -1,6 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Commands.Shake where
+module Commands.Milkshake where
 
 import RIO
 import qualified RIO.Text as T
@@ -16,7 +16,7 @@ helpText :: Text
 helpText = "Runs a Milkshake loop, following config in '(./entangled.dhall).milkshake'"
 
 data Args = Args
-    { runOnce :: Bool }
+    { runOnce :: Bool } deriving (Show, Eq)
 
 parseArgs :: Parser Args
 parseArgs = Args <$> switch (long "once" <> short '1' <> help "Run Milkshake in batch mode.")

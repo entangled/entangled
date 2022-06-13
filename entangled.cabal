@@ -102,7 +102,7 @@ executable entangled
       Commands.Lint
       Commands.List
       Commands.Rules
-      Commands.Shake
+      Commands.Milkshake
       Commands.Stitch
       Commands.Tangle
       Paths_entangled
