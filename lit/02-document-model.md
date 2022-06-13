@@ -55,7 +55,14 @@ data ReferenceId = ReferenceId
     { referenceFile       :: FilePath
     , referenceName       :: ReferenceName
     , referenceCount      :: Int
-    } deriving (Show, Eq, Ord)
+    } deriving (Show)
+
+instance Eq ReferenceId where
+    a == b = (referenceName a) == (referenceName b) && (referenceCount a) == (referenceCount b)
+
+instance Ord ReferenceId where
+    a `compare` b | (referenceName a) == (referenceName b) = (referenceCount a) `compare` (referenceCount b)
+                  | otherwise                              = (referenceName a) `compare` (referenceName b)
 
 showNowebReference :: ReferenceName -> Text
 showNowebReference (ReferenceName x) = "<<" <> x <> ">>"
