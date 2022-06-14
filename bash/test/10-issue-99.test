@@ -1,0 +1,30 @@
+pushd issue-99
+cp -r lpl lpl.bak
+
+entangled insert -s lpl/*
+entangled tangle -ad
+entangled insert -t c.ts
+for f in lpl/*; do
+        entangled stitch $f > $f
+done
+
+for f in lpl/*; do
+        diff "$f" "lpl.bak/$(basename $f)"
+        assert-return-success "$f unchanged after first stitch" $?
+done
+
+entangled insert -s lpl/*
+entangled tangle -ad
+entangled insert -t c.ts
+for f in lpl/*; do
+        entangled stitch $f > $f
+done
+
+for f in lpl/*; do
+        diff "$f" "lpl.bak/$(basename $f)"
+        assert-return-success "$f unchanged after second stitch" $?
+done
+
+popd
+
+# vim:ft=bash

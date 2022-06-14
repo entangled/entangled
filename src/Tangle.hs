@@ -201,16 +201,19 @@ parseCode name = map parseLine' . T.lines
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|generate-code>>[2]
 type ExpandedCode m = LM.Map ReferenceName (m Text)
-type Annotator m = ReferenceMap -> ReferenceId -> m Text
+type Annotator m = ReferenceMap -> Bool -> ReferenceId -> m Text
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|generate-code>>[3]
 expandedCode :: (MonadIO m, MonadReader env m, HasLogFunc env)
     => Annotator m -> ReferenceMap -> ExpandedCode m
 expandedCode annotate refs = result
     where result = LM.fromSet expand (referenceNames refs)
-          expand name = unlines' <$> mapM
-                        (annotate refs >=> expandCodeSource result name)
-                        (referencesByName refs name)
+          expand name = expandRefs name (referencesByName refs name)
+          expandRefs _ [] = return ""
+          expandRefs name (a:as) = do
+              annotFirst <- annotate refs True a >>= expandCodeSource result name
+              annotRest  <- mapM (annotate refs False >=> expandCodeSource result name) as
+              return $ unlines' (annotFirst:annotRest)
 
 expandCodeSource :: (MonadIO m, MonadReader env m, HasLogFunc env)
     => ExpandedCode m -> ReferenceName -> Text -> m Text
@@ -224,8 +227,8 @@ expandCodeSource result name t
 -- ~\~ begin <<lit/13-tangle.md|generate-code>>[4]
 selectAnnotator :: (MonadError EntangledError m) => Config -> Annotator m
 selectAnnotator cfg@Config{..} = case configAnnotate of
-    AnnotateNaked         -> \rmap rid -> runReaderT (annotateNaked rmap rid) cfg
-    AnnotateStandard      -> \rmap rid -> runReaderT (annotateComment rmap rid) cfg
-    AnnotateProject       -> \rmap rid -> runReaderT (annotateProject rmap rid) cfg
+    AnnotateNaked         -> \rmap init rid -> runReaderT (annotateNaked rmap init rid) cfg
+    AnnotateStandard      -> \rmap init rid -> runReaderT (annotateComment rmap init rid) cfg
+    AnnotateProject       -> \rmap init rid -> runReaderT (annotateProject rmap init rid) cfg
 -- ~\~ end
 -- ~\~ end

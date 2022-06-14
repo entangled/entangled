@@ -19,6 +19,7 @@ let comments =
 -- ~\~ begin <<lit/04-configuration.md|config-languages>>[0]
 let languages =
     [ { name = "Awk",        identifiers = ["awk"],           comment = comments.hash }
+    , { name = "Bash",       identifiers = ["bash", "sh"],    comment = comments.hash }
     , { name = "C",          identifiers = ["c"],             comment = comments.cStyle }
     , { name = "C++",        identifiers = ["cpp", "c++"],    comment = comments.cppStyle }
     , { name = "Clojure",    identifiers = ["clojure"],       comment = comments.lispStyle }

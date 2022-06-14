@@ -413,7 +413,7 @@ I now use a lazy map to provide the recursion, which becomes cumbersome if we al
 
 ``` {.haskell #generate-code}
 type ExpandedCode m = LM.Map ReferenceName (m Text)
-type Annotator m = ReferenceMap -> ReferenceId -> m Text
+type Annotator m = ReferenceMap -> Bool -> ReferenceId -> m Text
 ```
 
 The map of expanded code blocks is generated using an induction pattern here illustrated on lists. Suppose we already have the resulting `output` and a function `g :: [Output] -> Input -> Output` that generates any element in `output` given an input and the rest of all `output`, then `f` generates `output` as follows.
@@ -432,9 +432,12 @@ expandedCode :: (MonadIO m, MonadReader env m, HasLogFunc env)
     => Annotator m -> ReferenceMap -> ExpandedCode m
 expandedCode annotate refs = result
     where result = LM.fromSet expand (referenceNames refs)
-          expand name = unlines' <$> mapM
-                        (annotate refs >=> expandCodeSource result name)
-                        (referencesByName refs name)
+          expand name = expandRefs name (referencesByName refs name)
+          expandRefs _ [] = return ""
+          expandRefs name (a:as) = do
+              annotFirst <- annotate refs True a >>= expandCodeSource result name
+              annotRest  <- mapM (annotate refs False >=> expandCodeSource result name) as
+              return $ unlines' (annotFirst:annotRest)
 
 expandCodeSource :: (MonadIO m, MonadReader env m, HasLogFunc env)
     => ExpandedCode m -> ReferenceName -> Text -> m Text
@@ -453,9 +456,9 @@ We have two types of annotators:
 ``` {.haskell #generate-code}
 selectAnnotator :: (MonadError EntangledError m) => Config -> Annotator m
 selectAnnotator cfg@Config{..} = case configAnnotate of
-    AnnotateNaked         -> \rmap rid -> runReaderT (annotateNaked rmap rid) cfg
-    AnnotateStandard      -> \rmap rid -> runReaderT (annotateComment rmap rid) cfg
-    AnnotateProject       -> \rmap rid -> runReaderT (annotateProject rmap rid) cfg
+    AnnotateNaked         -> \rmap init rid -> runReaderT (annotateNaked rmap init rid) cfg
+    AnnotateStandard      -> \rmap init rid -> runReaderT (annotateComment rmap init rid) cfg
+    AnnotateProject       -> \rmap init rid -> runReaderT (annotateProject rmap init rid) cfg
 ```
 
 * Commenting annotator: adds annotations in comments, from which we can locate the original code block.
@@ -469,7 +472,7 @@ import Comment (annotateComment, annotateProject, annotateNaked)
 ## Entangled comments
 
 ``` {.haskell file=src/Comment.hs}
-{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE NoImplicitPrelude,TupleSections #-}
 module Comment where
 
 import RIO
@@ -552,9 +555,10 @@ import qualified Format
 ```
 
 ``` {.haskell #generate-comment}
-standardPreComment :: ReferenceId -> Text
-standardPreComment (ReferenceId file (ReferenceName name) count) =
-    "begin <<" <> T.pack file <> "|" <> name <> ">>[" <> tshow count <> "]"
+standardPreComment :: Bool -> ReferenceId -> Text
+standardPreComment init (ReferenceId file (ReferenceName name) count) =
+    "begin <<" <> T.pack file <> "|" <> name <> ">>[" <> counter <> "]"
+    where counter = if init then "init" else tshow count
 
 getReference :: (MonadError EntangledError m) => ReferenceMap -> ReferenceId -> m CodeBlock
 getReference refs ref = maybe (throwError $ ReferenceError $ "not found: " <> tshow ref)
@@ -572,8 +576,8 @@ lineDirective ref code = do
                                                        , ("filename"          , T.pack (referenceFile ref))])
 
 annotateNaked :: (MonadReader Config m, MonadError EntangledError m)
-              => ReferenceMap -> ReferenceId -> m Text
-annotateNaked refs ref = do
+              => ReferenceMap -> Bool -> ReferenceId -> m Text
+annotateNaked refs _ ref = do
     Config{..} <- ask
     code <- getReference refs ref
     if configUseLineDirectives then do
@@ -582,21 +586,21 @@ annotateNaked refs ref = do
     else return $ codeSource code
 
 annotateComment :: (MonadReader Config m, MonadError EntangledError m)
-                => ReferenceMap -> ReferenceId -> m Text
-annotateComment refs ref = do
+                => ReferenceMap -> Bool -> ReferenceId -> m Text
+annotateComment refs init ref = do
     code <- getReference refs ref
-    naked <- annotateNaked refs ref
-    pre <- comment (codeLanguage code) $ standardPreComment ref
+    naked <- annotateNaked refs init ref
+    pre <- comment (codeLanguage code) $ standardPreComment init ref
     post <- comment (codeLanguage code) "end"
     return $ unlines' [pre, naked, post]
 
 annotateProject :: (MonadReader Config m, MonadError EntangledError m)
-                => ReferenceMap -> ReferenceId -> m Text
-annotateProject refs ref@(ReferenceId file _ _) = do
+                => ReferenceMap -> Bool -> ReferenceId -> m Text
+annotateProject refs init ref@(ReferenceId file _ _) = do
     code <- getReference refs ref
-    naked <- annotateNaked refs ref
+    naked <- annotateNaked refs init ref
     let line = fromMaybe 0 (codeLineNumber code)
-    pre  <- comment (codeLanguage code) (standardPreComment ref <> " project://" <> T.pack file <> "#" <> tshow line)
+    pre  <- comment (codeLanguage code) (standardPreComment init ref <> " project://" <> T.pack file <> "#" <> tshow line)
     post <- comment (codeLanguage code) "end"
     return $ unlines' [pre, naked, post]
 
@@ -645,18 +649,21 @@ commented lang p = do
 ```
 
 ``` {.haskell #parse-comment}
+countOrInit :: (MonadParsec e Text m) => m (Int, Bool)
+countOrInit = ((0, True) <$ chunk "init") <|> ((, False) <$> decimal)
+
 beginBlock :: (MonadParsec e Text m)
-           => m ReferenceId
+           => m (ReferenceId, Bool)
 beginBlock = do
     _ <- chunk "begin <<"
     doc  <- cssValue
     _ <- chunk "|"
     name <- cssIdentifier
     _ <- chunk ">>["
-    count <- decimal
+    (count, init) <- countOrInit
     _ <- chunk "]"
     _ <- takeRest
-    return $ ReferenceId (T.unpack doc) (ReferenceName name) count
+    return (ReferenceId (T.unpack doc) (ReferenceName name) count, init)
 
 endBlock :: (MonadParsec e Text m)
          => m ()
