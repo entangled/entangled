@@ -3,8 +3,6 @@ cp -r lpl lpl.bak
 
 entangled insert -s lpl/*
 entangled tangle -ad
-cat c.ts
-
 entangled insert -t c.ts
 for f in lpl/*; do
         entangled stitch $f > $f
@@ -17,7 +15,6 @@ done
 
 entangled insert -s lpl/*
 entangled tangle -ad
-cat c.ts
 entangled insert -t c.ts
 for f in lpl/*; do
         entangled stitch $f > $f

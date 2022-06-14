@@ -39,8 +39,11 @@ function setup() {
         # TMPDIR=$(mktemp --tmpdir -d entangled-test-XXXXXXXX)
         echo "Setting up in ${TMPDIR} ..."
         cp "${DIR}"/*.{md,diff,test,dhall} "${TMPDIR}"
-        ds=$(find . -maxdepth 1 -type d -not -path '.')
-        for d in $ds; do cp -r $d "${TMPDIR}"; done
+        for d in "${DIR}"/*; do
+                if [ -d "$d" ]; then
+                        cp -r "$d" "${TMPDIR}"
+                fi
+        done
         pushd "${TMPDIR}" > /dev/null
 }
 
