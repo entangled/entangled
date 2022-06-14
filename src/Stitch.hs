@@ -38,7 +38,7 @@ sourceBlock :: ( MonadReader Config m, MonadParsec e (ListStream Text) m, MonadF
             => ConfigLanguage -> m ([Text], [ReferencePair])
 sourceBlock lang = do
     Config{..} <- ask
-    ((ref, beginIndent), _) <- tokenP (commented lang beginBlock)
+    (((ref, init), beginIndent), _) <- tokenP (commented lang beginBlock)
     when configUseLineDirectives (void anySingle)
     (ilines, refpairs) <- mconcat <$> manyTill
                 (sourceBlock lang <|> sourceLine)
@@ -47,7 +47,7 @@ sourceBlock lang = do
     when (any isNothing unindentedLines) $ fail "Indentation error"
     let content = unlines' $ catMaybes unindentedLines
     return ( [ indent beginIndent $ showNowebReference $ referenceName ref
-             | referenceCount ref == 0 ]
+             | init ]
            , (ref, CodeBlock (KnownLanguage $ languageName lang) [] content Nothing):refpairs )
 
 sourceLine :: ( MonadParsec e (ListStream Text) m )
