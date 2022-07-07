@@ -1,5 +1,5 @@
 -- ~\~ language=Haskell filename=src/Config/Version_1_0_0.hs
--- ~\~ begin <<lit/04-configuration.md|src/Config/Version_1_0_0.hs>>[0]
+-- ~\~ begin <<lit/04-configuration.md|src/Config/Version_1_0_0.hs>>[init]
 {-# LANGUAGE NoImplicitPrelude #-}
 module Config.Version_1_0_0 where
 
@@ -9,7 +9,7 @@ import Config.Record
 import Format
 import Dhall (auto, Decoder, record, field, setFromDistinctList)
 
--- ~\~ begin <<lit/04-configuration.md|config-1-0-0-record>>[0]
+-- ~\~ begin <<lit/04-configuration.md|config-1-0-0-record>>[init]
 data Config = Config
     { configVersion   :: Text
     , configLanguages :: Set ConfigLanguage
@@ -20,7 +20,7 @@ data Config = Config
     , configUseLineDirectives :: Bool
     } deriving (Show)
 -- ~\~ end
--- ~\~ begin <<lit/04-configuration.md|config-1-0-0-decoder>>[0]
+-- ~\~ begin <<lit/04-configuration.md|config-1-0-0-decoder>>[init]
 configDecoder :: Decoder Config
 configDecoder = record
     ( Config <$> field "version" auto

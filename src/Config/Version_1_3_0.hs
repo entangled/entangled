@@ -1,5 +1,5 @@
 -- ~\~ language=Haskell filename=src/Config/Version_1_3_0.hs
--- ~\~ begin <<lit/04-configuration.md|src/Config/Version_1_3_0.hs>>[0]
+-- ~\~ begin <<lit/04-configuration.md|src/Config/Version_1_3_0.hs>>[init]
 {-# LANGUAGE NoImplicitPrelude,UndecidableInstances #-}
 module Config.Version_1_3_0 where
 
@@ -13,7 +13,7 @@ import Format
 import Paths_entangled
 import Dhall (input, auto, Decoder, record, field, setFromDistinctList )
 
--- ~\~ begin <<lit/04-configuration.md|config-1-3-0-record>>[0]
+-- ~\~ begin <<lit/04-configuration.md|config-1-3-0-record>>[init]
 data Config = Config
     { configVersion   :: Text
     , configLanguages :: Set ConfigLanguage
@@ -56,7 +56,7 @@ instance Version_1_2_0.ToVersion_1_2_0 a => ToVersion_1_3_0 a where
             , configUseLineDirectives = Version_1_2_0.configUseLineDirectives old
             }
 -- ~\~ end
--- ~\~ begin <<lit/04-configuration.md|config-1-3-0-decoder>>[0]
+-- ~\~ begin <<lit/04-configuration.md|config-1-3-0-decoder>>[init]
 configDecoder :: Decoder Config
 configDecoder = record
     ( Config <$> field "version" auto

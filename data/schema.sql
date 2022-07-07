@@ -1,5 +1,5 @@
 -- ~\~ language=SQLite filename=data/schema.sql
--- ~\~ begin <<lit/03-database.md|data/schema.sql>>[0]
+-- ~\~ begin <<lit/03-database.md|data/schema.sql>>[init]
 -- rules when editing this schema:
 -- * always use double quotes for identifiers,
 -- * align types for easy reading
@@ -7,7 +7,7 @@ pragma synchronous = off;
 pragma journal_mode = memory;
 pragma foreign_keys = on;
 
--- ~\~ begin <<lit/03-database.md|schema>>[0]
+-- ~\~ begin <<lit/03-database.md|schema>>[init]
 -- this table should be sorted on order of inclusion
 create table if not exists "documents"
     ( "id"        integer primary key autoincrement
@@ -30,7 +30,7 @@ create table if not exists "codes"
 -- ~\~ begin <<lit/03-database.md|schema>>[2]
 create table if not exists "classes"
     ( "class"     text not null
-    -- ~\~ begin <<lit/03-database.md|reference-code>>[0]
+    -- ~\~ begin <<lit/03-database.md|reference-code>>[init]
     , "code"        text not null
     , foreign key ("code") references "codes"("id") on delete cascade
     -- ~\~ end
@@ -39,7 +39,7 @@ create table if not exists "classes"
 create table if not exists "attributes"
     ( "attribute"   text not null
     , "value"       text not null
-    -- ~\~ begin <<lit/03-database.md|reference-code>>[0]
+    -- ~\~ begin <<lit/03-database.md|reference-code>>[init]
     , "code"        text not null
     , foreign key ("code") references "codes"("id") on delete cascade
     -- ~\~ end

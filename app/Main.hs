@@ -1,5 +1,5 @@
 -- ~\~ language=Haskell filename=app/Main.hs
--- ~\~ begin <<lit/12-main.md|app/Main.hs>>[0]
+-- ~\~ begin <<lit/12-main.md|app/Main.hs>>[init]
 {-# LANGUAGE NoImplicitPrelude #-}
 module Main where
 
@@ -9,7 +9,7 @@ import Prelude (putStrLn)
 import Paths_entangled
 import Data.Version (showVersion)
 
--- ~\~ begin <<lit/12-main.md|main-imports>>[0]
+-- ~\~ begin <<lit/12-main.md|main-imports>>[init]
 import GHC.IO.Encoding
 -- ~\~ end
 -- ~\~ begin <<lit/12-main.md|main-imports>>[1]
@@ -38,10 +38,10 @@ import qualified Commands.Tangle
 import qualified Commands.Stitch
 import qualified Commands.Milkshake
 
--- ~\~ begin <<lit/12-main.md|main-options>>[0]
+-- ~\~ begin <<lit/12-main.md|main-options>>[init]
 data SubCommand
     = NoCommand
-    -- ~\~ begin <<lit/12-main.md|sub-commands>>[0]
+    -- ~\~ begin <<lit/12-main.md|sub-commands>>[init]
     | CommandDaemon DaemonArgs
     -- ~\~ end
     -- ~\~ begin <<lit/12-main.md|sub-commands>>[1]
@@ -75,7 +75,7 @@ parseNoCommand = pure NoCommand
 
 parseSubCommand :: Parser SubCommand   {- HLINT ignore parseArgs -}
 parseSubCommand = ( subparser ( mempty
-          -- ~\~ begin <<lit/12-main.md|sub-parsers>>[0]
+          -- ~\~ begin <<lit/12-main.md|sub-parsers>>[init]
           <>  command "daemon" (info parseDaemonArgs ( progDesc "Run the entangled daemon." ))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[1]
@@ -144,7 +144,7 @@ parseLintArgs = LintArgs
 
 main :: IO ()
 main = do
-    -- ~\~ begin <<lit/12-main.md|main-set-encoding>>[0]
+    -- ~\~ begin <<lit/12-main.md|main-set-encoding>>[init]
     setLocaleEncoding utf8
     -- ~\~ end
     run =<< execParser args
@@ -154,7 +154,7 @@ main = do
             <> header   "Entangled -- daemonised literate programming"
             )
 
--- ~\~ begin <<lit/12-main.md|main-run>>[0]
+-- ~\~ begin <<lit/12-main.md|main-run>>[init]
 run :: Common.Args SubCommand -> IO ()
 run (Common.Args True _ _ _ _ _) = putStrLn $ showVersion version
 run args@Common.Args{..} = 
@@ -176,7 +176,7 @@ runSubCommand sc = do
     db createTables
     case sc of
         NoCommand -> return ()
-        -- ~\~ begin <<lit/12-main.md|sub-runners>>[0]
+        -- ~\~ begin <<lit/12-main.md|sub-runners>>[init]
         CommandDaemon DaemonArgs {..} -> runSession inputFiles
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[1]

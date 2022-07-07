@@ -1,12 +1,12 @@
 -- ~\~ language=Haskell filename=src/Tangle.hs
--- ~\~ begin <<lit/13-tangle.md|src/Tangle.hs>>[0]
+-- ~\~ begin <<lit/13-tangle.md|src/Tangle.hs>>[init]
 {-# LANGUAGE NoImplicitPrelude,ScopedTypeVariables #-}
 module Tangle where
 
 import RIO hiding (try, some, many)
 import qualified RIO.Text as T
 import qualified RIO.Map as M
--- ~\~ begin <<lit/01-entangled.md|import-lazy-map>>[0]
+-- ~\~ begin <<lit/01-entangled.md|import-lazy-map>>[init]
 import qualified Data.Map.Lazy as LM
 -- ~\~ end
 
@@ -25,7 +25,7 @@ import ListStream
 import Document
 import Config (config, HasConfig, Config(..), lookupLanguage, ConfigLanguage(..), AnnotateMethod(..), ConfigSyntax(..))
 
--- ~\~ begin <<lit/13-tangle.md|tangle-imports>>[0]
+-- ~\~ begin <<lit/13-tangle.md|tangle-imports>>[init]
 import Text.Regex.TDFA
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|tangle-imports>>[1]
@@ -38,7 +38,7 @@ import TextUtil (indent, unlines')
 import Comment (annotateComment, annotateProject, annotateNaked)
 -- ~\~ end
 
--- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[0]
+-- ~\~ begin <<lit/13-tangle.md|parse-markdown>>[init]
 type Match = Maybe (Text, Text, Text, [Text])
 
 matchCodeHeader :: ConfigSyntax -> Text -> Maybe ([CodeProperty], Text)
@@ -175,7 +175,7 @@ parseMarkdown' f t = do
         Left err              -> throwM $ TangleError $ tshow err
         Right (content, refs) -> return $ Document (M.fromList refs) content (getFileMap refs)
 -- ~\~ end
--- ~\~ begin <<lit/13-tangle.md|generate-code>>[0]
+-- ~\~ begin <<lit/13-tangle.md|generate-code>>[init]
 data CodeLine = PlainCode Text
               | NowebReference ReferenceName Text
               deriving (Eq, Show)

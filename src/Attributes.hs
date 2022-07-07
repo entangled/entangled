@@ -1,19 +1,19 @@
 -- ~\~ language=Haskell filename=src/Attributes.hs
--- ~\~ begin <<lit/13-tangle.md|src/Attributes.hs>>[0]
+-- ~\~ begin <<lit/13-tangle.md|src/Attributes.hs>>[init]
 {-# LANGUAGE NoImplicitPrelude #-}
 module Attributes where
 
 import RIO
 import qualified RIO.Text as T
 
--- ~\~ begin <<lit/13-tangle.md|attributes-imports>>[0]
+-- ~\~ begin <<lit/13-tangle.md|attributes-imports>>[init]
 import Document (CodeProperty(..))
 import Text.Megaparsec
     ( MonadParsec, takeWhileP, chunk, endBy )
 import Text.Megaparsec.Char
     ( space, letterChar )
 -- ~\~ end
--- ~\~ begin <<lit/13-tangle.md|parse-attributes>>[0]
+-- ~\~ begin <<lit/13-tangle.md|parse-attributes>>[init]
 attributes :: (MonadParsec e Text m)
            => m [CodeProperty]
 attributes = (  codeClass

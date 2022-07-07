@@ -1,5 +1,5 @@
 -- ~\~ language=Haskell filename=src/Daemon.hs
--- ~\~ begin <<lit/10-daemon.md|daemon>>[0]
+-- ~\~ begin <<lit/10-daemon.md|daemon>>[init]
 {-# LANGUAGE NoImplicitPrelude,ScopedTypeVariables #-}
 module Daemon where
 
@@ -8,7 +8,7 @@ import RIO.List (sort)
 import RIO.Writer (tell)
 import qualified RIO.Text as T
 
--- ~\~ begin <<lit/10-daemon.md|daemon-imports>>[0]
+-- ~\~ begin <<lit/10-daemon.md|daemon-imports>>[init]
 import qualified System.FSNotify as FSNotify
 -- ~\~ end
 -- ~\~ begin <<lit/10-daemon.md|daemon-imports>>[1]
@@ -40,7 +40,7 @@ import RIO.Directory (makeRelativeToCurrentDirectory, canonicalizePath)
 import RIO.FilePath (equalFilePath, takeDirectory)
 -- ~\~ end
 
--- ~\~ begin <<lit/10-daemon.md|daemon-events>>[0]
+-- ~\~ begin <<lit/10-daemon.md|daemon-events>>[init]
 data DaemonState
     = Idle
     | Tangling
@@ -53,7 +53,7 @@ data Event
     | DebugEvent Text
     deriving (Show)
 -- ~\~ end
--- ~\~ begin <<lit/10-daemon.md|daemon-session>>[0]
+-- ~\~ begin <<lit/10-daemon.md|daemon-session>>[init]
 data Session = Session
     { watches       :: MVar [FSNotify.StopListening]
     , manager       :: FSNotify.WatchManager
@@ -82,7 +82,7 @@ setDaemonState s = do
     state <- asks daemonState
     modifyMVar_ state (const $ return s)
 -- ~\~ end
--- ~\~ begin <<lit/10-daemon.md|daemon-watches>>[0]
+-- ~\~ begin <<lit/10-daemon.md|daemon-watches>>[init]
 passEvent :: MVar DaemonState -> Chan Event
           -> [FilePath] -> [FilePath] -> FSNotify.Event -> IO ()
 passEvent _      _       _    _    FSNotify.Removed {} = return ()
@@ -129,14 +129,14 @@ closeWatch = do
     liftIO $ sequence_ stopActions
     logDebug "suspended watches"
 -- ~\~ end
--- ~\~ begin <<lit/10-daemon.md|daemon-main-loop>>[0]
+-- ~\~ begin <<lit/10-daemon.md|daemon-main-loop>>[init]
 tryEntangled :: (MonadReader env m, MonadUnliftIO m, MonadIO m, HasLogFunc env)
              => Maybe Doc -> Entangled env a -> m ()
 tryEntangled msg action = catch (void $ runEntangledHuman msg action)
                                 (\(err :: EntangledError) -> logError $ display $ formatError err)
 
 mainLoop :: Event -> Daemon ()
--- ~\~ begin <<lit/10-daemon.md|main-loop-cases>>[0]
+-- ~\~ begin <<lit/10-daemon.md|main-loop-cases>>[init]
 mainLoop (WriteSource abs_path) = do
     rel_path <- makeRelativeToCurrentDirectory abs_path
     logDebug $ display $ "tangle triggered on `" <> T.pack rel_path <> "`"
@@ -171,7 +171,7 @@ mainLoop (WriteTarget abs_path) = do
 mainLoop _ = return ()
 -- ~\~ end
 -- ~\~ end
--- ~\~ begin <<lit/10-daemon.md|daemon-start>>[0]
+-- ~\~ begin <<lit/10-daemon.md|daemon-start>>[init]
 printMsg :: Doc -> Daemon ()
 printMsg = liftIO . Console.putTerminal
 

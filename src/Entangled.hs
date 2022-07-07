@@ -1,5 +1,5 @@
 -- ~\~ language=Haskell filename=src/Entangled.hs
--- ~\~ begin <<lit/12-main.md|src/Entangled.hs>>[0]
+-- ~\~ begin <<lit/12-main.md|src/Entangled.hs>>[init]
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 module Entangled where

@@ -1,5 +1,5 @@
 -- ~\~ language=Haskell filename=src/ListStream.hs
--- ~\~ begin <<lit/a3-megaparsec.md|src/ListStream.hs>>[0]
+-- ~\~ begin <<lit/a3-megaparsec.md|src/ListStream.hs>>[init]
 {-# LANGUAGE NoImplicitPrelude #-}
 module ListStream where
 
@@ -9,16 +9,16 @@ import Text.Megaparsec ( Parsec, MonadParsec, token, parse, satisfy
                        , Stream (..), VisualStream (..), TraversableStream(..)
                        , PosState (..), SourcePos (..), mkPos, unPos )
 
--- ~\~ begin <<lit/a3-megaparsec.md|instance-list-stream>>[0]
+-- ~\~ begin <<lit/a3-megaparsec.md|instance-list-stream>>[init]
 newtype ListStream a = ListStream { unListStream :: [a] }
     deriving (Show, Foldable, Semigroup, Monoid, Functor, Applicative, Monad)
 
 instance (Eq a, Ord a, Show a) => Stream (ListStream a) where
-    -- ~\~ begin <<lit/a3-megaparsec.md|list-stream-associated-types>>[0]
+    -- ~\~ begin <<lit/a3-megaparsec.md|list-stream-associated-types>>[init]
     type Token (ListStream a) = a
     type Tokens (ListStream a) = [a]
     -- ~\~ end
-    -- ~\~ begin <<lit/a3-megaparsec.md|list-stream-methods>>[0]
+    -- ~\~ begin <<lit/a3-megaparsec.md|list-stream-methods>>[init]
     tokenToChunk Proxy = pure
     -- ~\~ end
     -- ~\~ begin <<lit/a3-megaparsec.md|list-stream-methods>>[1]
@@ -38,12 +38,12 @@ instance (Eq a, Ord a, Show a) => Stream (ListStream a) where
     -- ~\~ end
 
 instance (Eq a, Ord a, Show a) => VisualStream (ListStream a) where
-    -- ~\~ begin <<lit/a3-megaparsec.md|list-visual-stream-methods>>[0]
+    -- ~\~ begin <<lit/a3-megaparsec.md|list-visual-stream-methods>>[init]
     showTokens Proxy = show
     -- ~\~ end
 
 instance (Eq a, Ord a, Show a) => TraversableStream (ListStream a) where
-    -- ~\~ begin <<lit/a3-megaparsec.md|list-traversable-stream-methods>>[0]
+    -- ~\~ begin <<lit/a3-megaparsec.md|list-traversable-stream-methods>>[init]
     reachOffset offset state@PosState{..} = (Just repr, state')
         where sourcePos = offsetSourcePos (offset - pstateOffset) pstateSourcePos
               input     = ListStream $ drop (offset - pstateOffset) (unListStream pstateInput)
@@ -55,12 +55,12 @@ instance (Eq a, Ord a, Show a) => TraversableStream (ListStream a) where
     -- ~\~ end
 -- ~\~ end
 
--- ~\~ begin <<lit/a3-megaparsec.md|list-stream-helpers>>[0]
+-- ~\~ begin <<lit/a3-megaparsec.md|list-stream-helpers>>[init]
 offsetSourcePos :: Int -> SourcePos -> SourcePos
 offsetSourcePos offset sourcePos@SourcePos{..}
     = sourcePos { sourceLine = mkPos (unPos sourceLine + offset) }
 -- ~\~ end
--- ~\~ begin <<lit/a3-megaparsec.md|line-parser>>[0]
+-- ~\~ begin <<lit/a3-megaparsec.md|line-parser>>[init]
 type LineParser = Parsec Void Text
 
 parseLine :: LineParser a -> Text -> Maybe (a, Text)

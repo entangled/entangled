@@ -1,12 +1,12 @@
 -- ~\~ language=Haskell filename=src/Comment.hs
--- ~\~ begin <<lit/13-tangle.md|src/Comment.hs>>[0]
+-- ~\~ begin <<lit/13-tangle.md|src/Comment.hs>>[init]
 {-# LANGUAGE NoImplicitPrelude,TupleSections #-}
 module Comment where
 
 import RIO
 import qualified RIO.Text as T
 
--- ~\~ begin <<lit/13-tangle.md|comment-imports>>[0]
+-- ~\~ begin <<lit/13-tangle.md|comment-imports>>[init]
 import Control.Monad.Except
 
 -- ~\~ end
@@ -29,7 +29,7 @@ import Text.Megaparsec.Char.Lexer ( decimal )
 import Attributes (attributes, cssIdentifier, cssValue)
 -- ~\~ end
 
--- ~\~ begin <<lit/13-tangle.md|generate-comment>>[0]
+-- ~\~ begin <<lit/13-tangle.md|generate-comment>>[init]
 delim :: Text
 delim = " ~\\~ "
 -- ~\~ end
@@ -119,7 +119,7 @@ headerComment :: ConfigLanguage -> FilePath -> Text
 headerComment lang path = formatComment lang
     $ "language=" <> languageName lang <> " filename=" <> T.pack path
 -- ~\~ end
--- ~\~ begin <<lit/13-tangle.md|parse-comment>>[0]
+-- ~\~ begin <<lit/13-tangle.md|parse-comment>>[init]
 topHeader :: ( MonadParsec e Text m )
           => m [CodeProperty]
 topHeader = do

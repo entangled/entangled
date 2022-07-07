@@ -1,5 +1,5 @@
 -- ~\~ language=Haskell filename=src/Document.hs
--- ~\~ begin <<lit/02-document-model.md|src/Document.hs>>[0]
+-- ~\~ begin <<lit/02-document-model.md|src/Document.hs>>[init]
 {-# LANGUAGE NoImplicitPrelude #-}
 module Document
     ( module Document
@@ -11,7 +11,7 @@ import qualified RIO.Set as S
 import qualified RIO.Map as M
 import Errors
 
--- ~\~ begin <<lit/02-document-model.md|document-structure>>[0]
+-- ~\~ begin <<lit/02-document-model.md|document-structure>>[init]
 newtype ReferenceName = ReferenceName
     { unReferenceName :: Text
     } deriving (Show, Eq, Ord, Display)

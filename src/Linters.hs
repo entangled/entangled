@@ -1,5 +1,5 @@
 -- ~\~ language=Haskell filename=src/Linters.hs
--- ~\~ begin <<lit/a5-linting.md|src/Linters.hs>>[0]
+-- ~\~ begin <<lit/a5-linting.md|src/Linters.hs>>[init]
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Linters where

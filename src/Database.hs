@@ -1,5 +1,5 @@
 -- ~\~ language=Haskell filename=src/Database.hs
--- ~\~ begin <<lit/03-database.md|src/Database.hs>>[0]
+-- ~\~ begin <<lit/03-database.md|src/Database.hs>>[init]
 module Database where
 
 import RIO
@@ -7,7 +7,7 @@ import RIO.List (initMaybe, sortOn)
 import qualified RIO.Text as T
 import qualified RIO.Map as M
 
--- ~\~ begin <<lit/03-database.md|database-imports>>[0]
+-- ~\~ begin <<lit/03-database.md|database-imports>>[init]
 import Paths_entangled
 
 import Database.SQLite.Simple
@@ -20,7 +20,7 @@ import Document
 import Config
 import Select (select)
 -- ~\~ end
--- ~\~ begin <<lit/03-database.md|database-types>>[0]
+-- ~\~ begin <<lit/03-database.md|database-types>>[init]
 class HasConnection env where
     connection :: Lens' env Connection
 
@@ -67,7 +67,7 @@ withTransactionM t = do
     conn <- getConnection
     liftIO $ withTransaction conn (runSQL' env t)
 -- ~\~ end
--- ~\~ begin <<lit/03-database.md|database-create>>[0]
+-- ~\~ begin <<lit/03-database.md|database-create>>[init]
 schema :: IO [Query]
 schema = do
     schema_path <- getDataFileName "data/schema.sql"
@@ -79,7 +79,7 @@ createTables = do
     conn <- getConnection
     liftIO $ schema >>= mapM_ (execute_ conn)
 -- ~\~ end
--- ~\~ begin <<lit/03-database.md|database-insertion>>[0]
+-- ~\~ begin <<lit/03-database.md|database-insertion>>[init]
 insertCode' :: (Text, Int, Text, Maybe Text, Int64, Maybe Int) -> [CodeProperty] -> SQL ()
 insertCode' tup attrs =  do
     conn <- getConnection
@@ -189,7 +189,7 @@ insertTargets docId files = do
     where targetRow (path, (ReferenceName name, lang)) = (path, name, lang, docId)
           rows = map targetRow (M.toList files)
 -- ~\~ end
--- ~\~ begin <<lit/03-database.md|database-update>>[0]
+-- ~\~ begin <<lit/03-database.md|database-update>>[init]
 getDocumentId :: FilePath -> SQL (Maybe Int64)
 getDocumentId rel_path = do
         conn <- getConnection
@@ -245,7 +245,7 @@ updateCode (ref, CodeBlock {codeSource}) = do
 updateTarget :: [ReferencePair] -> SQL ()
 updateTarget refs = withTransactionM $ mapM_ updateCode refs
 -- ~\~ end
--- ~\~ begin <<lit/03-database.md|database-queries>>[0]
+-- ~\~ begin <<lit/03-database.md|database-queries>>[init]
 listOrphanTargets :: SQL [FilePath]
 listOrphanTargets = do
     conn <- getConnection
@@ -302,7 +302,7 @@ queryReferenceMap cfg = do
             return ( ReferenceId rel_path (ReferenceName name) ordinal
                    , CodeBlock lang' [] source linenum )
 -- ~\~ end
--- ~\~ begin <<lit/03-database.md|database-deduplicate>>[0]
+-- ~\~ begin <<lit/03-database.md|database-deduplicate>>[init]
 deduplicateRefs :: [ReferencePair] -> SQL [ReferencePair]
 deduplicateRefs refs = dedup $ sortOn fst refs
     where dedup [] = return []

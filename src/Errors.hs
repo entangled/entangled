@@ -1,5 +1,5 @@
 -- ~\~ language=Haskell filename=src/Errors.hs
--- ~\~ begin <<lit/01-entangled.md|src/Errors.hs>>[0]
+-- ~\~ begin <<lit/01-entangled.md|src/Errors.hs>>[init]
 {-# LANGUAGE NoImplicitPrelude #-}
 module Errors where
 

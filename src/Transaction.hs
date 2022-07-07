@@ -1,17 +1,17 @@
 -- ~\~ language=Haskell filename=src/Transaction.hs
--- ~\~ begin <<lit/a4-fileio.md|src/Transaction.hs>>[0]
+-- ~\~ begin <<lit/a4-fileio.md|src/Transaction.hs>>[init]
 {-# LANGUAGE NoImplicitPrelude,UndecidableInstances #-}
 module Transaction where
 
 import RIO
 import qualified RIO.Text as T
--- ~\~ begin <<lit/a4-fileio.md|transaction-imports>>[0]
+-- ~\~ begin <<lit/a4-fileio.md|transaction-imports>>[init]
 import Console (Doc, group, msgCreate, msgDelete, msgWrite)
 import qualified Console
 import qualified Data.Text.IO as T.IO
 -- ~\~ end
 
--- ~\~ begin <<lit/a4-fileio.md|transaction>>[0]
+-- ~\~ begin <<lit/a4-fileio.md|transaction>>[init]
 data Description = Message Doc
                  | CreateFile FilePath
                  | WriteFile FilePath
