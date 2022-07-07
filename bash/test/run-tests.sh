@@ -1,5 +1,6 @@
 #!/bin/bash
 
+shopt -s globstar
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 PROJECT_ROOT="${DIR}/../.."
 EXIT_CODE=0
@@ -50,6 +51,11 @@ function setup() {
         # TMPDIR=$(mktemp --tmpdir -d entangled-test-XXXXXXXX)
         echo "Setting up in ${TMPDIR} ..."
         cp "${DIR}"/*.{md,diff,test,dhall} "${TMPDIR}"
+        for d in "${DIR}"/*; do
+                if [ -d "$d" ]; then
+                        cp -r "$d" "${TMPDIR}"
+                fi
+        done
         pushd "${TMPDIR}" > /dev/null
 }
 

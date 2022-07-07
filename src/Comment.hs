@@ -1,6 +1,6 @@
 -- ~\~ language=Haskell filename=src/Comment.hs
 -- ~\~ begin <<lit/13-tangle.md|src/Comment.hs>>[0]
-{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE NoImplicitPrelude,TupleSections #-}
 module Comment where
 
 import RIO
@@ -66,9 +66,10 @@ formatComment lang text = pre <> text <> post
           post = maybe "" (" " <>) $ commentEnd $ languageComment lang
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|generate-comment>>[2]
-standardPreComment :: ReferenceId -> Text
-standardPreComment (ReferenceId file (ReferenceName name) count) =
-    "begin <<" <> T.pack file <> "|" <> name <> ">>[" <> tshow count <> "]"
+standardPreComment :: Bool -> ReferenceId -> Text
+standardPreComment init (ReferenceId file (ReferenceName name) count) =
+    "begin <<" <> T.pack file <> "|" <> name <> ">>[" <> counter <> "]"
+    where counter = if init then "init" else tshow count
 
 getReference :: (MonadError EntangledError m) => ReferenceMap -> ReferenceId -> m CodeBlock
 getReference refs ref = maybe (throwError $ ReferenceError $ "not found: " <> tshow ref)
@@ -86,8 +87,8 @@ lineDirective ref code = do
                                                        , ("filename"          , T.pack (referenceFile ref))])
 
 annotateNaked :: (MonadReader Config m, MonadError EntangledError m)
-              => ReferenceMap -> ReferenceId -> m Text
-annotateNaked refs ref = do
+              => ReferenceMap -> Bool -> ReferenceId -> m Text
+annotateNaked refs _ ref = do
     Config{..} <- ask
     code <- getReference refs ref
     if configUseLineDirectives then do
@@ -96,21 +97,21 @@ annotateNaked refs ref = do
     else return $ codeSource code
 
 annotateComment :: (MonadReader Config m, MonadError EntangledError m)
-                => ReferenceMap -> ReferenceId -> m Text
-annotateComment refs ref = do
+                => ReferenceMap -> Bool -> ReferenceId -> m Text
+annotateComment refs init ref = do
     code <- getReference refs ref
-    naked <- annotateNaked refs ref
-    pre <- comment (codeLanguage code) $ standardPreComment ref
+    naked <- annotateNaked refs init ref
+    pre <- comment (codeLanguage code) $ standardPreComment init ref
     post <- comment (codeLanguage code) "end"
     return $ unlines' [pre, naked, post]
 
 annotateProject :: (MonadReader Config m, MonadError EntangledError m)
-                => ReferenceMap -> ReferenceId -> m Text
-annotateProject refs ref@(ReferenceId file _ _) = do
+                => ReferenceMap -> Bool -> ReferenceId -> m Text
+annotateProject refs init ref@(ReferenceId file _ _) = do
     code <- getReference refs ref
-    naked <- annotateNaked refs ref
+    naked <- annotateNaked refs init ref
     let line = fromMaybe 0 (codeLineNumber code)
-    pre  <- comment (codeLanguage code) (standardPreComment ref <> " project://" <> T.pack file <> "#" <> tshow line)
+    pre  <- comment (codeLanguage code) (standardPreComment init ref <> " project://" <> T.pack file <> "#" <> tshow line)
     post <- comment (codeLanguage code) "end"
     return $ unlines' [pre, naked, post]
 
@@ -142,18 +143,21 @@ commented lang p = do
     return (x, indent)
 -- ~\~ end
 -- ~\~ begin <<lit/13-tangle.md|parse-comment>>[2]
+countOrInit :: (MonadParsec e Text m) => m (Int, Bool)
+countOrInit = ((0, True) <$ chunk "init") <|> ((, False) <$> decimal)
+
 beginBlock :: (MonadParsec e Text m)
-           => m ReferenceId
+           => m (ReferenceId, Bool)
 beginBlock = do
     _ <- chunk "begin <<"
     doc  <- cssValue
     _ <- chunk "|"
     name <- cssIdentifier
     _ <- chunk ">>["
-    count <- decimal
+    (count, init) <- countOrInit
     _ <- chunk "]"
     _ <- takeRest
-    return $ ReferenceId (T.unpack doc) (ReferenceName name) count
+    return (ReferenceId (T.unpack doc) (ReferenceName name) count, init)
 
 endBlock :: (MonadParsec e Text m)
          => m ()
