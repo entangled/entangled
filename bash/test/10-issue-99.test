@@ -4,9 +4,7 @@ cp -r lpl lpl.bak
 entangled insert -s lpl/*
 entangled tangle -ad
 entangled insert -t c.ts
-for f in lpl/*; do
-        entangled stitch $f > $f
-done
+entangled stitch -a
 
 for f in lpl/*; do
         diff "$f" "lpl.bak/$(basename $f)"
@@ -16,9 +14,7 @@ done
 entangled insert -s lpl/*
 entangled tangle -ad
 entangled insert -t c.ts
-for f in lpl/*; do
-        entangled stitch $f > $f
-done
+entangled stitch -a
 
 for f in lpl/*; do
         diff "$f" "lpl.bak/$(basename $f)"
