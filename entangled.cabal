@@ -98,6 +98,7 @@ executable entangled
       Commands.Common
       Commands.ClearOrphans
       Commands.Config
+      Commands.Init
       Commands.Insert
       Commands.Lint
       Commands.List

@@ -37,6 +37,7 @@ import qualified Commands.Rules
 import qualified Commands.Tangle
 import qualified Commands.Stitch
 import qualified Commands.Milkshake
+import qualified Commands.Init
 
 -- ~\~ begin <<lit/12-main.md|main-options>>[init]
 data SubCommand
@@ -67,6 +68,7 @@ data SubCommand
     -- ~\~ end
     | CommandRules
     | CommandMilkshake Commands.Milkshake.Args
+    | CommandInit Commands.Init.Args
     deriving (Show, Eq)
 -- ~\~ end
 -- ~\~ begin <<lit/12-main.md|main-options>>[1]
@@ -107,6 +109,8 @@ parseSubCommand = ( subparser ( mempty
                                    (progDesc "get build rules"))
           <> command "milkshake" (info (CommandMilkshake <$> Commands.Milkshake.parseArgs)
                                        (progDesc "Run milkshake loop"))
+          <> command "init" (info (CommandInit <$> Commands.Init.parseArgs)
+                                  (progDesc "Initialize a new Entangled project"))
         ) <|> parseNoCommand )
 -- ~\~ end
 -- ~\~ begin <<lit/12-main.md|main-options>>[2]
@@ -168,6 +172,7 @@ run args@Common.Args{..} =
       CommandRules    -> Common.withEnv args $ Common.withEntangled args Commands.Rules.run
       CommandTangle x -> Common.withEnv args $ Common.withEntangled args $ Commands.Tangle.run x
       CommandStitch x -> Common.withEnv args $ Common.withEntangled args $ Commands.Stitch.run x
+      CommandInit x   -> Commands.Init.run (args { Common.subArgs = x })
       _               -> Common.withEnv args $ Common.withEntangled args (runSubCommand subArgs)
 
 runSubCommand :: (HasConfig env, HasLogFunc env, HasConnection env)
