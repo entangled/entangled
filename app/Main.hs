@@ -1,5 +1,5 @@
 -- ~\~ language=Haskell filename=app/Main.hs
--- ~\~ begin <<lit/12-main.md|app/Main.hs>>[0]
+-- ~\~ begin <<lit/12-main.md|app/Main.hs>>[init]
 {-# LANGUAGE NoImplicitPrelude #-}
 module Main where
 
@@ -13,7 +13,7 @@ import qualified Data.Text.IO as T.IO
 import Paths_entangled
 import Data.Version (showVersion)
 
--- ~\~ begin <<lit/12-main.md|main-imports>>[0]
+-- ~\~ begin <<lit/12-main.md|main-imports>>[init]
 import GHC.IO.Encoding
 -- ~\~ end
 -- ~\~ begin <<lit/12-main.md|main-imports>>[1]
@@ -36,7 +36,7 @@ import Entangled
 import Errors (EntangledError(..))
 import Linters
 
--- ~\~ begin <<lit/12-main.md|main-options>>[0]
+-- ~\~ begin <<lit/12-main.md|main-options>>[init]
 data Args = Args
     { versionFlag :: Bool
     , verboseFlag :: Bool
@@ -47,7 +47,7 @@ data Args = Args
 
 data SubCommand
     = NoCommand
-    -- ~\~ begin <<lit/12-main.md|sub-commands>>[0]
+    -- ~\~ begin <<lit/12-main.md|sub-commands>>[init]
     | CommandDaemon DaemonArgs
     -- ~\~ end
     -- ~\~ begin <<lit/12-main.md|sub-commands>>[1]
@@ -85,7 +85,7 @@ parseArgs = Args
     <*> switch (long "check"   <> short 'c' <> help "Don't do anything, returns 1 if changes would be made to file system.")
     <*> switch (long "preinsert" <> short 'p' <> help "Tangle everything as a first action, default when db is in-memory.")
     <*> ( subparser ( mempty
-          -- ~\~ begin <<lit/12-main.md|sub-parsers>>[0]
+          -- ~\~ begin <<lit/12-main.md|sub-parsers>>[init]
           <>  command "daemon" (info parseDaemonArgs ( progDesc "Run the entangled daemon." ))
           -- ~\~ end
           -- ~\~ begin <<lit/12-main.md|sub-parsers>>[1]
@@ -194,7 +194,7 @@ parseLintArgs = LintArgs
 
 main :: IO ()
 main = do
-    -- ~\~ begin <<lit/12-main.md|main-set-encoding>>[0]
+    -- ~\~ begin <<lit/12-main.md|main-set-encoding>>[init]
     setLocaleEncoding utf8
     -- ~\~ end
     run =<< execParser args
@@ -204,7 +204,7 @@ main = do
             <> header   "Entangled -- daemonised literate programming"
             )
 
--- ~\~ begin <<lit/12-main.md|main-run>>[0]
+-- ~\~ begin <<lit/12-main.md|main-run>>[init]
 data Env = Env
     { connection' :: Connection
     , config'     :: Config
@@ -258,7 +258,7 @@ runSubCommand sc = do
     db createTables
     case sc of
         NoCommand -> return ()
-        -- ~\~ begin <<lit/12-main.md|sub-runners>>[0]
+        -- ~\~ begin <<lit/12-main.md|sub-runners>>[init]
         CommandDaemon DaemonArgs {..} -> runSession inputFiles
         -- ~\~ end
         -- ~\~ begin <<lit/12-main.md|sub-runners>>[1]

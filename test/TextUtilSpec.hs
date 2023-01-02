@@ -1,8 +1,8 @@
 -- ~\~ language=Haskell filename=test/TextUtilSpec.hs
--- ~\~ begin <<lit/a6-text-utils.md|test/TextUtilSpec.hs>>[0]
+-- ~\~ begin <<lit/a6-text-utils.md|test/TextUtilSpec.hs>>[init]
 module TextUtilSpec where
 
--- ~\~ begin <<lit/a6-text-utils.md|import-text>>[0]
+-- ~\~ begin <<lit/a6-text-utils.md|import-text>>[init]
 import RIO (Text)
 import qualified RIO.Text as T
 -- ~\~ end
@@ -15,13 +15,13 @@ import TextUtil
 
 propUnlines :: Maybe Text -> Bool
 propUnlines t =
-    -- ~\~ begin <<lit/a6-text-utils.md|test-unlines-inverse>>[0]
+    -- ~\~ begin <<lit/a6-text-utils.md|test-unlines-inverse>>[init]
     t == mUnlines (mLines t)
     -- ~\~ end
 
 propUnlineLists :: ([Text], [Text]) -> Bool
 propUnlineLists (a, b) =
-    -- ~\~ begin <<lit/a6-text-utils.md|test-unlines-associative>>[0]
+    -- ~\~ begin <<lit/a6-text-utils.md|test-unlines-associative>>[init]
     mUnlines (catMaybes [mUnlines a, mUnlines b]) == mUnlines (a <> b)
     -- ~\~ end
 

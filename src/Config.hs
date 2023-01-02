@@ -1,5 +1,5 @@
 -- ~\~ language=Haskell filename=src/Config.hs
--- ~\~ begin <<lit/04-configuration.md|src/Config.hs>>[0]
+-- ~\~ begin <<lit/04-configuration.md|src/Config.hs>>[init]
 {-# LANGUAGE NoImplicitPrelude #-}
 module Config ( module Config
               , module Version_1_4_0
@@ -24,7 +24,7 @@ import Config.Record
 import Errors
 import Select
 
--- ~\~ begin <<lit/04-configuration.md|config-input>>[0]
+-- ~\~ begin <<lit/04-configuration.md|config-input>>[init]
 findFileAscending :: String -> IO (Maybe FilePath)
 findFileAscending filename = do
     path <- dropTrailingPathSeparator <$> getCurrentDirectory
@@ -47,7 +47,7 @@ readLocalConfig = do
         , ( version == "1.4.0", return $ input Version_1_4_0.configDecoder ) ]
     decoder $ "(" <> T.pack cfg_path <> ").entangled"
 -- ~\~ end
--- ~\~ begin <<lit/04-configuration.md|config-reader>>[0]
+-- ~\~ begin <<lit/04-configuration.md|config-reader>>[init]
 lookupLanguage :: Config -> Text -> Maybe ConfigLanguage
 lookupLanguage cfg x
     = find (elem x . languageIdentifiers)

@@ -1,10 +1,10 @@
 -- ~\~ language=Dhall filename=data/config-schema.dhall
--- ~\~ begin <<lit/04-configuration.md|data/config-schema.dhall>>[0]
+-- ~\~ begin <<lit/04-configuration.md|data/config-schema.dhall>>[init]
 let Comment : Type = < Line : Text | Block : { start : Text, end : Text } >
 let Language : Type = { name : Text, identifiers : List Text, comment : Comment }
 let LineDirective : Type = { name : Text, format: Text }
 
--- ~\~ begin <<lit/04-configuration.md|config-comment-styles>>[0]
+-- ~\~ begin <<lit/04-configuration.md|config-comment-styles>>[init]
 let comments =
     { hash         = Comment.Line "#"
     , lispStyle    = Comment.Line ";"
@@ -16,7 +16,7 @@ let comments =
     , texStyle     = Comment.Line "%"
     }
 -- ~\~ end
--- ~\~ begin <<lit/04-configuration.md|config-languages>>[0]
+-- ~\~ begin <<lit/04-configuration.md|config-languages>>[init]
 let languages =
     [ { name = "Awk",        identifiers = ["awk"],           comment = comments.hash }
     , { name = "Bash",       identifiers = ["bash", "sh"],    comment = comments.hash }

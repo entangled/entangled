@@ -21,7 +21,6 @@ import Database.SQLite.Simple (query_, query, fromOnly, Only(..))
 -- import Entangled
 import Document (ReferenceMap, ReferenceName(..), codeBlocksByName, CodeBlock(..), referenceNames)
 import Database (HasConnection, db, queryReferenceMap, getConnection)
-import Daemon (Session)
 import Config (HasConfig, config)
 import Tangle (parseCode, CodeLine(..))
 -- import FileIO
@@ -31,12 +30,12 @@ data LinterOutput = LinterOutput
     { linterErr :: Bool
     , linterWho :: Text
     , linterMsg :: Text
-    } deriving (Show)
+    } deriving (Show, Eq)
 
 newtype Linter env a = Linter { unLinter :: WriterT [LinterOutput] (RIO env) a }
     deriving (Applicative, Functor, Monad, MonadIO, MonadThrow, MonadReader env, MonadWriter [LinterOutput])
 
-data LinterResult = LinterFail [LinterOutput] | LinterSuccess deriving (Show)
+data LinterResult = LinterFail [LinterOutput] | LinterSuccess deriving (Show, Eq)
 instance Semigroup LinterResult where
     LinterFail a <> LinterFail b = LinterFail (a <> b)
     LinterSuccess <> b = b
@@ -137,7 +136,7 @@ linters = M.fromList
     , ("listUnusedFragments", listUnusedFragments) ]
 
 allLinters :: [Text]
-allLinters  = M.keys (linters :: Map Text (Linter Session ()))
+allLinters  = [ "dumpToGraphViz", "checkCycles", "listUnusedFragments" ]
 
 lint :: (HasConnection env, HasLogFunc env, HasConfig env)
      => [Text] -> RIO env LinterResult

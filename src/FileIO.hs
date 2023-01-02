@@ -1,10 +1,10 @@
 -- ~\~ language=Haskell filename=src/FileIO.hs
--- ~\~ begin <<lit/a4-fileio.md|src/FileIO.hs>>[0]
+-- ~\~ begin <<lit/a4-fileio.md|src/FileIO.hs>>[init]
 {-# LANGUAGE NoImplicitPrelude #-}
 module FileIO where
 
 import RIO
--- ~\~ begin <<lit/a4-fileio.md|file-io-imports>>[0]
+-- ~\~ begin <<lit/a4-fileio.md|file-io-imports>>[init]
 import qualified RIO.Text as T
 
 import Errors (EntangledError(SystemError))
@@ -27,7 +27,7 @@ class Monad m => MonadFileIO m where
     readFile :: FilePath -> m Text
     dump :: Text -> m ()
 
--- ~\~ begin <<lit/a4-fileio.md|file-io-prim>>[0]
+-- ~\~ begin <<lit/a4-fileio.md|file-io-prim>>[init]
 ensurePath :: (MonadIO m, MonadReader env m, HasLogFunc env)
            => FilePath -> m ()
 ensurePath path = selectM (return ())
@@ -70,7 +70,7 @@ dump' :: (MonadIO m, MonadReader env m, HasLogFunc env)
 dump' text = logDebug "dumping to stdio"
          >> B.hPutStr stdout (T.encodeUtf8 text)
 -- ~\~ end
--- ~\~ begin <<lit/a4-fileio.md|file-io-instance>>[0]
+-- ~\~ begin <<lit/a4-fileio.md|file-io-instance>>[init]
 newtype FileIO env a = FileIO { unFileIO :: RIO env a }
     deriving (Applicative, Functor, Semigroup, Monoid, Monad, MonadIO, MonadThrow, MonadReader env)
 

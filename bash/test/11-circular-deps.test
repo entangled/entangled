@@ -1,0 +1,3 @@
+entangled insert -s circular-deps/test.md
+entangled tangle -r hello
+assert-return-fail "Circular deps are detected" $?

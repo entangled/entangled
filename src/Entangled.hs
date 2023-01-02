@@ -1,5 +1,5 @@
 -- ~\~ language=Haskell filename=src/Entangled.hs
--- ~\~ begin <<lit/12-main.md|src/Entangled.hs>>[0]
+-- ~\~ begin <<lit/12-main.md|src/Entangled.hs>>[init]
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 module Entangled where
@@ -27,6 +27,7 @@ import Comment (headerComment)
 import Document (ReferenceName(..))
 import Tangle (ExpandedCode, Annotator, expandedCode, parseMarkdown')
 import Stitch (untangle)
+import qualified Linters
 
 type FileTransaction env = Transaction (FileIO env)
 
@@ -119,6 +120,9 @@ tangleFile codes path = do
 tangle :: (HasConnection env, HasLogFunc env, HasConfig env)
        => TangleQuery -> Annotator (Entangled env) -> Entangled env ()
 tangle query annotate = do
+    check_cycles <- liftRIO $ Linters.runLinter Linters.checkCycles
+    unless (check_cycles == Linters.LinterSuccess)
+        (throwM $ TangleError $ "Could not tangle due to dependency cycle.")
     cfg <- view config
     refs <- db (queryReferenceMap cfg)
     let codes = expandedCode annotate refs

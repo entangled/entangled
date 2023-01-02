@@ -1,18 +1,18 @@
 -- ~\~ language=Haskell filename=src/Config/Record.hs
--- ~\~ begin <<lit/04-configuration.md|src/Config/Record.hs>>[0]
+-- ~\~ begin <<lit/04-configuration.md|src/Config/Record.hs>>[init]
 {-# LANGUAGE NoImplicitPrelude #-}
 module Config.Record where
 
 import RIO
 import qualified RIO.Map as M
 
--- ~\~ begin <<lit/04-configuration.md|config-imports>>[0]
+-- ~\~ begin <<lit/04-configuration.md|config-imports>>[init]
 import Dhall (FromDhall, ToDhall, auto, Decoder, record, list
              , field, constructor, unit, union)
 
 import qualified Format
 -- ~\~ end
--- ~\~ begin <<lit/04-configuration.md|config-dhall-schema>>[0]
+-- ~\~ begin <<lit/04-configuration.md|config-dhall-schema>>[init]
 data ConfigComment
     = Line  Text
     | Block { start :: Text, end :: Text }
